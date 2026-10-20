@@ -6,49 +6,51 @@
 # CMake configures, which a build redoes when a file in this directory changes.
 #
 # Cache variables, the executables to test with, which select the self-tests registered:
-#   CXXDV_GDB         gdb, for the tests with gdb, natively (GDB 14 and later) and through
-#                     OpenDebugAD7
-#   CXXDV_LLDB_DAP    lldb-dap (or lldb-vscode), for the tests with lldb
-#   CXXDV_VS_ADAPTER  OpenDebugAD7, the Visual Studio debug adapter, for the tests through it;
-#                     needs CXXDV_GDB, as the adapter runs gdb
+#   CXXDEBVIS_GDB         gdb, for the tests with gdb, natively (GDB 14 and later) and through
+#                         OpenDebugAD7
+#   CXXDEBVIS_LLDB_DAP    lldb-dap (or lldb-vscode), for the tests with lldb
+#   CXXDEBVIS_VS_ADAPTER  OpenDebugAD7, the Visual Studio debug adapter, for the tests through
+#                         it; needs CXXDEBVIS_GDB, as the adapter runs gdb
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
-# registered. At least one of CXXDV_GDB and CXXDV_LLDB_DAP must be set.
+# registered. At least one of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP must be set.
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
-set(CXXDV_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
-set(CXXDV_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
-set(CXXDV_VS_ADAPTER "" CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_VS_ADAPTER ""
+    CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
 
 # The full path of each executable given, as <variable>_PATH; empty if not given.
-foreach(cxxdv_var IN ITEMS CXXDV_GDB CXXDV_LLDB_DAP CXXDV_VS_ADAPTER)
-  set(cxxdv_value "${${cxxdv_var}}")
-  set(${cxxdv_var}_PATH "")
-  if(cxxdv_value STREQUAL "")
+foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_VS_ADAPTER)
+  set(cxxdebvis_value "${${cxxdebvis_var}}")
+  set(${cxxdebvis_var}_PATH "")
+  if(cxxdebvis_value STREQUAL "")
     continue()
-  elseif(IS_ABSOLUTE "${cxxdv_value}")
-    if(NOT EXISTS "${cxxdv_value}" OR IS_DIRECTORY "${cxxdv_value}")
-      message(FATAL_ERROR "${cxxdv_var}: ${cxxdv_value} is not a file")
+  elseif(IS_ABSOLUTE "${cxxdebvis_value}")
+    if(NOT EXISTS "${cxxdebvis_value}" OR IS_DIRECTORY "${cxxdebvis_value}")
+      message(FATAL_ERROR "${cxxdebvis_var}: ${cxxdebvis_value} is not a file")
     endif()
-    set(${cxxdv_var}_PATH "${cxxdv_value}")
-  elseif(cxxdv_value MATCHES "[/\\\\]")
-    message(FATAL_ERROR "${cxxdv_var}: ${cxxdv_value} is neither an absolute path nor a name")
+    set(${cxxdebvis_var}_PATH "${cxxdebvis_value}")
+  elseif(cxxdebvis_value MATCHES "[/\\\\]")
+    message(FATAL_ERROR
+            "${cxxdebvis_var}: ${cxxdebvis_value} is neither an absolute path nor a name")
   else()
-    unset(cxxdv_found CACHE)
-    find_program(cxxdv_found NAMES "${cxxdv_value}" NO_DEFAULT_PATH PATHS ENV PATH)
-    if(NOT cxxdv_found)
-      message(FATAL_ERROR "${cxxdv_var}: ${cxxdv_value} not found on PATH")
+    unset(cxxdebvis_found CACHE)
+    find_program(cxxdebvis_found NAMES "${cxxdebvis_value}" NO_DEFAULT_PATH PATHS ENV PATH)
+    if(NOT cxxdebvis_found)
+      message(FATAL_ERROR "${cxxdebvis_var}: ${cxxdebvis_value} not found on PATH")
     endif()
-    set(${cxxdv_var}_PATH "${cxxdv_found}")
-    unset(cxxdv_found CACHE)
+    set(${cxxdebvis_var}_PATH "${cxxdebvis_found}")
+    unset(cxxdebvis_found CACHE)
   endif()
 endforeach()
-if(NOT CXXDV_GDB_PATH AND NOT CXXDV_LLDB_DAP_PATH)
-  message(FATAL_ERROR "set CXXDV_GDB, CXXDV_LLDB_DAP or both to the debuggers to test with, e.g. "
-                      "-DCXXDV_GDB=gdb -DCXXDV_LLDB_DAP=lldb-dap")
+if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH)
+  message(FATAL_ERROR "set CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP or both to the debuggers to test "
+                      "with, e.g. -DCXXDEBVIS_GDB=gdb -DCXXDEBVIS_LLDB_DAP=lldb-dap")
 endif()
-if(CXXDV_VS_ADAPTER_PATH AND NOT CXXDV_GDB_PATH)
-  message(FATAL_ERROR "CXXDV_VS_ADAPTER needs CXXDV_GDB, as OpenDebugAD7 runs gdb")
+if(CXXDEBVIS_VS_ADAPTER_PATH AND NOT CXXDEBVIS_GDB_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_VS_ADAPTER needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
 endif()
 
 # The fixture program needs debug info and no optimizations: CMake's Debug configuration, whatever
@@ -68,14 +70,14 @@ target_include_directories(test_program PRIVATE "${PROJECT_SOURCE_DIR}/include")
 
 # The executables to test with; --list leaves out the integration tests of those not given.
 set(selftest_tools "")
-if(CXXDV_GDB_PATH)
-  list(APPEND selftest_tools --gdb "${CXXDV_GDB_PATH}")
+if(CXXDEBVIS_GDB_PATH)
+  list(APPEND selftest_tools --gdb "${CXXDEBVIS_GDB_PATH}")
 endif()
-if(CXXDV_LLDB_DAP_PATH)
-  list(APPEND selftest_tools --lldb-dap "${CXXDV_LLDB_DAP_PATH}")
+if(CXXDEBVIS_LLDB_DAP_PATH)
+  list(APPEND selftest_tools --lldb-dap "${CXXDEBVIS_LLDB_DAP_PATH}")
 endif()
-if(CXXDV_VS_ADAPTER_PATH)
-  list(APPEND selftest_tools --vs-adapter "${CXXDV_VS_ADAPTER_PATH}")
+if(CXXDEBVIS_VS_ADAPTER_PATH)
+  list(APPEND selftest_tools --vs-adapter "${CXXDEBVIS_VS_ADAPTER_PATH}")
 endif()
 set(selftest_args --program "$<TARGET_FILE:test_program>" ${selftest_tools})
 

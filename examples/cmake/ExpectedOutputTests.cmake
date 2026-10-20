@@ -29,13 +29,13 @@
 # review or to copy over the expected file, and a diff is printed.
 #
 # Cache variables, the executables to test with, which select the tests registered:
-#   CXXDV_GDB         gdb, for the tests with gdb, natively (GDB 14 and later) and through
-#                     OpenDebugAD7
-#   CXXDV_LLDB_DAP    lldb-dap (or lldb-vscode), for the tests with lldb
-#   CXXDV_VS_ADAPTER  OpenDebugAD7, the Visual Studio debug adapter, for the tests through it;
-#                     needs CXXDV_GDB, as the adapter runs gdb
+#   CXXDEBVIS_GDB         gdb, for the tests with gdb, natively (GDB 14 and later) and through
+#                         OpenDebugAD7
+#   CXXDEBVIS_LLDB_DAP    lldb-dap (or lldb-vscode), for the tests with lldb
+#   CXXDEBVIS_VS_ADAPTER  OpenDebugAD7, the Visual Studio debug adapter, for the tests through
+#                         it; needs CXXDEBVIS_GDB, as the adapter runs gdb
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
-# registered. At least one of CXXDV_GDB and CXXDV_LLDB_DAP must be set.
+# registered. At least one of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP must be set.
 #
 # The test programs need debug info and no optimizations, so that each `visualize(x);` line
 # compiles to code of its own: CMake's Debug configuration, whatever the compiler. A
@@ -49,39 +49,41 @@ set(CXX_DEBUG_VISUALIZE_COMMAND
     "${CMAKE_COMMAND}" -E env "PYTHONPATH=${CXX_DEBUG_VISUALIZE_ROOT}"
     "${Python3_EXECUTABLE}" -m cxx_debug_visualize)
 
-set(CXXDV_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
-set(CXXDV_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
-set(CXXDV_VS_ADAPTER "" CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_VS_ADAPTER ""
+    CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
 
 # The full path of each executable given, as <variable>_PATH; empty if not given.
-foreach(cxxdv_var IN ITEMS CXXDV_GDB CXXDV_LLDB_DAP CXXDV_VS_ADAPTER)
-  set(cxxdv_value "${${cxxdv_var}}")
-  set(${cxxdv_var}_PATH "")
-  if(cxxdv_value STREQUAL "")
+foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_VS_ADAPTER)
+  set(cxxdebvis_value "${${cxxdebvis_var}}")
+  set(${cxxdebvis_var}_PATH "")
+  if(cxxdebvis_value STREQUAL "")
     continue()
-  elseif(IS_ABSOLUTE "${cxxdv_value}")
-    if(NOT EXISTS "${cxxdv_value}" OR IS_DIRECTORY "${cxxdv_value}")
-      message(FATAL_ERROR "${cxxdv_var}: ${cxxdv_value} is not a file")
+  elseif(IS_ABSOLUTE "${cxxdebvis_value}")
+    if(NOT EXISTS "${cxxdebvis_value}" OR IS_DIRECTORY "${cxxdebvis_value}")
+      message(FATAL_ERROR "${cxxdebvis_var}: ${cxxdebvis_value} is not a file")
     endif()
-    set(${cxxdv_var}_PATH "${cxxdv_value}")
-  elseif(cxxdv_value MATCHES "[/\\\\]")
-    message(FATAL_ERROR "${cxxdv_var}: ${cxxdv_value} is neither an absolute path nor a name")
+    set(${cxxdebvis_var}_PATH "${cxxdebvis_value}")
+  elseif(cxxdebvis_value MATCHES "[/\\\\]")
+    message(FATAL_ERROR
+            "${cxxdebvis_var}: ${cxxdebvis_value} is neither an absolute path nor a name")
   else()
-    unset(cxxdv_found CACHE)
-    find_program(cxxdv_found NAMES "${cxxdv_value}" NO_DEFAULT_PATH PATHS ENV PATH)
-    if(NOT cxxdv_found)
-      message(FATAL_ERROR "${cxxdv_var}: ${cxxdv_value} not found on PATH")
+    unset(cxxdebvis_found CACHE)
+    find_program(cxxdebvis_found NAMES "${cxxdebvis_value}" NO_DEFAULT_PATH PATHS ENV PATH)
+    if(NOT cxxdebvis_found)
+      message(FATAL_ERROR "${cxxdebvis_var}: ${cxxdebvis_value} not found on PATH")
     endif()
-    set(${cxxdv_var}_PATH "${cxxdv_found}")
-    unset(cxxdv_found CACHE)
+    set(${cxxdebvis_var}_PATH "${cxxdebvis_found}")
+    unset(cxxdebvis_found CACHE)
   endif()
 endforeach()
-if(NOT CXXDV_GDB_PATH AND NOT CXXDV_LLDB_DAP_PATH)
-  message(FATAL_ERROR "set CXXDV_GDB, CXXDV_LLDB_DAP or both to the debuggers to test with, e.g. "
-                      "-DCXXDV_GDB=gdb -DCXXDV_LLDB_DAP=lldb-dap")
+if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH)
+  message(FATAL_ERROR "set CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP or both to the debuggers to test "
+                      "with, e.g. -DCXXDEBVIS_GDB=gdb -DCXXDEBVIS_LLDB_DAP=lldb-dap")
 endif()
-if(CXXDV_VS_ADAPTER_PATH AND NOT CXXDV_GDB_PATH)
-  message(FATAL_ERROR "CXXDV_VS_ADAPTER needs CXXDV_GDB, as OpenDebugAD7 runs gdb")
+if(CXXDEBVIS_VS_ADAPTER_PATH AND NOT CXXDEBVIS_GDB_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_VS_ADAPTER needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
 endif()
 
 get_property(_visualizer_test_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -118,23 +120,23 @@ function(add_visualizer_test name)
   list(GET TV_SOURCES 0 test_source)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
-  set(gdb --debugger gdb --debugger-path "${CXXDV_GDB_PATH}")
-  if(TV_NATVIS AND CXXDV_VS_ADAPTER_PATH)
+  set(gdb --debugger gdb --debugger-path "${CXXDEBVIS_GDB_PATH}")
+  if(TV_NATVIS AND CXXDEBVIS_VS_ADAPTER_PATH)
     _add_visualizer_run(natvis ${name} "${test_source}" vs
                         --natvis "${TV_NATVIS}" ${gdb} ${TV_ARGS})
   endif()
-  if(TV_GDB_PRINTERS AND CXXDV_VS_ADAPTER_PATH)
+  if(TV_GDB_PRINTERS AND CXXDEBVIS_VS_ADAPTER_PATH)
     _add_visualizer_run(gdb-vs ${name} "${test_source}" vs
                         --gdb-printers "${TV_GDB_PRINTERS}" ${gdb} ${TV_ARGS})
   endif()
-  if(TV_GDB_PRINTERS AND CXXDV_GDB_PATH)
+  if(TV_GDB_PRINTERS AND CXXDEBVIS_GDB_PATH)
     _add_visualizer_run(gdb-native ${name} "${test_source}" native
                         --gdb-printers "${TV_GDB_PRINTERS}" ${gdb} ${TV_ARGS})
   endif()
-  if(TV_LLDB_FORMATTERS AND CXXDV_LLDB_DAP_PATH)
+  if(TV_LLDB_FORMATTERS AND CXXDEBVIS_LLDB_DAP_PATH)
     _add_visualizer_run(lldb-native ${name} "${test_source}" native
                         --lldb-formatters "${TV_LLDB_FORMATTERS}"
-                        --debugger lldb --debugger-path "${CXXDV_LLDB_DAP_PATH}" ${TV_ARGS})
+                        --debugger lldb --debugger-path "${CXXDEBVIS_LLDB_DAP_PATH}" ${TV_ARGS})
   endif()
 endfunction()
 
@@ -149,7 +151,7 @@ function(_add_visualizer_run kind name test_source adapter option file)
   set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
   set(run ${CXX_DEBUG_VISUALIZE_COMMAND} --adapter ${adapter})
   if(adapter STREQUAL "vs")
-    list(APPEND run --vs-adapter "${CXXDV_VS_ADAPTER_PATH}")
+    list(APPEND run --vs-adapter "${CXXDEBVIS_VS_ADAPTER_PATH}")
   endif()
   list(APPEND run ${option} "${file}" ${ARGN} "${test_source}")
 

@@ -108,9 +108,9 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCXXDV_GDB=gdb \
-            -DCXXDV_LLDB_DAP=lldb-dap-18 \
-            -DCXXDV_VS_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
+            -DCXXDEBVIS_GDB=gdb \
+            -DCXXDEBVIS_LLDB_DAP=lldb-dap-18 \
+            -DCXXDEBVIS_VS_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
 
           cmake --build build
           ctest --test-dir build --output-on-failure
