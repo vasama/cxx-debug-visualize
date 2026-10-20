@@ -14,12 +14,12 @@
 # Builds the program <name> with the repository's include/ directory, for cxx_debug_visualize.hpp,
 # and registers CTest tests labelled
 # "visualizers", which run <name> under cxx-debug-visualize:
-#   natvis.<name>       NATVIS, through the Visual Studio debug adapter (OpenDebugAD7)
-#   gdb-vs.<name>       GDB_PRINTERS, through OpenDebugAD7
-#   gdb-native.<name>   GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
-#   lldb-native.<name>  LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18)
+#   natvis-miengine.<name>  NATVIS, through the Visual Studio debug adapter (OpenDebugAD7)
+#   gdb-vs.<name>           GDB_PRINTERS, through OpenDebugAD7
+#   gdb-native.<name>       GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
+#   lldb-native.<name>      LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18)
 # Each compares the printed Variables trees with an expected output file next to the test
-# source, the first file in SOURCES: <test>.<kind>.txt, e.g. <test>.natvis.txt,
+# source, the first file in SOURCES: <test>.<kind>.txt, e.g. <test>.natvis-miengine.txt,
 # <test>.gdb-vs.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the output is
@@ -124,7 +124,7 @@ function(add_visualizer_test name)
 
   set(gdb --debugger gdb --debugger-path "${CXXDEBVIS_GDB_PATH}")
   if(TV_NATVIS AND CXXDEBVIS_VS_ADAPTER_PATH)
-    _add_visualizer_run(natvis ${name} "${test_source}" vs
+    _add_visualizer_run(natvis-miengine ${name} "${test_source}" vs
                         --natvis "${TV_NATVIS}" ${gdb} ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS AND CXXDEBVIS_VS_ADAPTER_PATH)
