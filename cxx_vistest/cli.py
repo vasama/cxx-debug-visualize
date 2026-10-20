@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Check that the specified debug adapter is executable:
     if ns.adapter is not None and not os.access(ns.adapter, os.X_OK):
-        print("The specified debug adapter is not executable.", file=sys.stderr)
+        print("error: the specified debug adapter is not executable", file=sys.stderr)
         return 2
 
     # Check that all specified paths refer to existing files:
