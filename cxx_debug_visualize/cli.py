@@ -179,4 +179,14 @@ def main(argv: list[str] | None = None) -> int:
         log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None,
     )
 
-    return 0 if runner.run() else 1
+    try:
+        if runner.run():
+            return 0
+    except OSError as e:
+        if not (isinstance(e, BrokenPipeError) or getattr(e, "winerror", None) == 232):
+            raise
+
+        # Avoid subsequent errors on exit if the stdout reader side was closed early:
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+
+    return 1
