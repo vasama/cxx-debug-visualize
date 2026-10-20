@@ -1,40 +1,46 @@
 # cxx-vistest — unit tests for natvis files and gdb pretty printers in VS Code
 
-`cxx-vistest` prints what VS Code's debugger shows for your C++ objects, so
-[FileCheck](https://llvm.org/docs/CommandGuide/FileCheck.html) can check your
-visualizers: `.natvis` files, or gdb pretty printers written in Python. It uses
+`cxx-vistest` prints what VS Code's debugger shows for your C++ objects, so a
+test can compare it with the expected output and check your visualizers:
+`.natvis` files, or gdb pretty printers written in Python. It uses
 the same debug adapter that VS Code's C/C++ extension uses (`cppdbg`), so a
 passing test means the object shows up that way in VS Code's Variables, Watch
 and hover views.
 
 ```cpp
-int main() {
-  mylib::Vector<int> v;
-  for (int i = 1; i <= 3; ++i)
-    v.push_back(i * 10);
-  visualize(v);
-  // CHECK: visualize(v) at test_vector.cpp:[[@LINE-1]]
-  // CHECK-NEXT:   { size=3 } [mylib::Vector<int>]
-  // CHECK-NEXT:     [size] = 3 [std::size_t]
-  // CHECK-NEXT:     [capacity] = 4 [std::size_t]
-}
+mylib::Vector<int> v;
+for (int i = 1; i <= 3; ++i)
+  v.push_back(i * 10);
+visualize(v);
+```
+
+prints, and the test expects (in `test_containers.natvis.txt`):
+
+```
+visualize(v) at test_containers.cpp:34
+  { size=3 } [mylib::Vector<int>]
+    [size] = 3 [std::size_t]
+    [capacity] = 4 [std::size_t]
+    [0] = 10 [int]
+    [1] = 20 [int]
+    [2] = 30 [int]
 ```
 
 With a typo in the `<ArrayItems><Size>` of `mylib::Vector`'s natvis entry, the
-debugger silently drops the whole `<Expand>`, and FileCheck reports it:
+debugger silently drops the whole `<Expand>` and shows the plain members
+instead. cxx-vistest itself succeeds, and the comparison reports it:
 
 ```
-$ cxx-vistest --adapter $ADAPTER --natvis mylib.natvis test_vector.cpp ./test_vector \
-    | FileCheck --dump-input=never test_vector.cpp
-test_vector.cpp:11:17: error: CHECK-NEXT: expected string not found in input
- // CHECK-NEXT: [size] = 3 [std::size_t]
-                ^
-<stdin>:2:33: note: scanning from here
- { size=3 } [mylib::Vector<int>]
-                                ^
-<stdin>:4:2: note: possible intended match here
- Size = 3 [std::size_t]
- ^
+ visualize(v) at test_containers.cpp:34
+   { size=3 } [mylib::Vector<int>]
+-    [size] = 3 [std::size_t]
+-    [capacity] = 4 [std::size_t]
+-    [0] = 10 [int]
+-    [1] = 20 [int]
+-    [2] = 30 [int]
++    Begin = 0x? [int *]
++    Size = 3 [std::size_t]
++    Capacity = 4 [std::size_t]
 ```
 
 ## How natvis support works in VS Code
@@ -148,9 +154,10 @@ Found by running cpptools 1.34.4 with gdb 15:
      before any further output.
 
    Evaluation errors and calls that are never reached are not reported
-   separately: they show up as output that differs from the CHECK lines.
+   separately: they show up as output that differs from the expected output.
 
-FileCheck then compares stdout with the `CHECK` lines in the test source.
+The test (e.g. the CMake helper below) then compares stdout with the expected
+output.
 
 The implementation is pure Python standard library (3.10+): `cxx_vistest/dap.py`
 is a small DAP client, and `runner.py` holds the test logic.
@@ -171,7 +178,7 @@ instead` rather than stopping somewhere else.
 ### Output format
 
 ```
-visualize(v) at test_containers.cpp:39
+visualize(v) at test_containers.cpp:34
   { size=3 } [mylib::Vector<int>]
     [size] = 3 [std::size_t]
     [capacity] = 4 [std::size_t]
@@ -200,74 +207,59 @@ visualize(v) at test_containers.cpp:39
   appear in place of the visualized children.
 * Values are printed exactly as the debugger shows them, including addresses.
 
-### Writing CHECK lines
+### Expected output
 
-Put the CHECK lines right after the call and pin the header to it with
-`[[@LINE-1]]` (FileCheck doesn't allow `@LINE` in `CHECK-LABEL`, so use
-`CHECK`):
+A test's expected output is a text file holding exactly what cxx-vistest
+prints, one per visualizer: the CMake helper below compares the output of
+`tests/test_containers.cpp` with `tests/test_containers.natvis.txt` and
+`tests/test_containers.gdb.txt`. Before comparing, it replaces every
+hexadecimal number (`0x...`) with `0x?`, because addresses differ between
+machines; the expected files contain `0x?` in their place:
 
-```cpp
-visualize(hello);
-// CHECK: visualize(hello) at test_strings.cpp:[[@LINE-1]]
-// CHECK-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::String]
-// CHECK-NEXT:     [size] = 5 [std::size_t]
+```
+visualize(hello) at test_strings.cpp:13
+  0x? "hello" [mylib::String]
+    [size] = 5 [std::size_t]
 ```
 
-* Use `CHECK-NEXT` to fix the structure, and plain `CHECK` to skip lines, such
-  as the elements of a long array.
-* Match addresses with a regex: `{{0x[0-9a-f]+}}`.
+* The comparison is exact: every line, value and amount of indentation counts,
+  and so does the line number in each header. Adding or removing lines in the
+  test source above a call changes its expected output.
 * cxx-vistest doesn't flag evaluation errors or unreached calls itself. A failed
   natvis expression shows as `-var-create: unable to create variable object` in
   place of the value, a pretty printer that raises leaves the value empty or
-  the children missing, and an unreached call prints nothing, so give every
-  call CHECK lines that pin the values you care about. Avoid patterns such as
-  `{{.*}}` on values, which would also match the error text.
-* FileCheck ignores differences in amounts of whitespace, so indentation is
-  not checked exactly; `CHECK-NEXT` chains still pin the order of the lines.
-* Calls in other functions print when that function runs, so their CHECK
-  lines go in execution order, which may not be source order. See `greet()` in
+  the children missing, and an unreached call prints nothing; all of these
+  change the output.
+* Calls in other functions print when that function runs, so their output
+  appears in execution order, which may not be source order. See `greet()` in
   `example/tests/test_strings.cpp`.
+
+When a test fails, the helper prints a diff and writes the actual output to
+`<kind>.<name>.actual.txt` in the build directory. To create or update an
+expected file, check that output and copy it over the expected file.
 
 ### Testing natvis and pretty printers together
 
 A test source can be checked against both a natvis file and a pretty-printer
-script for the same types, e.g. when a library ships both. `CHECK` lines then
-apply to both runs, and lines where the outputs differ use the prefixes
-`NATVIS` and `GDB`, with FileCheck run as `FileCheck --allow-unused-prefixes
---check-prefixes=CHECK,NATVIS` and `... --check-prefixes=CHECK,GDB` (the CMake
-helper does this):
-
-```cpp
-visualize(ptr);
-// CHECK: visualize(ptr) at test_strings.cpp:[[@LINE-1]]
-// NATVIS-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::Optional<mylib::String*>]
-// GDB-NEXT:      "hello" = {[size] = 5} [mylib::Optional<mylib::String*>]
-// CHECK-NEXT:      [value] = {{0x[0-9a-f]+}} "hello" [mylib::String *]
-```
-
-FileCheck reads the lines of all given prefixes as one sequence and ignores
-the others, so `-NEXT` lines chain across prefixes. `--allow-unused-prefixes`
-lets a test use only one of the prefixes, or neither, when the outputs don't
-differ; the flip side is that a misspelt prefix goes unnoticed.
-
-The less the two outputs differ, the more `CHECK` lines the runs share. The
-example's printers (`example/printers/mylib_printers.py`) mirror
-`example/natvis/mylib.natvis` (same display strings and children, the members
-of `Point`, `[0]`, `[1]`, ... for the map), so its tests need a `NATVIS`/`GDB`
-pair only where gdb formats a value in its own way. See `example/tests/` for
-complete tests.
+script for the same types, e.g. when a library ships both; each run has its
+own expected file. The example's printers (`example/printers/mylib_printers.py`)
+mirror `example/natvis/mylib.natvis` (same display strings and children, the
+members of `Point`, `[0]`, `[1]`, ... for the map), so its expected files are
+the same except where gdb formats a value in its own way. See `example/tests/`
+for complete tests.
 
 ### Finding out what the debugger shows
 
-Run `cxx-vistest` without piping into FileCheck to see the output to write
-CHECK lines against.
+Run `cxx-vistest` by hand to see its output, e.g. to write a first expected
+file (replace the addresses with `0x?`, e.g. with
+`sed -E 's/0x[0-9a-fA-F]+/0x?/g'`), or let a failing test write it.
 
 ## Running
 
 ```
 python3 -m cxx_vistest [--debugger gdb|lldb] [--adapter PATH | --vs-code-adapter] \
     (--natvis FILE.natvis | --gdb-printers FILE.py | --lldb-formatters FILE.py) [options] \
-    TEST.cpp PROGRAM | FileCheck TEST.cpp
+    TEST.cpp PROGRAM
 ```
 
 `TEST.cpp` is the test source: its `visualize(x);` lines get
@@ -288,8 +280,8 @@ lldb-vscode before LLVM 18). natvis needs a debug adapter (OpenDebugAD7).
 | `--lldb-formatters FILE` | the lldb formatter script (Python, loaded with `command script import`) under test; requires `--debugger lldb`. Exactly one of `--natvis`, `--gdb-printers` and `--lldb-formatters` is required |
 | `--trace` | dump DAP traffic to stderr |
 
-Use `set -o pipefail` (or check both exit codes) when piping by hand, so an
-error from cxx-vistest isn't hidden by a passing FileCheck. `pip install .`
+The output goes to stdout. A test passes if cxx-vistest exits with status 0
+and its output matches the expected output (see above). `pip install .`
 installs a `cxx-vistest` command.
 
 There is no timeout: cxx-vistest waits as long as the program runs; stop it
@@ -318,19 +310,17 @@ cxx_vistest_add_test(test_containers
 
 This builds the program once, with `-O0 -g`, and registers a CTest test per
 visualizer: `natvis.test_containers` and `gdb.test_containers` (label
-`visualizers`). Each test pipes cxx-vistest's output into FileCheck and
-fails unless both succeed. The first file in `SOURCES` is the test source: its
-`visualize` lines are breakpoints and it holds the CHECK lines. With
-both visualizers, FileCheck runs with the `NATVIS` and `GDB` prefixes described
-above; with one, it uses only `CHECK`. Both tools' paths must be set when
-configuring; configuration fails without them. See `example/` for a complete
+`visualizers`). Each test runs cxx-vistest and fails unless it succeeds and
+its output matches the expected file (see "Expected output" above). The first
+file in `SOURCES` is the test source: its `visualize` lines are breakpoints,
+and its expected files sit next to it (`tests/test_containers.natvis.txt`,
+`tests/test_containers.gdb.txt`). `CXX_VISTEST_ADAPTER` must be set when
+configuring; configuration fails without it. See `example/` for a complete
 project, which tests `natvis/mylib.natvis` and `printers/mylib_printers.py`
 against the same tests:
 
 ```
-cmake -S example -B build \
-    -DCXX_VISTEST_ADAPTER=/path/to/OpenDebugAD7 \
-    -DCXX_VISTEST_FILECHECK=/usr/lib/llvm-18/bin/FileCheck
+cmake -S example -B build -DCXX_VISTEST_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build && ctest --test-dir build -L visualizers
 ```
 
@@ -389,8 +379,8 @@ lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
   through lldb-dap, so not with OpenDebugAD7 or natvis.
 * Windows' `cppvsdbg` / Visual Studio natvis is a different engine and is not
   tested by this tool.
-* Exceptions inside pretty printers pass silently (see above); only the CHECK
-  lines catch them.
+* Exceptions inside pretty printers pass silently (see above); only the
+  comparison with the expected output catches them.
 
 ## License
 

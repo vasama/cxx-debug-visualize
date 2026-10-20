@@ -109,7 +109,7 @@ class IntegrationTests(FixtureTestCase):
     def test_evaluation_errors(self):
         output, errors = self.run_visualizer(natvis="bad_expr.natvis")
         # the DisplayString refers to a missing member: the engine's error text
-        # appears in place of the value, for the CHECK lines to catch
+        # appears in place of the value, for the expected output to catch
         self.assertIn("<1,-var-create: unable to create variable object> [Pair]", output)
         self.assertEqual(errors, [])
         # the ArrayItems <Size> is wrong, so the engine silently shows raw members
@@ -164,7 +164,7 @@ class IntegrationTests(FixtureTestCase):
     def test_printer_errors(self):
         output, errors = self.run_visualizer(gdb_printers="broken_printers.py")
         # exceptions in printers pass silently: the value stays empty and the
-        # children are missing, for the CHECK lines to catch
+        # children are missing, for the expected output to catch
         self.assertIn("visualize(pr) at prog.cpp:17\n   [Pair]\n", output)
         self.assertIn("visualize(arr) at prog.cpp:18\n  n=3 [Arr]\n"
                       "visualize(pr)", output)

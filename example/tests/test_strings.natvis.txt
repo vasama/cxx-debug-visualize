@@ -1,0 +1,9 @@
+visualize(hello) at test_strings.cpp:13
+  0x? "hello" [mylib::String]
+    [size] = 5 [std::size_t]
+visualize(name) at test_strings.cpp:6
+  0x? "world" [const mylib::String &]
+    [size] = 5 [std::size_t]
+visualize(ptr) at test_strings.cpp:22
+  0x? "hello" [mylib::Optional<mylib::String*>]
+    [value] = 0x? "hello" [mylib::String *]

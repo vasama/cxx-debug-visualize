@@ -13,21 +13,28 @@
 # Builds <name> once, without optimizations and with debug info, and registers
 # a CTest test for each visualizer given (at least one): "natvis.<name>" and
 # "gdb.<name>", labelled "visualizers".  Each runs <name> under the VS Code
-# C/C++ debug adapter and pipes the printed Variables trees into FileCheck.
-# The first file in SOURCES is the test source: cxx-vistest breaks on its
-# visualize() lines, and FileCheck reads its CHECK lines.  A test fails
-# if either cxx-vistest or FileCheck fails.
+# C/C++ debug adapter and compares the printed Variables trees with an
+# expected output file next to the test source, the first file in SOURCES:
+# <test>.natvis.txt and <test>.gdb.txt for tests/<test>.cpp.  cxx-vistest
+# breaks on the test source's visualize() lines.
 #
-# With both NATVIS and GDB_PRINTERS, lines where the two outputs differ use the
-# FileCheck prefixes NATVIS and GDB instead of CHECK: the tests run FileCheck
-# with --check-prefixes=CHECK,NATVIS and CHECK,GDB.  Either prefix may go
-# unused, e.g. when both visualizers produce the same output.
+# Addresses differ between machines, so every hexadecimal number (0x...) in the
+# output is replaced by "0x?" before comparing; expected files contain "0x?" in
+# their place.  A test fails if cxx-vistest fails or the output differs from the
+# expected file (or that is missing).  The actual output is then written to
+# <kind>.<name>.actual.txt in the build directory, for review or to copy over
+# the expected file, and a diff is printed.
 #
-# Cache variables (both required):
+# Cache variable (required):
 #   CXX_VISTEST_ADAPTER    path to OpenDebugAD7, passed as --adapter
-#   CXX_VISTEST_FILECHECK  path to LLVM's FileCheck
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+
+# Prints a unified diff of an expected file (possibly missing) and the actual output.
+set(_CXX_VISTEST_DIFF "import difflib, os, sys
+expected, actual = sys.argv[1:]
+old = open(expected).readlines() if os.path.exists(expected) else []
+sys.stdout.writelines(difflib.unified_diff(old, open(actual).readlines(), expected, actual))")
 
 get_filename_component(CXX_VISTEST_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(CXX_VISTEST_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
@@ -35,12 +42,6 @@ if(NOT CXX_VISTEST_ADAPTER)
   message(FATAL_ERROR "CxxVistest: set CXX_VISTEST_ADAPTER to the path of "
                       "OpenDebugAD7, e.g. "
                       "-DCXX_VISTEST_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7")
-endif()
-set(CXX_VISTEST_FILECHECK "" CACHE FILEPATH "Path to LLVM's FileCheck")
-if(NOT CXX_VISTEST_FILECHECK)
-  message(FATAL_ERROR "CxxVistest: set CXX_VISTEST_FILECHECK to the path of "
-                      "FileCheck, e.g. "
-                      "-DCXX_VISTEST_FILECHECK=/usr/lib/llvm-18/bin/FileCheck")
 endif()
 
 function(cxx_vistest_add_test name)
@@ -66,55 +67,59 @@ function(cxx_vistest_add_test name)
   list(GET TV_SOURCES 0 test_source)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
-  # Only a test source checked against both visualizers needs their prefixes.
-  set(natvis_prefixes "")
-  set(printers_prefixes "")
-  if(TV_NATVIS AND TV_GDB_PRINTERS)
-    set(natvis_prefixes --allow-unused-prefixes --check-prefixes=CHECK,NATVIS)
-    set(printers_prefixes --allow-unused-prefixes --check-prefixes=CHECK,GDB)
-  endif()
   if(TV_NATVIS)
-    _cxx_vistest_add_run(natvis ${name} "${test_source}" --natvis "${TV_NATVIS}"
-                              "${natvis_prefixes}" ${TV_ARGS})
+    _cxx_vistest_add_run(natvis ${name} "${test_source}" --natvis "${TV_NATVIS}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS)
     _cxx_vistest_add_run(gdb ${name} "${test_source}" --gdb-printers "${TV_GDB_PRINTERS}"
-                              "${printers_prefixes}" ${TV_ARGS})
+                         ${TV_ARGS})
   endif()
 endfunction()
 
 # Register the CTest test "<kind>.<name>", which runs the program <name> with
-# the visualizer <option> <file> and FileCheck with <prefixes> (may be empty).
-# Further arguments are passed on to cxx-vistest.
-function(_cxx_vistest_add_run kind name test_source option file prefixes)
+# the visualizer <option> <file> and compares the output with
+# <test source>.<kind>.txt.  Further arguments are passed on to cxx-vistest.
+function(_cxx_vistest_add_run kind name test_source option file)
   get_filename_component(file "${file}" ABSOLUTE)
+  get_filename_component(test_dir "${test_source}" DIRECTORY)
+  get_filename_component(test_name "${test_source}" NAME_WE)
+  set(expected "${test_dir}/${test_name}.${kind}.txt")
+  set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
   set(run "${Python3_EXECUTABLE}" -m cxx_vistest
       --adapter "${CXX_VISTEST_ADAPTER}" ${option} "${file}"
       ${ARGN} "${test_source}" "$<TARGET_FILE:${name}>")
-  set(filecheck "${CXX_VISTEST_FILECHECK}")
-  if(prefixes)
-    list(APPEND filecheck "${prefixes}")
-  endif()
-  list(APPEND filecheck "${test_source}")
 
-  # A CTest test is a single command, so the pipeline runs from a generated
-  # script, which checks the exit codes of both processes.
+  # A CTest test is a single command, so the comparison runs from a generated
+  # script.
   set(run_quoted "")
   foreach(arg IN LISTS run)
     string(APPEND run_quoted " \"${arg}\"")
-  endforeach()
-  set(filecheck_quoted "")
-  foreach(arg IN LISTS filecheck)
-    string(APPEND filecheck_quoted " \"${arg}\"")
   endforeach()
   set(script "${CMAKE_CURRENT_BINARY_DIR}/${kind}-${name}.cmake")
   file(GENERATE OUTPUT "${script}" CONTENT
 "execute_process(
   COMMAND${run_quoted}
-  COMMAND${filecheck_quoted}
-  RESULTS_VARIABLE results)
-if(NOT results STREQUAL \"0;0\")
-  message(FATAL_ERROR \"cxx-vistest / FileCheck exit codes: \${results}\")
+  OUTPUT_VARIABLE output
+  RESULT_VARIABLE result)
+string(REGEX REPLACE \"0x[0-9a-fA-F]+\" \"0x?\" output \"\${output}\")
+set(expected_output \"\")
+if(EXISTS \"${expected}\")
+  file(READ \"${expected}\" expected_output)
+endif()
+if(output STREQUAL expected_output)
+  file(REMOVE \"${actual}\")
+else()
+  file(WRITE \"${actual}\" \"\${output}\")
+  execute_process(COMMAND \"${Python3_EXECUTABLE}\" -c \"${_CXX_VISTEST_DIFF}\"
+                  \"${expected}\" \"${actual}\")
+  if(EXISTS \"${expected}\")
+    message(SEND_ERROR \"output differs from ${expected} (actual output: ${actual})\")
+  else()
+    message(SEND_ERROR \"expected output ${expected} is missing (actual output: ${actual})\")
+  endif()
+endif()
+if(NOT result EQUAL 0)
+  message(SEND_ERROR \"cxx-vistest failed: \${result}\")
 endif()
 ")
 

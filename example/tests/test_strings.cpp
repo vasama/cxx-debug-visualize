@@ -7,28 +7,18 @@ static void greet(const mylib::String &name) {
 }
 
 int main() {
-  // gdb prints char pointers as `address "text"`; match the address with a
-  // regex.
+  // gdb prints char pointers as `address "text"`; the address shows as "0x?"
+  // in the expected files.
   mylib::String hello("hello");
   visualize(hello);
-  // CHECK: visualize(hello) at test_strings.cpp:[[@LINE-1]]
-  // CHECK-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::String]
-  // CHECK-NEXT:     [size] = 5 [std::size_t]
 
   mylib::String world("world");
   greet(world);
-  // CHECK: visualize(name) at test_strings.cpp:6
-  // CHECK-NEXT:   {{0x[0-9a-f]+}} "world" [const mylib::String &]
-  // CHECK-NEXT:     [size] = 5 [std::size_t]
 
   // Wildcard types: $T1 is mylib::String *.  Both visualizers show a pointer
   // with its target's visualizer, but gdb formats the optional's own value,
-  // which is that pointer, in its own way.
+  // which is that pointer, in its own way, so the expected files differ here.
   mylib::Optional<mylib::String *> ptr(&hello);
   visualize(ptr);
-  // CHECK: visualize(ptr) at test_strings.cpp:[[@LINE-1]]
-  // NATVIS-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::Optional<mylib::String*>]
-  // GDB-NEXT:      "hello" = {[size] = 5} [mylib::Optional<mylib::String*>]
-  // CHECK-NEXT:      [value] = {{0x[0-9a-f]+}} "hello" [mylib::String *]
   return 0;
 }

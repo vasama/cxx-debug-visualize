@@ -1,10 +1,14 @@
+#pragma once
+
 // Helper for visualizer test programs.
 //
 // cxx-vistest sets a breakpoint on every line that consists of exactly
-// `visualize(identifier);` and prints the Variables tree of that object
-// each time the line runs.  It is a real call (not inlined away) that keeps
-// the object alive.
-#pragma once
+// `visualize(identifier);` and prints the visualization of that object each
+// time the line is executed.
+//
+// Note that the use of this header is not necessary. As long as the name
+// matches, it is possible to define an equivalent function directly in a
+// visualizer unit test file.
 
 #if defined(_MSC_VER)
 #define CXX_VISTEST_NOINLINE __declspec(noinline)
@@ -12,9 +16,7 @@
 #define CXX_VISTEST_NOINLINE __attribute__((noinline))
 #endif
 
-template <typename T> CXX_VISTEST_NOINLINE void visualize(const T &) {
-  // Prevent the call from being optimized out.
-#if defined(__GNUC__) || defined(__clang__)
-  asm volatile("" ::: "memory");
-#endif
+template<typename T>
+CXX_VISTEST_NOINLINE void visualize(T const&)
+{
 }
