@@ -132,7 +132,9 @@ class DebugSession:
         for bp in breakpoints:
             if self._adapter is not None:
                 bp["line"] = None
-            # events are handled while waiting for the reply, so one may already be newer
+
+            # Events are handled while waiting for the reply, so a more recent entry may already
+            # exist.
             self._breakpoints.setdefault(bp["id"], bp)
 
         return [bp["id"] for bp in breakpoints]
@@ -180,8 +182,8 @@ class DebugSession:
             # OpenDebugAD7 and lldb-dap send "initialized" in response to "launch", and only run the
             # program after "configurationDone", as the DAP specification intends. gdb 14 and 15
             # instead send "initialized" right after "initialize", and run the program as soon as
-            # "launch" arrives, after which "configurationDone" fails with "notStopped" because
-            # the program is running. So gdb is configured first and launched last.
+            # "launch" arrives, after which "configurationDone" fails with "notStopped" because the
+            # program is running. So gdb is configured first and launched last.
             #
             # GDB 16 fixed this: "launch" may be sent at any time after "initialized", but does not
             # take effect (or send its response) until "configurationDone" has been sent (see
