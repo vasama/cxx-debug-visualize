@@ -1,6 +1,7 @@
-# Checks the formatting of the Python code and lints it, and runs the self-tests and the example's
-# CTest tests on every released Python version that is not end-of-life, against OpenDebugAD7 (built from the
-# MIEngine sources), gdb's own DAP support and lldb-dap.
+# Checks the formatting of the Python code, lints it and type-checks the package, and runs the
+# self-tests and the example's CTest tests on every released Python version that is not
+# end-of-life, against OpenDebugAD7 (built from the MIEngine sources), gdb's own DAP support and
+# lldb-dap.
 
 name: test
 
@@ -33,6 +34,20 @@ jobs:
         with:
           version: "0.16.9"
           args: check
+
+  # Type-checks the package (not the self-tests) with mypy, under the oldest supported Python, so
+  # that it is checked against that version's standard library. mypy is pinned, since its checks
+  # can change between versions.
+  mypy:
+    name: Type check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - run: pip install mypy==2.3.1
+      - run: mypy cxx_debug_visualize
 
   # Builds OpenDebugAD7 (self-contained) from the MIT-licensed MIEngine sources, only when the
   # cache has no build of MIENGINE_REF with DOTNET_SDK yet.

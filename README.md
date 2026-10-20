@@ -502,7 +502,8 @@ The [GitHub Actions workflow][workflow] runs the self-tests and the example's
 CTest tests on every released Python version that is not end-of-life, with
 OpenDebugAD7 built from the MIEngine sources, gdb and lldb 18. It also checks
 that all Python code is formatted with `ruff format` and passes `ruff check`
-(both configured in `pyproject.toml`).
+(both configured in `pyproject.toml`), and type-checks the package with mypy,
+under Python 3.10.
 
 ## Limitations
 
