@@ -8,6 +8,8 @@ import collections
 import json
 import os
 import subprocess
+from collections.abc import Callable
+from typing import IO, Any
 
 # OpenDebugAD7 writes this line to stderr whenever it starts in stdio mode.
 _BANNER = "waiting for v8 protocol on stdin/stdout"
@@ -23,7 +25,8 @@ class AdapterError(DapError):
 class DapClient:
     # `on_event` is called with every event as soon as it arrives, before it is queued for
     # wait_event().
-    def __init__(self, argv, log=None, on_event=None):
+    def __init__(self, argv: list[str], log: Callable[[str], None] | None = None,
+                 on_event: Callable[[dict[str, Any]], None] | None = None) -> None:
         env = dict(os.environ)
         env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"
 
@@ -35,16 +38,22 @@ class DapClient:
             env=env,
         )
 
-        self._seq = 0
-        self._responses = {}
-        self._events = collections.deque()
-        self._stderr = None
+        # All three are pipes, which Popen types as optional.
+        assert self._proc.stdin and self._proc.stdout and self._proc.stderr
+        self._stdin_pipe: IO[bytes] = self._proc.stdin
+        self._stdout_pipe: IO[bytes] = self._proc.stdout
+        self._stderr_pipe: IO[bytes] = self._proc.stderr
+
+        self._seq: int = 0
+        self._responses: dict[int, dict[str, Any]] = {}
+        self._events: collections.deque[dict[str, Any]] = collections.deque()
+        self._stderr: str | None = None
         self._log = log
         self._on_event = on_event
 
     # -- Message handling ----------------------------------------------------
 
-    def _handle_message(self, msg):
+    def _handle_message(self, msg: dict[str, Any]) -> None:
         if self._log:
             self._log("<- " + json.dumps(msg))
 
@@ -69,13 +78,13 @@ class DapClient:
 
     # -- Transport -----------------------------------------------------------
 
-    def _read_message(self):
-        headers = {}
+    def _read_message(self) -> dict[str, Any] | None:
+        headers: dict[str, str] = {}
         while True:
-            line = self._proc.stdout.readline()
-            if not line:
+            line_bytes = self._stdout_pipe.readline()
+            if not line_bytes:
                 return None
-            line = line.decode("ascii").strip()
+            line = line_bytes.decode("ascii").strip()
             if not line:
                 break
             key, _, value = line.partition(":")
@@ -83,20 +92,20 @@ class DapClient:
         length = int(headers["content-length"])
         body = b""
         while len(body) < length:
-            chunk = self._proc.stdout.read(length - len(body))
+            chunk = self._stdout_pipe.read(length - len(body))
             if not chunk:
                 return None
             body += chunk
         return json.loads(body)
 
     # Read and handle the next message from the adapter.
-    def _receive(self):
+    def _receive(self) -> None:
         msg = self._read_message()
         if msg is None:
             raise DapError(f"debug adapter exited (code {self._proc.wait()})")
         self._handle_message(msg)
 
-    def _send(self, msg):
+    def _send(self, msg: dict[str, Any]) -> int:
         self._seq += 1
         msg["seq"] = self._seq
 
@@ -104,22 +113,22 @@ class DapClient:
             self._log("-> " + json.dumps(msg))
 
         data = json.dumps(msg).encode()
-        self._proc.stdin.write(f"Content-Length: {len(data)}\r\n\r\n".encode() + data)
-        self._proc.stdin.flush()
+        self._stdin_pipe.write(f"Content-Length: {len(data)}\r\n\r\n".encode() + data)
+        self._stdin_pipe.flush()
 
         return self._seq
 
     # -- Public interface ----------------------------------------------------
 
     # Send a request without waiting for a response. Returns the message sequence number.
-    def request_async(self, command, arguments=None):
-        msg = {"type": "request", "command": command}
+    def request_async(self, command: str, arguments: dict[str, Any] | None = None) -> int:
+        msg: dict[str, Any] = {"type": "request", "command": command}
         if arguments is not None:
             msg["arguments"] = arguments
         return self._send(msg)
 
     # Wait for the response to a request sent with the specified sequence number.
-    def wait_response(self, seq):
+    def wait_response(self, seq: int) -> dict[str, Any]:
         while seq not in self._responses:
             self._receive()
         resp = self._responses.pop(seq)
@@ -127,19 +136,21 @@ class DapClient:
             raise AdapterError(resp.get("message") or json.dumps(resp.get("body")))
         return resp.get("body") or {}
 
-    def request(self, command, arguments=None):
+    def request(self, command: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.wait_response(self.request_async(command, arguments))
 
     # Return the next event whose name is in `names`, discarding others.
     # If request `request_seq` fails in the meantime, raise its error instead.
-    def wait_event(self, names, request_seq=None):
+    def wait_event(self, names: str | tuple[str, ...],
+                   request_seq: int | None = None) -> dict[str, Any]:
         if isinstance(names, str):
             names = (names,)
 
         while True:
-            resp = self._responses.get(request_seq)
-            if resp is not None and not resp.get("success"):
-                self.wait_response(request_seq)
+            if request_seq is not None:
+                resp = self._responses.get(request_seq)
+                if resp is not None and not resp.get("success"):
+                    self.wait_response(request_seq)
             while self._events:
                 event = self._events.popleft()
                 if event["event"] in names:
@@ -147,7 +158,7 @@ class DapClient:
             self._receive()
 
     # End the session and wait for the adapter to exit.
-    def close(self):
+    def close(self) -> None:
         try:
             if self._proc.poll() is None:
                 self.request("disconnect", {"terminateDebuggee": True})
@@ -155,7 +166,7 @@ class DapClient:
             pass
         finally:
             try:
-                self._proc.stdin.close()
+                self._stdin_pipe.close()
             except (OSError, ValueError):
                 pass
 
@@ -171,9 +182,9 @@ class DapClient:
                 pass
 
             self._proc.wait()
-            self._stderr = self._proc.stderr.read().decode(errors="replace")
+            self._stderr = self._stderr_pipe.read().decode(errors="replace")
 
-            for stream in (self._proc.stdout, self._proc.stderr):
+            for stream in (self._stdout_pipe, self._stderr_pipe):
                 try:
                     stream.close()
                 except (OSError, ValueError):
@@ -182,6 +193,7 @@ class DapClient:
     # What the adapter wrote to stderr (ignoring the MIEngine startup banner).
     #
     # Only available once close() has returned.
-    def stderr_output(self):
+    def stderr_output(self) -> str:
+        assert self._stderr is not None, "only available after close()"
         return "".join(line for line in self._stderr.splitlines(keepends=True)
                        if line.rstrip("\r\n") != _BANNER)

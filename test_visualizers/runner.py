@@ -19,21 +19,22 @@
 import os
 import re
 import sys
+from collections.abc import Callable
 
 from .dap import AdapterError, DapError
-from .session import DebugSession
+from .session import DebugSession, Node
 
 CALL_RE = re.compile(r"^\s*check_visualizer\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
 
 # Represents a `check_visualizer(identifier);` line in a test source.
 class TestInvocation:
-    def __init__(self, line, identifier):
+    def __init__(self, line: int, identifier: str) -> None:
         self.line = line
         self.identifier = identifier
-        self.breakpoint_id = -1
+        self.breakpoint_id: int = -1
 
-def discover_test_lines(path):
-    invocations = []
+def discover_test_lines(path: str) -> list[TestInvocation]:
+    invocations: list[TestInvocation] = []
     with open(path, encoding="utf-8", errors="replace") as f:
         for lineno, text in enumerate(f, 1):
             m = CALL_RE.match(text)
@@ -43,26 +44,28 @@ def discover_test_lines(path):
 
 class Runner:
     # The visualizer under test is a natvis file or a gdb pretty-printer script.
-    def __init__(self, adapter, program, source, *, natvis=None, printers=None, log=None):
+    def __init__(self, adapter: str, program: str, source: str, *, natvis: str | None = None,
+                 printers: str | None = None,
+                 log: Callable[[str], None] | None = None) -> None:
         self._adapter = adapter
         self._program = program
         self._source = os.path.abspath(source)
-        self._visualizer = {"natvis": natvis, "printers": printers}
+        self._visualizer: dict[str, str | None] = {"natvis": natvis, "printers": printers}
         self._log = log
         self._failed = False
 
     # Report an error found by test_visualizers itself.
-    def _error(self, message):
+    def _error(self, message: str) -> None:
         print(f"error: {message}", file=sys.stderr)
         self._failed = True
 
     # Pass on an error reported by the adapter.
-    def _report(self, text):
+    def _report(self, text: str) -> None:
         sys.stderr.write(text if text.endswith("\n") else text + "\n")
         self._failed = True
 
     # Print `label = value [type]`, or `value [type]` without a label.
-    def _write_node(self, node, indent, label=None):
+    def _write_node(self, node: Node, indent: int, label: str | None = None) -> None:
         type_ = f" [{node.type}]" if node.type else ""
         name = f"{label} = " if label is not None else ""
         print(f"{'  ' * indent}{name}{node.value}{type_}")
@@ -74,7 +77,7 @@ class Runner:
     # "[More...]" is encountered, the remaining children are expanded, as if the list were unpaged.
     #
     # "[Raw View]" lines emitted by natvis visualizers are discarded.
-    def _write_children(self, session, node, indent):
+    def _write_children(self, session: DebugSession, node: Node, indent: int) -> None:
         for child in session.children(node):
             if child.name == "[Raw View]":
                 continue
@@ -84,9 +87,10 @@ class Runner:
             self._write_node(child, indent, child.name)
 
     # Report and return false if any breakpoint was placed on a line other than the one requested.
-    def _verify_breakpoints(self, session, invocations):
+    def _verify_breakpoints(self, session: DebugSession,
+                            invocations: list[TestInvocation]) -> bool:
         for invocation in invocations:
-            def _bp_error(message):
+            def _bp_error(message: str) -> None:
                 self._error(f"{self._source}:{invocation.line}: {message}")
 
             bp = session.get_breakpoint(invocation.breakpoint_id)
@@ -110,7 +114,7 @@ class Runner:
 
     # Start a debug session, wait for the debuggee to stop at a breakpoint, and print the relevant
     # visualization to stdout. Finally, close the debug adapter.
-    def run(self):
+    def run(self) -> bool:
         self._failed = False
         invocations = discover_test_lines(self._source)
 

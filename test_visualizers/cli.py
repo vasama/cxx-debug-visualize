@@ -13,7 +13,7 @@ import sys
 from .adapter import find_adapter
 from .runner import Runner
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="test_visualizers",
                                      description="Unit tests for natvis files and gdb pretty "
                                                  "printers: visualizes the variable named at each"

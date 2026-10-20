@@ -1,6 +1,8 @@
 # A debug session driven like VS Code drives a "cppdbg" launch configuration.
 
 import os
+from collections.abc import Callable
+from typing import Any
 
 from .adapter import adapter_argv
 from .dap import DapClient, DapError
@@ -11,20 +13,22 @@ _NATVIS_PREFIX = "[Natvis]"
 
 # One row of the Variables/Watch tree.
 class Node:
-    def __init__(self, name, value, type_, ref):
+    def __init__(self, name: str, value: str, type_: str | None, ref: int) -> None:
         self.name = name
         self.value = value
         self.type = type_
         self.ref = ref
 
     @property
-    def expandable(self):
+    def expandable(self) -> bool:
         return self.ref > 0
 
 class DebugSession:
     # The visualizer under test is either a natvis file or a gdb pretty-printer script. Exactly one
     # must be specified.
-    def __init__(self, adapter, program, *, natvis=None, printers=None, log=None):
+    def __init__(self, adapter: str, program: str, *, natvis: str | None = None,
+                 printers: str | None = None,
+                 log: Callable[[str], None] | None = None) -> None:
         if (natvis is None) == (printers is None):
             raise ValueError("exactly one of natvis or printers is required")
 
@@ -33,14 +37,20 @@ class DebugSession:
         self._natvis = natvis and os.path.abspath(natvis)
         self._printers = printers and os.path.abspath(printers)
         self._log = log
-        self._breakpoints = {}
-        self._client = None
-        self._natvis_diagnostics = []
+        self._breakpoints: dict[int, dict[str, Any]] = {}
+        self._client_or_none: DapClient | None = None
+        self._natvis_diagnostics: list[str] = []
+
+    # The client of a started session.
+    @property
+    def _client(self) -> DapClient:
+        assert self._client_or_none is not None, "start() has not been called"
+        return self._client_or_none
 
     # -- Lifecycle -----------------------------------------------------------
 
-    def _launch_config(self):
-        cfg = {
+    def _launch_config(self) -> dict[str, Any]:
+        cfg: dict[str, Any] = {
             "type": "cppdbg",
             "request": "launch",
             "name": "test_visualizers",
@@ -72,7 +82,7 @@ class DebugSession:
         return cfg
 
     # Called by the client with every event as it arrives.
-    def _handle_event(self, event):
+    def _handle_event(self, event: dict[str, Any]) -> None:
         match event:
             case {"event": "breakpoint", "body": {"breakpoint": {"id": bp_id} as bp}}:
                 self._breakpoints[bp_id] = bp
@@ -84,7 +94,7 @@ class DebugSession:
     #
     # The reply only echoes the requested lines, so "line" is cleared to keep it from being mistaken
     # for where a breakpoint really landed.
-    def _set_breakpoints(self, source, lines):
+    def _set_breakpoints(self, source: str, lines: list[int]) -> list[int]:
         body = self._client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
             "breakpoints": [{"line": line} for line in lines],
@@ -101,9 +111,9 @@ class DebugSession:
     # Launch the program with `breakpoints` = {source path: [lines]}.
     #
     # Returns {source path: [resolved breakpoint dicts]} in request order.
-    def start(self, breakpoints):
-        self._client = DapClient(adapter_argv(self._adapter), log=self._log,
-                                on_event=self._handle_event)
+    def start(self, breakpoints: dict[str, list[int]]) -> dict[str, list[int]]:
+        self._client_or_none = DapClient(adapter_argv(self._adapter), log=self._log,
+                                          on_event=self._handle_event)
         self._client.request("initialize", {
             "clientID": "vscode",
             "clientName": "test_visualizers",
@@ -118,7 +128,7 @@ class DebugSession:
         })
         launch_seq = self._client.request_async("launch", self._launch_config())
         self._client.wait_event("initialized", request_seq=launch_seq)
-        resolved = {}
+        resolved: dict[str, list[int]] = {}
         for source, lines in breakpoints.items():
             resolved[source] = self._set_breakpoints(source, lines)
         self._client.request("configurationDone")
@@ -129,42 +139,42 @@ class DebugSession:
     #
     # That is the last "breakpoint" event describing the specified breakpoint. If no event has been
     # received, the initial reply to `setBreakpoints` is returned.
-    def get_breakpoint(self, breakpoint_id):
+    def get_breakpoint(self, breakpoint_id: int) -> dict[str, Any]:
         return self._breakpoints[breakpoint_id]
 
     # Wait for the program to stop or exit. Returns the relevant DAP event.
-    def wait_stop(self):
+    def wait_stop(self) -> dict[str, Any]:
         return self._client.wait_event(("stopped", "terminated", "exited"))
 
-    def resume(self, thread_id):
+    def resume(self, thread_id: int) -> None:
         self._client.request("continue", {"threadId": thread_id})
 
-    def close(self):
-        if self._client:
-            self._client.close()
+    def close(self) -> None:
+        if self._client_or_none:
+            self._client_or_none.close()
 
-    def natvis_diagnostics(self):
+    def natvis_diagnostics(self) -> list[str]:
         return self._natvis_diagnostics
 
-    def stderr_output(self):
-        return self._client.stderr_output() if self._client else ""
+    def stderr_output(self) -> str:
+        return self._client_or_none.stderr_output() if self._client_or_none else ""
 
     # -- Inspection ----------------------------------------------------------
 
-    def top_frame(self, thread_id):
+    def top_frame(self, thread_id: int) -> dict[str, Any]:
         frames = self._client.request("stackTrace", {"threadId": thread_id, "startFrame": 0,
                                                     "levels": 1})["stackFrames"]
         if not frames:
             raise DapError(f"thread {thread_id} has no stack frames")
         return frames[0]
 
-    def evaluate(self, expression, frame_id):
+    def evaluate(self, expression: str, frame_id: int) -> Node:
         body = self._client.request("evaluate", {"expression": expression, "frameId": frame_id,
                                                 "context": "watch"})
         return Node(expression, body.get("result", ""), body.get("type"),
                     body.get("variablesReference", 0))
 
-    def children(self, node):
+    def children(self, node: Node) -> list[Node]:
         if not node.expandable:
             return []
         body = self._client.request("variables", {"variablesReference": node.ref})
