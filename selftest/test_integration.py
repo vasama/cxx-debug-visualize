@@ -30,12 +30,11 @@ class IntegrationTests(unittest.TestCase):
         if not (ADAPTER and CXX and shutil.which("gdb")):
             raise unittest.SkipTest("needs --adapter, gdb and a C++ compiler")
         cls.tmp = tempfile.mkdtemp(prefix="natvistest-")
-        # variants of the fixture, selecting its optional paths at compile time
+        # variants of the fixture: without and with a crash after the last call
         cls.programs = {}
-        for variant, crash, reach_all in (("plain", 0, 0), ("reach_all", 0, 1), ("crash", 1, 0)):
+        for variant, crash in (("plain", 0), ("crash", 1)):
             program = os.path.join(cls.tmp, f"prog_{variant}")
             subprocess.check_call([CXX, "-g", "-O0", f"-DCRASH={crash}",
-                                   f"-DREACH_ALL={reach_all}",
                                    "-I", os.path.join(HERE, "..", "include"),
                                    "-o", program, SOURCE])
             cls.programs[variant] = program
@@ -78,13 +77,13 @@ class IntegrationTests(unittest.TestCase):
             "    a = 1 [int]",
             "    b = 2 [int]",
             # children that are visualized objects are not expanded
-            "check_visualizer(pa) at prog.cpp:30",
+            "check_visualizer(pa) at prog.cpp:26",
             "  {...} [PairArr]",
             "    [0] = <3,4> [Pair]",
             "    [1] = <5,6> [Pair]",
             "    [Raw View] = {...}",
             # [More...] nodes, which continue the list, are followed
-            "check_visualizer(big) at prog.cpp:35",
+            "check_visualizer(big) at prog.cpp:31",
             "  {...} [Arr]",
         ] + [f"    [{i}] = {i} [int]" for i in range(50)] + [
             "    [More...] = {...}",
@@ -94,16 +93,7 @@ class IntegrationTests(unittest.TestCase):
             "    [Raw View] = {...}",
             "",
         ]))
-        # the call inside `if (REACH_ALL)` is not reached in this variant: it
-        # simply prints nothing (line 27 is absent above), which is not an error
         self.assertEqual(errors, [])
-
-    def test_all_calls_reached(self):
-        output, errors = self.run_natvis("good.natvis", variant="reach_all")
-        self.assertEqual(errors, [])
-        self.assertIn("check_visualizer(pr) at prog.cpp:27\n"
-                      "  <1,2> [Pair]\n    a = 1 [int]\n    b = 2 [int]\n"
-                      "check_visualizer(pa) at prog.cpp:30\n", output)
 
     def test_evaluation_errors(self):
         output, errors = self.run_natvis("bad_expr.natvis")
@@ -125,7 +115,9 @@ class IntegrationTests(unittest.TestCase):
 
     def test_crash(self):
         output, errors = self.run_natvis("good.natvis", variant="crash")
+        # the crash comes after the last call, so every call has printed
         self.assertTrue(output.startswith("check_visualizer(pr) at prog.cpp:17\n"), output)
+        self.assertIn("check_visualizer(big) at prog.cpp:31\n", output)
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
         self.assertIn("crash", crash[0])

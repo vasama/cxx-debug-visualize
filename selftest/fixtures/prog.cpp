@@ -1,5 +1,5 @@
 // Fixture for the natvistest integration self-tests (line numbers matter: the tests
-// refer to check_visualizer() calls by line).  Build with -DCRASH=0|1 -DREACH_ALL=0|1.
+// refer to check_visualizer() calls by line).  Build with -DCRASH=0|1.
 #include "natvistest.h"
 
 struct Pair { int a; int b; };
@@ -21,10 +21,6 @@ int main() {
     check_visualizer(pr);
   }
   check_visualizer(pr); // not a breakpoint: the line holds more than the call
-  if (CRASH)
-    crash();
-  if (REACH_ALL)
-    check_visualizer(pr);
   Pair pairs[2] = {{3, 4}, {5, 6}};
   PairArr pa{pairs, 2};
   check_visualizer(pa);
@@ -33,5 +29,8 @@ int main() {
     many[i] = i;
   Arr big{many, 120};
   check_visualizer(big);
+  // every check_visualizer call above is reached before the optional crash
+  if (CRASH)
+    crash();
   return 0;
 }

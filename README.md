@@ -106,7 +106,10 @@ Most mistakes fail silently. That is why natvis files need tests, and why
      diagnostics (debug-console lines starting with `[Natvis]`, e.g. for
      malformed XML; warnings too);
    * natvistest's own errors, prefixed with `error: `, such as an unexpected
-     stop (e.g. a segfault) or the adapter going away.
+     stop (e.g. a segfault), the adapter going away, or a breakpoint that
+     landed on a different line than its `check_visualizer` call (see below).
+     A breakpoint that is not set on its own line stops the run at once,
+     before any further output.
 
    Evaluation errors and calls that are never reached are not reported
    separately: they show up as output that differs from the CHECK lines.
@@ -123,6 +126,11 @@ A test is an ordinary C++ program compiled with `-g -O0`.
 keeps its argument alive. Each line holding just `check_visualizer(x);` prints
 the tree of `x` when it runs. A line holding anything else as well (another
 statement, even a trailing comment) is not a breakpoint.
+
+Each `check_visualizer` line must compile to code of its own. If it doesn't,
+e.g. inside `if (false)` or an `#if 0` block, gdb moves its breakpoint to the
+next line with code, and natvistest fails with `breakpoint landed on line N
+instead` rather than stopping somewhere else.
 
 ### Output format
 

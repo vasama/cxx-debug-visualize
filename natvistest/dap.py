@@ -37,6 +37,7 @@ class DapClient:
         self._response_cv = threading.Condition()
         self.events = queue.Queue()
         self.output = []  # (category, text) of every "output" event
+        self.breakpoints = {}  # id -> latest breakpoint from "breakpoint" events
         self._log = log
         self._reader = threading.Thread(target=self._read_loop, daemon=True)
         self._reader.start()
@@ -85,9 +86,11 @@ class DapClient:
                     self._responses[msg["request_seq"]] = msg
                     self._response_cv.notify_all()
             elif kind == "event":
+                body = msg.get("body", {})
                 if msg["event"] == "output":
-                    body = msg.get("body", {})
                     self.output.append((body.get("category", ""), body.get("output", "")))
+                elif msg["event"] == "breakpoint" and "id" in body.get("breakpoint", {}):
+                    self.breakpoints[body["breakpoint"]["id"]] = body["breakpoint"]
                 self.events.put(msg)
             elif kind == "request":
                 # Reverse requests (e.g. runInTerminal) are not supported; we

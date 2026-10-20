@@ -58,7 +58,6 @@ class Runner:
         self.natvis = os.path.abspath(natvis)
         self.log = log
         self.failed = False
-        self.breakpoints = {}
 
     def _error(self, message):
         """Report an error found by natvistest itself."""
@@ -88,6 +87,22 @@ class Runner:
             if kid.name == "[More...]":
                 self._write_children(session, kid, indent + 1)
 
+    def _verify_breakpoints(self, session, placed):
+        """Report and return False unless every breakpoint sits on its requested line."""
+        for call, bp in placed:
+            bp = session.get_breakpoint(bp)
+            if not bp.get("verified"):
+                if bp.get("message"):
+                    self._report(bp["message"])
+                else:
+                    self._error(f"{self.source}:{call.line}: breakpoint could not be set")
+                return False
+            if bp.get("line") != call.line:
+                self._error(f"{self.source}:{call.line}: breakpoint landed on line "
+                            f"{bp.get('line')} instead (no code on line {call.line}?)")
+                return False
+        return True
+
     def run(self):
         """Print snapshots to stdout and errors to stderr; return True if no errors."""
         self.failed = False
@@ -98,15 +113,14 @@ class Runner:
         session = DebugSession(self.adapter, self.program, self.natvis, log=self.log)
         try:
             resolved = session.start({self.source: [call.line for call in calls]})
+            placed = list(zip(calls, resolved[self.source]))
+            breakpoints = {call.line: call for call in calls}
 
-            breakpoints = {}
-            for call, bp in zip(calls, resolved[self.source]):
-                if bp.get("verified"):
-                    breakpoints[bp["line"]] = call
-                else:
-                    self.failed = True
-                    if bp.get("message"):
-                        self._report(bp["message"])
+            # Every breakpoint must land on its own line; otherwise stop without
+            # running any further.  The adapter reports where breakpoints land
+            # during startup, and they don't move afterwards.
+            if not self._verify_breakpoints(session, placed):
+                return False
 
             while True:
                 event = session.wait_stop()

@@ -86,6 +86,14 @@ class DebugSession:
         })
         return body.get("breakpoints", [])
 
+    def get_breakpoint(self, breakpoint):
+        """Latest state of a breakpoint returned by set_breakpoints.
+
+        The adapter reports where a breakpoint really lands (e.g. moved to the
+        next line with code) in "breakpoint" events sent during startup.
+        """
+        return self.client.breakpoints.get(breakpoint.get("id"), breakpoint)
+
     def wait_stop(self):
         """Wait for the program to stop or end; return the DAP event."""
         return self.client.wait_event(("stopped", "terminated", "exited"))
