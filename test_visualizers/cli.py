@@ -19,11 +19,16 @@ def main(argv: list[str] | None = None) -> int:
                                                  "printers: visualizes the variable named at each"
                                                  "call to a function named `check_visualizers`")
 
-    parser.add_argument("--adapter", metavar="PATH",
-                        default=os.environ.get("TEST_VISUALIZERS_ADAPTER"),
-                        help="path to the debug adapter, e.gs. a build of MIEngine (default: "
-                             "$TEST_VISUALIZERS_ADAPTER if set, otherwise the newest VS Code "
-                             "C/C++ extension installed in ~/.vscode*/extensions)")
+    debugger = parser.add_mutually_exclusive_group()
+    debugger.add_argument("--adapter", metavar="PATH",
+                          default=os.environ.get("TEST_VISUALIZERS_ADAPTER"),
+                          help="path to the debug adapter, e.gs. a build of MIEngine (default: "
+                               "$TEST_VISUALIZERS_ADAPTER if set, otherwise the newest VS Code "
+                               "C/C++ extension installed in ~/.vscode*/extensions)")
+
+    debugger.add_argument("--native-dap", action="store_true",
+                          help="use gdb's native DAP support (GDB 14 and later) instead of a debug "
+                               "adapter; --natvis is not supported")
 
     visualizer = parser.add_mutually_exclusive_group(required=True)
     visualizer.add_argument("--natvis", metavar="FILE", help="natvis file to test")
@@ -37,8 +42,13 @@ def main(argv: list[str] | None = None) -> int:
 
     ns = parser.parse_args(argv)
 
-    # Find debug adapter if it was not specified by the user:
-    if ns.adapter is None:
+    if ns.native_dap:
+        if ns.natvis:
+            print("error: --native-dap does not support --natvis", file=sys.stderr)
+            return 2
+        ns.adapter = None
+    elif ns.adapter is None:
+        # Find debug adapter if it was not specified by the user:
         ns.adapter = find_adapter()
         if ns.adapter is None:
             print("error: no OpenDebugAD7 found; set TEST_VISUALIZERS_ADAPTER, or pass --adapter",
@@ -46,18 +56,20 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     if ns.trace:
-        print(f"adapter: {ns.adapter}", file=sys.stderr)
+        print(f"adapter: {ns.adapter or 'gdb -i dap'}", file=sys.stderr)
 
     # Check that the specified debug adapter is executable:
-    if not os.access(ns.adapter, os.X_OK):
+    if ns.adapter is not None and not os.access(ns.adapter, os.X_OK):
         print("The specified debug adapter is not executable.", file=sys.stderr)
         return 2
 
     # Check that all specified paths refer to existing files:
-    paths = [("debug adapter", ns.adapter), ("program", ns.program), ("source file", ns.source)]
+    paths = [("program", ns.program), ("source file", ns.source)]
+    if ns.adapter is not None:
+        paths.append(("debug adapter", ns.adapter))
     if ns.natvis:
         paths.append(("natvis file", ns.natvis))
-    else:
+    if ns.printers:
         paths.append(("pretty-printer script", ns.printers))
     missing = [(what, path) for what, path in paths if not os.path.isfile(path)]
     for what, path in missing:

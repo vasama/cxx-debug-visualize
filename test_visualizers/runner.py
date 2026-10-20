@@ -43,8 +43,9 @@ def discover_test_lines(path: str) -> list[TestInvocation]:
     return invocations
 
 class Runner:
-    # The visualizer under test is a natvis file or a gdb pretty-printer script.
-    def __init__(self, adapter: str, program: str, source: str, *, natvis: str | None = None,
+    # The visualizer under test is a natvis file or a gdb pretty-printer script. With `adapter`
+    # None, gdb's native DAP support is used.
+    def __init__(self, adapter: str | None, program: str, source: str, *, natvis: str | None = None,
                  printers: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
         self._adapter = adapter

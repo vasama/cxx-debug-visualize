@@ -26,11 +26,16 @@ class VisualizationNode:
 class DebugSession:
     # The visualizer under test is either a natvis file or a gdb pretty-printer script. Exactly one
     # must be specified.
-    def __init__(self, adapter: str, program: str, *, natvis: str | None = None,
+    #
+    # With `adapter` None, gdb's native DAP support is used instead of OpenDebugAD7. In this mode
+    # natvis is not supported.
+    def __init__(self, adapter: str | None, program: str, *, natvis: str | None = None,
                  printers: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
         if (natvis is None) == (printers is None):
             raise ValueError("exactly one of natvis or printers is required")
+        if adapter is None and natvis is not None:
+            raise ValueError("gdb does not support natvis")
 
         self._adapter = adapter
         self._program = os.path.abspath(program)
@@ -92,8 +97,8 @@ class DebugSession:
 
     # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
-    # The reply only echoes the requested lines, so "line" is cleared to keep it from being mistaken
-    # for where a breakpoint really landed.
+    # OpenDebugAD7's reply only echoes the requested lines, so "line" is cleared to keep it from
+    # being mistaken for where a breakpoint really landed. gdb's reply has the real lines.
     def _set_breakpoints(self, source: str, lines: list[int]) -> list[int]:
         body = self._client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
@@ -102,7 +107,8 @@ class DebugSession:
 
         breakpoints = body.get("breakpoints", [])
         for bp in breakpoints:
-            bp["line"] = None
+            if self._adapter is not None:
+                bp["line"] = None
             # events are handled while waiting for the reply, so one may already be newer
             self._breakpoints.setdefault(bp["id"], bp)
 
@@ -112,8 +118,22 @@ class DebugSession:
     #
     # Returns {source path: [resolved breakpoint dicts]} in request order.
     def start(self, breakpoints: dict[str, list[int]]) -> dict[str, list[int]]:
-        self._client_or_none = DapClient(adapter_argv(self._adapter), log=self._log,
-                                          on_event=self._handle_event)
+        if self._adapter is not None:
+            argv = adapter_argv(self._adapter)
+        else:
+            # As with OpenDebugAD7, only the printers under test are active. The program is loaded
+            # up front, so that breakpoints are bound as soon as they are set.
+            argv = [
+                "gdb",
+                "-q",
+                "-nx",
+                "-i", "dap",
+                "-iex", "set auto-load python-scripts off",
+                "-ex", f"source {self._printers}",
+                self._program
+            ]
+
+        self._client_or_none = DapClient(argv, log=self._log, on_event=self._handle_event)
         self._client.request("initialize", {
             "clientID": "vscode",
             "clientName": "test_visualizers",
@@ -126,9 +146,19 @@ class DebugSession:
             "supportsRunInTerminalRequest": False,
             "locale": "en-us",
         })
+        resolved: dict[str, list[int]] = {}
+
+        if self._adapter is None:
+            # gdb runs the program as soon as it is launched, so it is configured first.
+            self._client.wait_event("initialized")
+            for source, lines in breakpoints.items():
+                resolved[source] = self._set_breakpoints(source, lines)
+            self._client.request("configurationDone")
+            self._client.request("launch", {"cwd": os.path.dirname(self._program)})
+            return resolved
+
         launch_seq = self._client.request_async("launch", self._launch_config())
         self._client.wait_event("initialized", request_seq=launch_seq)
-        resolved: dict[str, list[int]] = {}
         for source, lines in breakpoints.items():
             resolved[source] = self._set_breakpoints(source, lines)
         self._client.request("configurationDone")
