@@ -1,23 +1,22 @@
-"""Running natvis tests: break on check_visualizer() calls, print snapshots.
-
-Every line of the test source that consists of exactly `check_visualizer(x);`
-gets a breakpoint.  Each time one is hit, the Variables tree of `x` is
-written to the output, for FileCheck to verify against the CHECK lines in the
-test source:
-
-    check_visualizer(v) at test_vector.cpp:12
-      { size=2 } [mylib::Vector<int>]
-        [size] = 2 [std::size_t]
-        [0] = 10 [int]
-        ...
-
-Errors the adapter reports (failed requests, unverified breakpoints, natvis
-diagnostics, anything it writes to its stderr besides its startup banner) are
-printed to stderr verbatim; natvistest's own errors (e.g. an
-unexpected stop) are prefixed with "error: ".  Either fails the run.  Everything else,
-including evaluation errors and calls that are never reached, shows up as
-output that differs from what the CHECK lines expect.
-"""
+# Running natvis tests: break on check_visualizer() calls, print snapshots.
+#
+# Every line of the test source that consists of exactly `check_visualizer(x);`
+# gets a breakpoint. Each time one is hit, the Variables tree of `x` is written
+# to the output, for FileCheck to verify against the CHECK lines in the test
+# source:
+#
+#     check_visualizer(v) at test_vector.cpp:12
+#       { size=2 } [mylib::Vector<int>]
+#         [size] = 2 [std::size_t]
+#         [0] = 10 [int]
+#         ...
+#
+# Errors the adapter reports (failed requests, unverified breakpoints, natvis
+# diagnostics, anything it writes to its stderr besides its startup banner) are
+# printed to stderr verbatim; natvistest's own errors (e.g. an unexpected stop)
+# are prefixed with "error: ". Either fails the run. Everything else, including
+# evaluation errors and calls that are never reached, shows up as output that
+# differs from what the CHECK lines expect.
 
 import os
 import re
@@ -33,9 +32,8 @@ CALL_RE = re.compile(r"^\s*check_visualizer\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
 NATVIS_PREFIX = "[Natvis]"
 
 
+# A `check_visualizer(identifier);` line in a test source.
 class Call:
-    """A `check_visualizer(identifier);` line in a test source."""
-
     def __init__(self, line, identifier):
         self.line = line
         self.identifier = identifier
@@ -61,59 +59,66 @@ class Runner:
         self.log = log
         self.failed = False
 
+    # Report an error found by natvistest itself.
     def _error(self, message):
-        """Report an error found by natvistest itself."""
         self.failed = True
         print(f"error: {message}", file=sys.stderr)
 
+    # Pass on an error reported by the adapter, verbatim.
     def _report(self, text):
-        """Pass on an error reported by the adapter, verbatim."""
         self.failed = True
         sys.stderr.write(text if text.endswith("\n") else text + "\n")
 
+    # Print `label = value [type]`, or just `value [type]` without a label.
     def _write_node(self, node, indent, label=None):
-        """Print `label = value [type]`, or just `value [type]` without a label."""
         type_ = f" [{node.type}]" if node.type else ""
         name = f"{label} = " if label is not None else ""
         print(f"{'  ' * indent}{name}{node.value}{type_}")
 
+    # Write the children of `node`, i.e. what its type's visualizer produces.
+    #
+    # Children are not expanded further (their own children come from their own
+    # types' visualizers), except "[More...]", which continues the same list.
+    #
+    # "[Raw View]" is listed but not expanded.
     def _write_children(self, session, node, indent):
-        """Write the children of `node`, i.e. what its type's visualizer produces.
-
-        Children are not expanded further (their own children come from their
-        own types' visualizers), except "[More...]", which continues the same
-        list.  "[Raw View]" is listed but not expanded.
-        """
         for kid in session.children(node):
             self._write_node(kid, indent, kid.name)
             if kid.name == "[More...]":
                 self._write_children(session, kid, indent + 1)
 
+    # Report and return False unless every breakpoint sits on its requested line.
     def _verify_breakpoints(self, session, calls):
-        """Report and return False unless every breakpoint sits on its requested line."""
         for call in calls:
+            def _bp_error(message):
+                self._error(f"{self.source}:{call.line}: {message}")
+
             bp = session.get_breakpoint(call.breakpoint_id)
             if not bp.get("verified"):
                 if bp.get("message"):
                     self._report(bp["message"])
                 else:
-                    self._error(f"{self.source}:{call.line}: breakpoint could not be set")
+                    _bp_error("breakpoint could not be set")
                 return False
+
             if bp.get("line") is None:
-                self._error(f"{self.source}:{call.line}: breakpoint was not bound to any line")
+                _bp_error("breakpoint was not bound to any line")
                 return False
+
             if bp["line"] != call.line:
-                self._error(f"{self.source}:{call.line}: breakpoint landed on line "
-                            f"{bp['line']} instead (no code on line {call.line}?)")
+                _bp_error(f"breakpoint landed on line "
+                          f"{bp['line']} instead (no code on line {call.line}?)")
                 return False
+
         return True
 
+    # Print snapshots to stdout and errors to stderr; return True if no errors.
     def run(self):
-        """Print snapshots to stdout and errors to stderr; return True if no errors."""
         self.failed = False
         calls = find_calls(self.source)
+
         if not calls:
-            return True   # nothing to print, so no need to run the program
+            return True
 
         session = DebugSession(self.adapter, self.program, self.natvis, log=self.log)
         try:
@@ -123,7 +128,7 @@ class Runner:
                 call.breakpoint_id = bp["id"]
 
             # Every breakpoint must land on its own line; otherwise stop without
-            # running any further.  The adapter reports where breakpoints land
+            # running any further. The adapter reports where breakpoints land
             # during startup, and they don't move afterwards.
             if not self._verify_breakpoints(session, calls):
                 return False

@@ -1,8 +1,7 @@
-"""Command line interface.
-
-    natvistest run --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
-        | FileCheck test.cpp
-"""
+# Command line interface.
+#
+#     natvistest run --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
+#         | FileCheck test.cpp
 
 import argparse
 import os

@@ -1,14 +1,13 @@
-"""A debug session driven like VS Code drives a "cppdbg" launch configuration."""
+# A debug session driven like VS Code drives a "cppdbg" launch configuration.
 
 import os
 
 from .adapter import adapter_argv
-from .dap import DapClient, DapError, default_env
+from .dap import DapClient, DapError
 
 
+# One row of the Variables/Watch tree.
 class Node:
-    """One row of the Variables/Watch tree."""
-
     def __init__(self, name, value, type_, ref):
         self.name = name
         self.value = value
@@ -55,12 +54,11 @@ class DebugSession:
         }
         return cfg
 
+    # Launch the program with `breakpoints` = {source path: [lines]}.
+    #
+    # Returns {source path: [resolved breakpoint dicts]} in request order.
     def start(self, breakpoints):
-        """Launch the program with `breakpoints` = {source path: [lines]}.
-
-        Returns {source path: [resolved breakpoint dicts]} in request order.
-        """
-        self.client = DapClient(adapter_argv(self.adapter), env=default_env(), log=self.log)
+        self.client = DapClient(adapter_argv(self.adapter), log=self.log)
         self.client.request("initialize", {
             "clientID": "vscode",
             "clientName": "natvistest",
@@ -82,12 +80,11 @@ class DebugSession:
         self.client.wait_response(launch_seq)
         return resolved
 
+    # Set breakpoints; return the adapter's reply entries, with "line" None.
+    #
+    # The reply only echoes the requested lines, so "line" is cleared to keep it
+    # from being mistaken for where a breakpoint really landed.
     def set_breakpoints(self, source, lines):
-        """Set breakpoints; return the adapter's reply entries, with "line" None.
-
-        The reply only echoes the requested lines, so "line" is cleared to
-        keep it from being mistaken for where a breakpoint really landed.
-        """
         body = self.client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
             "breakpoints": [{"line": line} for line in lines],
@@ -98,18 +95,17 @@ class DebugSession:
             self._initial_breakpoint_states[bp["id"]] = bp
         return breakpoints
 
+    # Latest state of a breakpoint returned by set_breakpoints.
+    #
+    # That is the last "breakpoint" event about it, which has the line it really
+    # landed on (e.g. moved to the next line with code); without one, the
+    # setBreakpoints reply entry, whose "line" is None.
     def get_breakpoint(self, breakpoint_id):
-        """Latest state of a breakpoint returned by set_breakpoints.
-
-        That is the last "breakpoint" event about it, which has the line it
-        really landed on (e.g. moved to the next line with code); without
-        one, the setBreakpoints reply entry, whose "line" is None.
-        """
         initial = self._initial_breakpoint_states[breakpoint_id]
         return self.client.breakpoints.get(breakpoint_id, initial)
 
+    # Wait for the program to stop or end; return the DAP event.
     def wait_stop(self):
-        """Wait for the program to stop or end; return the DAP event."""
         return self.client.wait_event(("stopped", "terminated", "exited"))
 
     def resume(self, thread_id):

@@ -1,8 +1,7 @@
-"""End-to-end tests of natvistest against the real debug adapter.
-
-Run through `python3 -m selftest --adapter PATH`; skipped when no adapter is
-given, or when gdb or a C++ compiler is missing.
-"""
+# End-to-end tests of natvistest against the real debug adapter.
+#
+# Run through `python3 -m selftest --adapter PATH`; skipped when no adapter is
+# given, or when gdb or a C++ compiler is missing.
 
 import contextlib
 import io

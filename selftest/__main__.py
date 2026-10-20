@@ -1,7 +1,6 @@
-"""Run the self-tests: python3 -m selftest [--adapter PATH] [unittest options]
-
-Without --adapter only the tests that need no debugger run.
-"""
+# Run the self-tests: python3 -m selftest [--adapter PATH] [unittest options]
+#
+# Without --adapter only the tests that need no debugger run.
 
 import argparse
 import os
