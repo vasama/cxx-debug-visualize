@@ -475,7 +475,9 @@ the GitHub workflow uses it.
 
 The [GitHub Actions workflow][workflow] runs the self-tests and the example's
 CTest tests on every released Python version that is not end-of-life, with
-OpenDebugAD7 built from the MIEngine sources, gdb and lldb 18.
+OpenDebugAD7 built from the MIEngine sources, gdb and lldb 18. It also checks
+that all Python code is formatted with `ruff format` (configured in
+`pyproject.toml`).
 
 ## Limitations
 

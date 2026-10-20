@@ -1,6 +1,6 @@
-# Runs the self-tests and the example's CTest tests on every released Python version that is
-# not end-of-life, against OpenDebugAD7 (built from the MIEngine sources), gdb's own DAP support
-# and lldb-dap.
+# Checks the formatting of the Python code, and runs the self-tests and the example's CTest tests
+# on every released Python version that is not end-of-life, against OpenDebugAD7 (built from the
+# MIEngine sources), gdb's own DAP support and lldb-dap.
 
 name: test
 
@@ -16,6 +16,18 @@ env:
   DOTNET_SDK: "10.0.x"
 
 jobs:
+  # Fails if `ruff format` would change any Python code (configured in pyproject.toml). Ruff is
+  # pinned, since its formatting can change between versions.
+  format:
+    name: Check formatting
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/ruff-action@v4.1.0
+        with:
+          version: "0.16.9"
+          args: format --check --diff
+
   # Builds OpenDebugAD7 (self-contained) from the MIT-licensed MIEngine sources, only when the
   # cache has no build of MIENGINE_REF with DOTNET_SDK yet.
   adapter:
