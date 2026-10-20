@@ -31,9 +31,9 @@ struct frame
 
 enum class stop_reason
 {
-    breakpoint,
-    exception,
-    exited,
+  breakpoint,
+  exception,
+  exited,
 };
 
 struct stop_info
@@ -58,10 +58,10 @@ public:
 
   std::wstring flush()
   {
-      std::wstring output = std::move(m_output);
-      m_output.clear();
+    std::wstring output = std::move(m_output);
+    m_output.clear();
 
-      return output;
+    return output;
   }
 };
 
@@ -99,7 +99,8 @@ public:
   ~debugger();
 
   // Start the program, stopped before it runs any of its own code.
-  void launch(std::filesystem::path const& program, std::vector<std::string> const& args,
+  void launch(std::filesystem::path const& program,
+              std::vector<std::string> const& args,
               std::filesystem::path const& cwd);
 
   // Unload all natvis files, including those that the engine loads by default.

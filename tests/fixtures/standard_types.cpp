@@ -456,7 +456,11 @@ int main(int argc, char** argv)
   }
 
   {
-    std::function<int(int)> function = [](int value) { return value * 2; };
+    std::function<int(int)> function = [](int value)
+    {
+      return value * 2;
+    };
+
     if (is_supported(libcxx_lldb))
     {
       visualize(function);

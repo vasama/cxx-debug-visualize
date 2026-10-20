@@ -24,7 +24,7 @@ namespace {
 // Elements after this many are left out, in case a corrupt list never ends.
 constexpr ULONG64 max_elements = 10000;
 
-static std::wstring widen(std::string_view s)
+static std::wstring widen(std::string_view const s)
 {
   int const size = static_cast<int>(s.size());
   std::wstring w(MultiByteToWideChar(CP_UTF8, 0, s.data(), size, nullptr, 0), L'\0');
@@ -37,7 +37,13 @@ static std::string narrow(std::wstring_view const w)
   int const size = static_cast<int>(w.size());
   std::string s(WideCharToMultiByte(CP_UTF8, 0, w.data(), size, nullptr, 0, nullptr, nullptr),
                 '\0');
-  WideCharToMultiByte(CP_UTF8, 0, w.data(), size, s.data(), static_cast<int>(s.size()), nullptr,
+  WideCharToMultiByte(CP_UTF8,
+                      0,
+                      w.data(),
+                      size,
+                      s.data(),
+                      static_cast<int>(s.size()),
+                      nullptr,
                       nullptr);
   return s;
 }
@@ -68,25 +74,23 @@ static void check(HRESULT const hr, std::string_view const what)
     fail(what, hr);
 }
 
-
 struct bstr_deleter
 {
-    void operator()(BSTR const bstr) const
-    {
-        SysFreeString(bstr);
-    }
+  void operator()(BSTR const bstr) const
+  {
+    SysFreeString(bstr);
+  }
 };
 
 struct unique_bstr : std::unique_ptr<std::remove_pointer_t<BSTR>, bstr_deleter>
 {
-    using unique_ptr::unique_ptr;
+  using unique_ptr::unique_ptr;
 
-    [[nodiscard]] std::wstring_view str() const
-    {
-        return *this ? std::wstring_view(get()) : std::wstring_view();
-    }
+  [[nodiscard]] std::wstring_view str() const
+  {
+    return *this ? std::wstring_view(get()) : std::wstring_view();
+  }
 };
-
 
 class variant
 {
@@ -196,25 +200,22 @@ static ComPtr<IModelObject> referent(ComPtr<IModelObject> object)
 template<typename T>
 static std::string to_chars(T const& value)
 {
-    std::string string;
+  std::string string;
 
-    while (true)
+  while (true)
+  {
+    string.resize(std::max<size_t>(string.capacity(), 1));
+
+    auto const [ptr, ec] = std::to_chars(string.data(), string.data() + string.size(), value);
+
+    if (ec == std::errc())
     {
-        string.resize(std::max<size_t>(string.capacity(), 1));
-
-        auto const [ptr, ec] = std::to_chars(
-            string.data(),
-            string.data() + string.size(),
-            value);
-
-        if (ec == std::errc())
-        {
-            string.resize(static_cast<size_t>(ptr - string.data()));
-            return string;
-        }
-
-        string.push_back(0);
+      string.resize(static_cast<size_t>(ptr - string.data()));
+      return string;
     }
+
+    string.push_back(0);
+  }
 }
 
 // A character code, followed by the character if it is printable, as other debuggers show it: e.g.
@@ -350,11 +351,14 @@ static bool shown(IModelObject* const object, IKeyStore* const metadata)
   if (FAILED(object->GetKind(&kind)) || kind == ObjectMethod || kind == ObjectNoValue)
     return false;
 
-  if (metadata != nullptr) {
+  if (metadata != nullptr)
+  {
     ComPtr<IModelObject> prefer_show;
-    if (SUCCEEDED(metadata->GetKeyValue(L"PreferShow", &prefer_show, nullptr))) {
+    if (SUCCEEDED(metadata->GetKeyValue(L"PreferShow", &prefer_show, nullptr)))
+    {
       variant prefer_show_value;
-      if (SUCCEEDED(prefer_show->GetIntrinsicValue(prefer_show_value.get()))) {
+      if (SUCCEEDED(prefer_show->GetIntrinsicValue(prefer_show_value.get())))
+      {
         if (prefer_show_value->vt == VT_BOOL)
           return prefer_show_value->boolVal;
       }
@@ -365,7 +369,6 @@ static bool shown(IModelObject* const object, IKeyStore* const metadata)
 }
 
 } // namespace
-
 
 STDMETHODIMP output_collector::QueryInterface(REFIID id, void** const object)
 {
@@ -397,7 +400,6 @@ STDMETHODIMP output_collector::Output(ULONG, PCWSTR const output)
   write_log(narrow(output));
   return S_OK;
 }
-
 
 std::string debugger::execute(std::wstring const& command)
 {
@@ -563,14 +565,15 @@ debugger::debugger(std::string const& path)
   // dbgmodel.dll), rather than the older versions in System32.
   HMODULE const dbgeng = LoadLibraryExW(dll.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
   if (dbgeng == NULL)
-    throw std::runtime_error(std::format("cannot load {}; install the Debugging Tools for Windows",
-                                         dll.string()));
+    throw std::runtime_error(
+        std::format("cannot load {}; install the Debugging Tools for Windows", dll.string()));
 
   auto const create = reinterpret_cast<decltype(&DebugCreate)>(
       reinterpret_cast<void*>(GetProcAddress(dbgeng, "DebugCreate")));
 
   if (!create)
-    fail(std::format("finding DebugCreate in {}", dll.string()), HRESULT_FROM_WIN32(GetLastError()));
+    fail(std::format("finding DebugCreate in {}", dll.string()),
+         HRESULT_FROM_WIN32(GetLastError()));
 
   check(create(__uuidof(IDebugClient5), &m_client), "DebugCreate");
   check(m_client.As(&m_control), "IDebugControl4");
@@ -609,7 +612,8 @@ debugger::~debugger()
   m_client->SetOutputCallbacksWide(nullptr);
 }
 
-void debugger::launch(std::filesystem::path const& program, std::vector<std::string> const& args,
+void debugger::launch(std::filesystem::path const& program,
+                      std::vector<std::string> const& args,
                       std::filesystem::path const& cwd)
 {
   // Symbols only from next to the program, not from Microsoft's symbol server (for system DLLs), so
@@ -622,14 +626,18 @@ void debugger::launch(std::filesystem::path const& program, std::vector<std::str
   std::wstring command_line = quote(program.native());
   for (std::string const& arg : args)
   {
-      command_line += L' ';
-      command_line += quote(widen(arg));
+    command_line += L' ';
+    command_line += quote(widen(arg));
   }
 
   DEBUG_CREATE_PROCESS_OPTIONS options = {};
   options.CreateFlags = DEBUG_ONLY_THIS_PROCESS;
-  check(m_client->CreateProcess2Wide(0, command_line.data(), &options, sizeof options,
-                                     cwd.empty() ? nullptr : cwd.c_str(), nullptr),
+  check(m_client->CreateProcess2Wide(0,
+                                     command_line.data(),
+                                     &options,
+                                     sizeof options,
+                                     cwd.empty() ? nullptr : cwd.c_str(),
+                                     nullptr),
         "CreateProcess");
   check(m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE), "WaitForEvent");
 
@@ -684,8 +692,7 @@ stop_info debugger::run()
 {
   // Continuing after an exception does not handle it, which would run the faulting code again:
   // the program gets the exception, and one it does not handle ends it.
-  ULONG status = std::exchange(m_exception, false) ? DEBUG_STATUS_GO_NOT_HANDLED
-                                                   : DEBUG_STATUS_GO;
+  ULONG status = std::exchange(m_exception, false) ? DEBUG_STATUS_GO_NOT_HANDLED : DEBUG_STATUS_GO;
 
   while (true)
   {
@@ -703,16 +710,15 @@ stop_info debugger::run()
     char description[512] = "";
 
     // Without a program, as after it has exited, waiting fails.
-    if (FAILED(hr) ||
-        FAILED(m_control->GetLastEventInformation(&type,
-                                                  &process,
-                                                  &thread,
-                                                  &extra,
-                                                  sizeof(extra),
-                                                  /*ExtraInformationUsed=*/nullptr,
-                                                  description,
-                                                  sizeof(description),
-                                                  /*DescriptionUsed=*/nullptr)))
+    if (FAILED(hr) || FAILED(m_control->GetLastEventInformation(&type,
+                                                                &process,
+                                                                &thread,
+                                                                &extra,
+                                                                sizeof(extra),
+                                                                /*ExtraInformationUsed=*/nullptr,
+                                                                description,
+                                                                sizeof(description),
+                                                                /*DescriptionUsed=*/nullptr)))
       return {stop_reason::exited};
 
     if (type == DEBUG_EVENT_EXIT_PROCESS)
@@ -748,8 +754,11 @@ frame debugger::top_frame()
   wchar_t name[1024];
   ULONG64 displacement = 0;
   char text[32];
-  if (SUCCEEDED(m_symbols->GetNameByOffsetWide(top.InstructionOffset, name, std::size(name),
-                                               nullptr, &displacement)))
+  if (SUCCEEDED(m_symbols->GetNameByOffsetWide(top.InstructionOffset,
+                                               name,
+                                               std::size(name),
+                                               nullptr,
+                                               &displacement)))
   {
     result.name = narrow(name);
 
@@ -763,8 +772,12 @@ frame debugger::top_frame()
 
   wchar_t file[MAX_PATH * 2];
   ULONG line = 0;
-  if (SUCCEEDED(m_symbols->GetLineByOffsetWide(top.InstructionOffset, &line, file, std::size(file),
-                                               nullptr, nullptr)))
+  if (SUCCEEDED(m_symbols->GetLineByOffsetWide(top.InstructionOffset,
+                                               &line,
+                                               file,
+                                               std::size(file),
+                                               nullptr,
+                                               nullptr)))
   {
     result.file = narrow(file);
     result.line = line;
@@ -780,14 +793,17 @@ value debugger::evaluate(std::string const& expression, std::vector<value>& chil
   check(m_host.As(&evaluator), "IDebugHostEvaluator");
 
   ComPtr<IModelObject> object;
-  HRESULT const hr = evaluator->EvaluateExpression(context.Get(), widen(expression).c_str(),
-                                                   nullptr, &object, nullptr);
+  HRESULT const hr = evaluator->EvaluateExpression(context.Get(),
+                                                   widen(expression).c_str(),
+                                                   nullptr,
+                                                   &object,
+                                                   nullptr);
   if (FAILED(hr))
   {
     std::string const message = object ? display(object.Get()) : "";
 
     if (message.empty())
-        fail(std::format("evaluating {}", expression), hr);
+      fail(std::format("evaluating {}", expression), hr);
 
     throw std::runtime_error(message);
   }

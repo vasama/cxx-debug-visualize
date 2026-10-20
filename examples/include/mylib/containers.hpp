@@ -269,8 +269,7 @@ private:
   unsigned m_size = 0;
 
 public:
-  explicit variant_array(unsigned capacity)
-    : m_entries(new entry[capacity]), m_capacity(capacity)
+  explicit variant_array(unsigned capacity) : m_entries(new entry[capacity]), m_capacity(capacity)
   {
   }
   variant_array(variant_array const&) = delete;

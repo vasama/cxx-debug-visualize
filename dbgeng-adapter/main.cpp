@@ -40,13 +40,13 @@ class adapter
   // the children of each evaluated value, by variablesReference - 1, until the program runs
   std::vector<std::vector<value>> m_children;
 
-  using continuation_type = void(adapter::*)();
+  using continuation_type = void (adapter::*)();
   continuation_type m_continuation = nullptr;
 
 public:
   [[nodiscard]] static int run()
   {
-      return adapter().run_impl();
+    return adapter().run_impl();
   }
 
 private:
@@ -103,7 +103,7 @@ private:
 
   void send_initialized()
   {
-      event("initialized");
+    event("initialized");
   }
 
   json on_initialize(json const&)
@@ -185,8 +185,7 @@ private:
   json on_evaluate(json const& args)
   {
     std::vector<value> children;
-    value const value =
-        debugger().evaluate(args.at("expression").get<std::string>(), children);
+    value const value = debugger().evaluate(args.at("expression").get<std::string>(), children);
     size_t reference = 0;
     if (!children.empty())
     {
@@ -243,10 +242,11 @@ private:
       break;
 
     case stop_reason::exception:
-      event("stopped", {{"reason", "exception"},
-                        {"threadId", 1},
-                        {"text", stop.description},
-                        {"description", stop.description}});
+      event("stopped",
+            {{"reason", "exception"},
+             {"threadId", 1},
+             {"text", stop.description},
+             {"description", stop.description}});
       break;
 
     case stop_reason::exited:
@@ -261,8 +261,7 @@ private:
     using handler_type = json (adapter::*)(json const&);
     using handler_pair = std::pair<std::string_view, handler_type>;
 
-    static constexpr handler_pair handlers[] =
-    {
+    static constexpr handler_pair handlers[] = {
         {"configurationDone", &adapter::on_configurationDone},
         {"continue", &adapter::on_continue},
         {"disconnect", &adapter::on_disconnect},
@@ -286,16 +285,16 @@ private:
 
       try
       {
-          auto const it = std::ranges::find(handlers, command, &handler_pair::first);;
-          if (it == std::end(handlers))
-              throw std::runtime_error(std::format("unsupported request: {}", command));
+        auto const it = std::ranges::find(handlers, command, &handler_pair::first);
+        if (it == std::end(handlers))
+          throw std::runtime_error(std::format("unsupported request: {}", command));
 
-          response["body"] = (this->*it->second)(request->value("arguments", json::object()));
+        response["body"] = (this->*it->second)(request->value("arguments", json::object()));
       }
       catch (std::exception const& e)
       {
-          response["success"] = false;
-          response["message"] = e.what();
+        response["success"] = false;
+        response["message"] = e.what();
       }
 
       auto const continuation = std::exchange(m_continuation, nullptr);
