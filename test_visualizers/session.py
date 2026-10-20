@@ -12,7 +12,7 @@ from .dap import DapClient, DapError
 _NATVIS_PREFIX = "[Natvis]"
 
 # One row of the Variables/Watch tree.
-class Node:
+class VisualizationNode:
     def __init__(self, name: str, value: str, type_: str | None, ref: int) -> None:
         self.name = name
         self.value = value
@@ -168,15 +168,16 @@ class DebugSession:
             raise DapError(f"thread {thread_id} has no stack frames")
         return frames[0]
 
-    def evaluate(self, expression: str, frame_id: int) -> Node:
+    def evaluate(self, expression: str, frame_id: int) -> VisualizationNode:
         body = self._client.request("evaluate", {"expression": expression, "frameId": frame_id,
                                                 "context": "watch"})
-        return Node(expression, body.get("result", ""), body.get("type"),
-                    body.get("variablesReference", 0))
+        return VisualizationNode(expression, body.get("result", ""), body.get("type"),
+                                 body.get("variablesReference", 0))
 
-    def children(self, node: Node) -> list[Node]:
+    def children(self, node: VisualizationNode) -> list[VisualizationNode]:
         if not node.expandable:
             return []
         body = self._client.request("variables", {"variablesReference": node.ref})
-        return [Node(v["name"], v.get("value", ""), v.get("type"), v.get("variablesReference", 0))
+        return [VisualizationNode(v["name"], v.get("value", ""), v.get("type"),
+                                  v.get("variablesReference", 0))
                 for v in body.get("variables", [])]

@@ -22,7 +22,7 @@ import sys
 from collections.abc import Callable
 
 from .dap import AdapterError, DapError
-from .session import DebugSession, Node
+from .session import DebugSession, VisualizationNode
 
 CALL_RE = re.compile(r"^\s*check_visualizer\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
 
@@ -65,7 +65,7 @@ class Runner:
         self._failed = True
 
     # Print `label = value [type]`, or `value [type]` without a label.
-    def _write_node(self, node: Node, indent: int, label: str | None = None) -> None:
+    def _write_node(self, node: VisualizationNode, indent: int, label: str | None = None) -> None:
         type_ = f" [{node.type}]" if node.type else ""
         name = f"{label} = " if label is not None else ""
         print(f"{'  ' * indent}{name}{node.value}{type_}")
@@ -77,7 +77,7 @@ class Runner:
     # "[More...]" is encountered, the remaining children are expanded, as if the list were unpaged.
     #
     # "[Raw View]" lines emitted by natvis visualizers are discarded.
-    def _write_children(self, session: DebugSession, node: Node, indent: int) -> None:
+    def _write_children(self, session: DebugSession, node: VisualizationNode, indent: int) -> None:
         for child in session.children(node):
             if child.name == "[Raw View]":
                 continue
