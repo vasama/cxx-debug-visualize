@@ -4,7 +4,7 @@ project(mylib_visualizers_example LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(CxxDebugVisualize)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExpectedOutputTests.cmake")
 enable_testing()
 
 add_library(mylib INTERFACE)
@@ -14,7 +14,7 @@ set(MYLIB_NATVIS "${CMAKE_CURRENT_SOURCE_DIR}/visualizers/mylib.natvis")
 set(MYLIB_PRINTERS "${CMAKE_CURRENT_SOURCE_DIR}/visualizers/mylib_printers.py")
 set(MYLIB_FORMATTERS "${CMAKE_CURRENT_SOURCE_DIR}/visualizers/mylib_formatters.py")
 
-cxx_debug_visualize_add_test(
+add_visualizer_test(
   test_containers
     SOURCES tests/test_containers.cpp
     NATVIS ${MYLIB_NATVIS}
@@ -23,7 +23,7 @@ cxx_debug_visualize_add_test(
     LINK_LIBRARIES mylib
 )
 
-cxx_debug_visualize_add_test(
+add_visualizer_test(
   test_strings
     SOURCES tests/test_strings.cpp
     NATVIS ${MYLIB_NATVIS}

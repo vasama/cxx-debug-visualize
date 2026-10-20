@@ -68,14 +68,10 @@ Running tests also needs, depending on what you test:
 
 gdb and lldb-dap are looked up on `PATH`, unless `--debugger-path` names them.
 
-Two optional extras are not part of the package; take them from the
-[repository](https://github.com/vasama/cxx-debug-visualize) if you want them:
-
-* [`include/cxx_debug_visualize.hpp`][header], which defines the `visualize()`
-  function tests call (a test can just as well define its own, see "Writing
-  tests");
-* the CMake helper [`cmake/CxxDebugVisualize.cmake`][cmake], which builds test
-  programs and registers CTest tests (see "CMake / CTest").
+The header [`include/cxx_debug_visualize.hpp`][header], which defines the
+`visualize()` function tests call, is not part of the package; take it from the
+[repository](https://github.com/vasama/cxx-debug-visualize) if you want it (a
+test can just as well define its own, see "Writing tests").
 
 ## How natvis support works in VS Code
 
@@ -190,8 +186,8 @@ Found by running cpptools 1.34.4 with gdb 15:
    Evaluation errors and calls that are never reached are not reported
    separately: they show up as output that differs from the expected output.
 
-The test (e.g. the CMake helper below) then compares stdout with the expected
-output.
+The test then checks stdout, e.g. by comparing it with the expected output, as the
+example project's tests do (see "CMake / CTest").
 
 The implementation is pure Python standard library (3.10+): `cxx_debug_visualize/dap.py`
 is a small DAP client, and `runner.py` holds the test logic.
@@ -252,8 +248,8 @@ visualize(v) at test_containers.cpp:34
 ### Expected output
 
 A test's expected output is a text file holding exactly what cxx-debug-visualize
-prints, one per visualizer and debug adapter: the CMake helper below compares
-the output of `tests/test_containers.cpp` with
+prints, one per visualizer and debug adapter: the example project's tests (see
+"CMake / CTest") compare the output of `tests/test_containers.cpp` with
 `tests/test_containers.natvis.txt`, `tests/test_containers.gdb-adapter.txt`
 (pretty printers through OpenDebugAD7), `tests/test_containers.gdb-native.txt`
 (pretty printers through gdb's own DAP support) and
@@ -279,7 +275,7 @@ visualize(hello) at test_strings.cpp:13
   appears in execution order, which may not be source order. See `greet()` in
   [`example/tests/test_strings.cpp`][example-strings].
 
-When a test fails, the helper prints a diff and writes the actual output to
+When a test fails, the example's tests print a diff and write the actual output to
 `<kind>.<name>.actual.txt` in the build directory. To create or update an
 expected file, check that output and copy it over the expected file.
 
@@ -351,16 +347,32 @@ behind.
 
 ### CMake / CTest
 
-The CMake helper is not part of the PyPI package: use it from a checkout of
-the repository. It runs cxx-debug-visualize from that checkout, so the package
-doesn't need to be installed for it.
+Build test programs without optimizations and with debug info, so that each
+`visualize(x);` line compiles to code of its own, and run cxx-debug-visualize
+as a test:
 
 ```cmake
-list(APPEND CMAKE_MODULE_PATH path/to/cxx-debug-visualize/cmake)
-include(CxxDebugVisualize)
-enable_testing()
+add_executable(test_vector tests/test_vector.cpp)
+target_link_libraries(test_vector PRIVATE mylib)
+target_compile_options(test_vector PRIVATE -O0 -g)
 
-cxx_debug_visualize_add_test(test_containers
+add_test(NAME natvis.test_vector
+         COMMAND cxx-debug-visualize --natvis ${CMAKE_CURRENT_SOURCE_DIR}/mylib.natvis
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_vector.cpp $<TARGET_FILE:test_vector>)
+```
+
+A test like this only checks that cxx-debug-visualize succeeds. Checking the
+output, e.g. piping it into FileCheck or comparing it with an expected file,
+takes a small script, since a CTest test is a single command.
+
+The [example project][example] does the latter:
+[`example/cmake/ExpectedOutputTests.cmake`][example-expected] defines
+`add_visualizer_test()`, which builds a test program and registers a CTest
+test (label `visualizers`) per visualizer and way of debugging. It runs
+cxx-debug-visualize from the repository, so needs no installation:
+
+```cmake
+add_visualizer_test(test_containers
   SOURCES tests/test_containers.cpp
   NATVIS visualizers/mylib.natvis             # at least one of these three
   GDB_PRINTERS visualizers/mylib_printers.py
@@ -368,29 +380,30 @@ cxx_debug_visualize_add_test(test_containers
   LINK_LIBRARIES mylib)
 ```
 
-This builds the program once, with `-O0 -g`, and registers CTest tests (label
-`visualizers`): `natvis.test_containers` for the natvis file, and for the
+This registers `natvis.test_containers` for the natvis file, and for the
 pretty printers both `gdb-adapter.test_containers` (through OpenDebugAD7, as in
 VS Code) and `gdb-native.test_containers` (through gdb's own DAP support, which
-needs GDB 14 or later), and
-`lldb-native.test_containers` for the lldb formatters (through lldb-dap, which
-must be on `PATH` when the tests run). Each test runs cxx-debug-visualize and
-fails unless it succeeds and its output matches the expected file (see
-"Expected output" above). The first file in `SOURCES` is the test source: its
-`visualize` lines are breakpoints, and its expected files sit next to it
-(`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-adapter.txt`,
-`tests/test_containers.gdb-native.txt`, `tests/test_containers.lldb-native.txt`).
-The natvis and gdb-adapter tests need `CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`; without it, they
-are registered disabled (CTest reports them as "Not Run (Disabled)"), or, with
-`-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON`, configuration fails. See [`example/`][example]
-for a complete project, which tests `visualizers/mylib.natvis`,
-`visualizers/mylib_printers.py` and `visualizers/mylib_formatters.py` against the
-same tests:
+needs GDB 14 or later), and `lldb-native.test_containers` for the lldb
+formatters (through lldb-dap, which must be on `PATH` when the tests run). Each
+test runs cxx-debug-visualize and fails unless it succeeds and its output
+matches the expected file (see "Expected output" above). The first file in
+`SOURCES` is the test source: its `visualize` lines are breakpoints, and its
+expected files sit next to it (`tests/test_containers.natvis.txt`,
+`tests/test_containers.gdb-adapter.txt`, `tests/test_containers.gdb-native.txt`,
+`tests/test_containers.lldb-native.txt`). The natvis and gdb-adapter tests need
+`CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`; without it, they are registered disabled
+(CTest reports them as "Not Run (Disabled)"), or, with
+`-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON`, configuration fails. The example
+tests `visualizers/mylib.natvis`, `visualizers/mylib_printers.py` and
+`visualizers/mylib_formatters.py` against the same tests:
 
 ```
 cmake -S example -B build -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
-cmake --build build && ctest --test-dir build -L visualizers
+cmake --build build && ctest --test-dir build
 ```
+
+The repository's root project builds and runs them too, along with the
+self-tests.
 
 ## Getting the debug adapter
 
@@ -502,7 +515,6 @@ include: it is under the MIT No Attribution License (MIT-0, see
 freely, without keeping any notice.
 
 [header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.hpp
-[cmake]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/cmake/CxxDebugVisualize.cmake
 [example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example
 [example-tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example/tests
 [example-strings]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/tests/test_strings.cpp
@@ -514,3 +526,4 @@ freely, without keeping any notice.
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
 [license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0.txt
 [workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml
+[example-expected]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/cmake/ExpectedOutputTests.cmake
