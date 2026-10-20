@@ -1,6 +1,6 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
-# Run through `python3 -m selftest` (e.g. by CTest), which passes the built fixture program
+# Run through `python3 -m tests` (e.g. by CTest), which passes the built fixture program
 # test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --vs-adapter).
 # A test class is skipped, and left out of --list, unless every executable it uses was given, and
 # fails without the fixture program.
@@ -18,7 +18,7 @@ FIXTURES = os.path.join(HERE, "fixtures")
 SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 
 
-# Set from the command line by selftest/__main__.py: the path of the built fixture program, and
+# Set from the command line by tests/__main__.py: the path of the built fixture program, and
 # the full paths of the executables to test with, by option name (None if not given).
 PROGRAM = None
 TOOLS = {"gdb": None, "lldb-dap": None, "vs-adapter": None}

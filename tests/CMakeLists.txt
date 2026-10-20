@@ -2,7 +2,7 @@
 #
 # The self-tests compile nothing themselves: CMake builds fixtures/test_program.cpp and passes the
 # program to them. Each self-test is a CTest test of its own, named by its unittest ID (e.g.
-# selftest.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls). They are listed when
+# tests.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls). They are listed when
 # CMake configures, which a build redoes when a file in this directory changes.
 #
 # Cache variables, the executables to test with, which select the self-tests registered:
@@ -79,13 +79,13 @@ if(CXXDV_VS_ADAPTER_PATH)
 endif()
 set(selftest_args --program "$<TARGET_FILE:test_program>" ${selftest_tools})
 
-# Every self-test of the executables given, as `python -m selftest --list` prints them, run from
-# the source tree's root, where the selftest and cxx_debug_visualize packages are. Changing the
+# Every self-test of the executables given, as `python -m tests --list` prints them, run from
+# the source tree's root, where the tests and cxx_debug_visualize packages are. Changing the
 # self-tests reruns this.
 file(GLOB selftest_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${selftest_sources})
 execute_process(
-  COMMAND "${Python3_EXECUTABLE}" -m selftest ${selftest_tools} --list
+  COMMAND "${Python3_EXECUTABLE}" -m tests ${selftest_tools} --list
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
   OUTPUT_VARIABLE selftests
   RESULT_VARIABLE result)
@@ -99,7 +99,7 @@ foreach(test IN LISTS selftests)
     continue()
   endif()
   add_test(NAME "${test}"
-           COMMAND "${Python3_EXECUTABLE}" -m selftest ${selftest_args} --test "${test}"
+           COMMAND "${Python3_EXECUTABLE}" -m tests ${selftest_args} --test "${test}"
            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" ${debug_only})
   # unittest reports a skipped test (e.g. one that doesn't apply to the platform) as
   # "OK (skipped=1)".

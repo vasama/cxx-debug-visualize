@@ -46,4 +46,4 @@ packages = ["cxx_debug_visualize"]
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["selftest/fixtures/malformed_*.py"]
+extend-exclude = ["tests/fixtures/malformed_*.py"]

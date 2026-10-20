@@ -1,4 +1,4 @@
-# Builds and runs the self-tests (see selftest/CMakeLists.txt) and the example project's tests
+# Builds and runs the self-tests (see tests/CMakeLists.txt) and the example project's tests
 # (see example/CMakeLists.txt) with CTest:
 #
 #   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCXXDV_GDB=gdb -DCXXDV_LLDB_DAP=lldb-dap \
@@ -14,5 +14,5 @@ project(cxx-debug-visualize LANGUAGES CXX)
 
 enable_testing()
 
-add_subdirectory(selftest)
+add_subdirectory(tests)
 add_subdirectory(example)

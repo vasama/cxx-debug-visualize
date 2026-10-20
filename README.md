@@ -454,7 +454,7 @@ is skipped. `--trace` shows which adapter is used.
 
 ## Self-tests
 
-The [self-tests][selftest] are part of the repository, not of the package. The
+The [self-tests][tests] are part of the repository, not of the package. The
 root `CMakeLists.txt` builds their fixture program and runs them with CTest,
 together with the example project's tests; from a checkout:
 
@@ -465,17 +465,17 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-CMake builds `selftest/fixtures/test_program.cpp` and passes the program to the
-self-tests (`python3 -m selftest --program PATH …`), which compile nothing
+CMake builds `tests/fixtures/test_program.cpp` and passes the program to the
+self-tests (`python3 -m tests --program PATH …`), which compile nothing
 themselves. The program crashes after its last `visualize()` call when given
 an argument, which the crash tests pass to it.
 
 Each self-test is a CTest test of its own, named by its unittest ID, e.g.
-`selftest.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls`, so
+`tests.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls`, so
 `ctest -R LldbTests` runs a subset and `ctest -j 8` runs them in parallel.
-CMake lists the tests (`python3 -m selftest --list`) when it configures, and a
-build re-runs that when a file in `selftest/` changes; each test runs with
-`python3 -m selftest --test ID`.
+CMake lists the tests (`python3 -m tests --list`) when it configures, and a
+build re-runs that when a file in `tests/` changes; each test runs with
+`python3 -m tests --test ID`.
 
 The tests of the `visualize` line scanner and of the launch configurations
 always run. The integration tests need the fixture programs, and OpenDebugAD7
@@ -489,13 +489,13 @@ script that doesn't load, crashes). The tests of gdb's own DAP support check the
 same for pretty printers; they need gdb 14 or later (`CXXDV_GDB`), but no
 adapter. There, a printer that raises fails the run with gdb's message, while a
 script that doesn't load passes silently. The lldb tests check the same for lldb
-formatters ([`selftest/fixtures/good_formatters.py`][selftest-formatters] and
+formatters ([`tests/fixtures/good_formatters.py`][tests-formatters] and
 its bad and malformed counterparts); they need lldb-dap (or lldb-vscode;
 `CXXDV_LLDB_DAP`, passed as `--lldb-dap`). Both a formatter that raises and a
 script that doesn't load pass silently there, and only show in the output.
 
 The integration tests that need an executable not given are not registered
-with CTest: CMake passes the full paths of those given to `python3 -m selftest
+with CTest: CMake passes the full paths of those given to `python3 -m tests
 --list`, which leaves the others out (run without them, they are skipped).
 
 The [GitHub Actions workflow][workflow] runs the self-tests and the example's
@@ -534,8 +534,8 @@ freely, without keeping any notice.
 [example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib.natvis
 [example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib_printers.py
 [example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib_formatters.py
-[selftest]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/selftest
-[selftest-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/selftest/fixtures/good_formatters.py
+[tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/tests
+[tests-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/tests/fixtures/good_formatters.py
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
 [license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0.txt
 [workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml

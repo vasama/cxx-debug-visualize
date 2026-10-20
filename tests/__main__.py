@@ -1,8 +1,8 @@
 # Run the self-tests:
 #
-#   python3 -m selftest [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH]
+#   python3 -m tests [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH]
 #                       [--test ID]... [unittest options]
-#   python3 -m selftest [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH] --list
+#   python3 -m tests [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH] --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
 # CTest test, which runs it with --test. The integration tests run with the executables given with
@@ -16,9 +16,9 @@ import unittest
 
 from . import test_integration
 
-parser = argparse.ArgumentParser(prog="python3 -m selftest")
+parser = argparse.ArgumentParser(prog="python3 -m tests")
 parser.add_argument(
-    "--program", metavar="PATH", help="the built fixture program selftest/fixtures/test_program.cpp"
+    "--program", metavar="PATH", help="the built fixture program tests/fixtures/test_program.cpp"
 )
 parser.add_argument("--gdb", metavar="PATH", help="gdb, to run the integration tests with")
 parser.add_argument(
