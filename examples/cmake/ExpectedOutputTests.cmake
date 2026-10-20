@@ -23,10 +23,12 @@
 # <test>.gdb-vs.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the output is
-# replaced by "0x?" before comparing; expected files contain "0x?" in their place.  A test fails
-# if cxx-debug-visualize fails or the output differs from the expected file (or that is missing).
-# The actual output is then written to <kind>.<name>.actual.txt in the build directory, for
-# review or to copy over the expected file, and a diff is printed.
+# replaced by "0x?" before comparing; expected files contain "0x?" in their place.  Line endings
+# are ignored, as they differ between platforms (e.g. Python writes \r\n on Windows, and git may
+# check out expected files with either).  A test fails if cxx-debug-visualize fails or the output
+# differs from the expected file (or that is missing). The actual output is then written to
+# <kind>.<name>.actual.txt in the build directory, with \n line endings, for review or to copy over
+# the expected file, and a diff is printed.
 #
 # Cache variables, the executables to test with, which select the tests registered:
 #   CXXDEBVIS_GDB         gdb, for the tests with gdb, natively (GDB 14 and later) and through
@@ -168,9 +170,11 @@ function(_add_visualizer_run kind name test_source adapter option file)
   OUTPUT_VARIABLE output
   RESULT_VARIABLE result)
 string(REGEX REPLACE \"0x[0-9a-fA-F]+\" \"0x?\" output \"\${output}\")
+string(REPLACE \"\\r\\n\" \"\\n\" output \"\${output}\")
 set(expected_output \"\")
 if(EXISTS \"${expected}\")
   file(READ \"${expected}\" expected_output)
+  string(REPLACE \"\\r\\n\" \"\\n\" expected_output \"\${expected_output}\")
 endif()
 if(output STREQUAL expected_output)
   file(REMOVE \"${actual}\")
