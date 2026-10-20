@@ -9,8 +9,7 @@ as defined by the provided visualization script (Natvis, GDB pretty printer, or 
 ([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)).
 * GDB pretty printers can be tested either via the Visual Studio adapter, or using GDB's native
   DAP support (GDB 14 or later), although the output between the two adapters may vary.
-* LLDB formatters can be tested using LLDB's DAP server (LLVM 8 or later, although the oldest tested
-  version is 16).
+* LLDB formatters can be tested using LLDB's DAP server.
 
 ## Quick Example
 
@@ -22,8 +21,8 @@ for (int i = 1; i <= 3; ++i)
 visualize(v);
 ```
 
-A breakpoint is automatically placed on each line containing a call to a function named `visualize`,
-and a visualization of the named object is printed to stdout:
+A breakpoint is automatically placed on each line matching an invocation of a function named
+`visualize`, and upon breaking a visualization of the named object is printed to stdout:
 
 ```
 visualize(v) at test_containers.cpp:34
@@ -38,6 +37,8 @@ visualize(v) at test_containers.cpp:34
 The method of testing expectations is left up to the user. E.g. by comparing the output against a
 file containing expected output, using LLVM `FileCheck` (standalone Python implementation
 [here](https://pypi.org/project/filecheck/)), or some other means of parsing.
+
+See [`examples/`][examples] for a full example testing all supported types of visualizers.
 
 ## Installation
 
@@ -56,14 +57,14 @@ Python 3.10 or later is required, but otherwise only the standard library is use
 
 ```bash
 cxx-debug-visualize test.cpp test_program --natvis my_library.natvis
-cxx-debug-visualize test.cpp test_program --gdb-printer my_printer.py
-cxx-debug-visualize test.cpp test_program --lldb-formatter my_formatter.py
+cxx-debug-visualize test.cpp test_program --gdb-printers my_printers.py
+cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
 ```
 
 * `test.cpp` is the test source file. It is searched for any occurrences of `visualize(x);` and
-  breakpoints are placed one each matching line. A visualization of the specified object is printed
+  breakpoints are placed on each matching line. A visualization of the specified object is printed
   at each breakpoint.
-* Eactly one visualizer script must be specified using `--natvis`, `--gdb-printer`, or
+* Exactly one visualizer script must be specified using `--natvis`, `--gdb-printer`, or
   `lldb-formatter`.
 * The debugger executable to use may be specified using `--debugger-path`.
 * The type of debugger to use may be specified using `--debugger` (`gdb` or `lldb`), but in most
@@ -78,383 +79,30 @@ cxx-debug-visualize test.cpp test_program --lldb-formatter my_formatter.py
 ## Development
 
 Building and running the test suite requires `CMake`, a C++ compiler, either `gdb` or `lldb-dap`,
-and optionally `OpenDebugAD7`. Only the tests that can be executed using the available set of tools
+and optionally `OpenDebugAD7`. Only the tests that can be executed using the specified set of tools
 are configured. Due to the need for debug information, only debug builds are supported.
 
 ```bash
-cmake -B build -G Ninja . \
+cmake -B build . \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCXXDEBVIS_GDB=gdb \
-  -DCXXDEBVIS_LLDB_DAP=lldb-dap-22 \
+  -DCXXDEBVIS_LLDB_DAP=lldb-dap-18 \
   -DCXXDEBVIS_VS_ADAPTER=/path/to/OpenDebugAD7
 
 cmake --build build
 ctest --test-dir build
 ```
 
-## How natvis support works in VS Code
+Use `--trace` to print all DAP traffic to stderr.
 
-These findings come from reading and running cpptools 1.34.4 and MIEngine `main` (September 2026).
+## Getting `OpenDebugAD7`
 
-* A `cppdbg` launch configuration starts **OpenDebugAD7**, which the C/C++
-  extension ships in `debugAdapters/bin/`. VS Code talks to it with the
-  Debug Adapter Protocol (DAP). OpenDebugAD7 wraps **MIEngine**
-  ([microsoft/MIEngine](https://github.com/microsoft/MIEngine), MIT
-  licensed). MIEngine drives gdb (or lldb-mi) through the GDB/MI protocol.
-* **Natvis is implemented entirely inside MIEngine**
-  (`src/MIDebugEngine/Natvis.Impl/Natvis.cs`), not in gdb or VS Code. MIEngine
-  loads the files named by `visualizerFile` (a string or an array) and
-  matches types by name, including `*` wildcards. It rewrites each `{expr}`
-  and `<Item>` into an expression and asks gdb to evaluate it
-  (`-var-create`). **Natvis expressions are therefore evaluated by gdb's C++
-  parser, not MSVC's expression evaluator.**
-* On Windows, the `cppvsdbg` type uses Visual Studio's closed-source debugger
-  engine instead. That is a different natvis implementation, and this tool
-  does not cover it.
-* `showDisplayString` defaults to `false` in VS Code. With it off, a
-  visualized object shows as `{...}` with its plain members as children; if
-  its type has an `<Expand>`, the visualization sits one level down, in a
-  `[Visualized View]` child (where display strings are shown). Types with only
-  a `DisplayString` show no visualization at the top level at all. The same
-  applies in the Variables pane, Watch and hover. `cxx-debug-visualize` always turns
-  the setting on, so tests see the visualization directly. Tell users of your
-  natvis file to set `"showDisplayString": true`.
-* `visualizerFile` is documented as not compatible with gdb pretty printers,
-  so don't enable pretty printing in `setupCommands`.
-
-### Behaviours the tests have to deal with
-
-Found by probing cpptools 1.34.4 with gdb 15 and confirmed in the MIEngine source:
-
-| Natvis construct | Behaviour in VS Code (`cppdbg`) |
-|---|---|
-| `DisplayString`, `Condition`, format specifiers `,x` `,b` `,o` | work |
-| `,s8` on `char*` / `,na` | the address is still shown before the string (`0x5555… "text"`) |
-| `Item`, `ArrayItems`, `IndexListItems`, `LinkedListItems`, `TreeItems`, `ExpandedItem`, `Intrinsic` | work |
-| More than 50 children | paged: children 50 and up sit under a `[More...]` node (cxx-debug-visualize flattens the pages into the list) |
-| `Expand` present | a `[Raw View]` child is added, unless `HideRawView="true"` (cxx-debug-visualize leaves it out of its output) |
-| `Synthetic`, `CustomListItems` | parsed, but **silently ignored** (no children) |
-| `TreeItems` `ValueNode Name="[{Key}]"` | name ignored; children are `[0]`, `[1]`, … |
-| `{p,[n]s8}` string length | `[n]` ignored; the whole C string is shown, prefixed by its address |
-| Invalid expression in `DisplayString` / `Item` | **no diagnostic**; the text `-var-create: unable to create variable object` appears inside the value |
-| Invalid `Condition` | treated as false, silently |
-| Invalid `ArrayItems` `<Size>` (etc.) | the **whole `Expand` is dropped silently** and raw members are shown |
-| Malformed XML | `[Natvis] [Error] ... while reading file` on the debug console; the file is ignored |
-
-Most mistakes fail silently. That is why natvis files need tests, and why
-`cxx-debug-visualize` also looks for the symptoms it can detect itself.
-
-## How gdb pretty printers work in VS Code
-
-Found by running cpptools 1.34.4 with gdb 15:
-
-* gdb's own [pretty printers](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Pretty-Printing.html)
-  (Python classes with `to_string()`, `children()` and `display_hint()`) are
-  applied by gdb itself; MIEngine shows what gdb's `-var-create` and
-  `-var-list-children` return. They are enabled through `setupCommands`:
-  `-enable-pretty-printing`, plus a command that loads the printers (e.g.
-  `source printers.py`), or gdb's auto-loading. Without
-  `-enable-pretty-printing`, gdb ignores printers and shows plain members.
-* They don't mix with natvis (`visualizerFile` is documented as not
-  compatible with them), so a launch uses one or the other.
-* gdb also loads printers from its init files (`~/.gdbinit`) and auto-loads
-  installed ones, e.g. libstdc++'s for `std::` types. `cxx-debug-visualize`
-  switches both off (`-nx`, `set auto-load python-scripts off`), so only the
-  printers under test are active, and results don't depend on the machine.
-
-| Printer feature | Behaviour in VS Code (`cppdbg`) |
-|---|---|
-| `to_string()` | the value; a lazy string with the `"string"` display hint is shown quoted |
-| `to_string()` returning `None` | MIEngine shows a summary of the children, e.g. `{[value] = 42}` |
-| `children()` | the children, with the names the printer yields; no `[Raw View]` |
-| no `children()` | no children at all (not the plain members) |
-| `display_hint()` `"map"` | pairs of children become one child each, named by the key (`[10] = 100`) |
-| many children | all listed at once; no `[More...]` paging |
-| a pointer to a printed type | the pointer is shown as an address (unlike natvis), unless a lookup function also handles the pointer type, as the example's printers do for `mylib::String *` |
-| exception in `to_string()` / `children()` | **no diagnostic**; the value is empty, or the children are missing |
-| error while loading the script (e.g. a syntax error) | the launch fails: `Unable to start debugging. ... Error occurred in Python: ...` |
-
-## How cxx-debug-visualize works
-
-1. It scans the test source for lines that consist of exactly
-   `visualize(identifier);`, and sets a breakpoint on each.
-2. It starts OpenDebugAD7, sends `initialize`, then `launch` with a `cppdbg`
-   configuration like VS Code's, sets the breakpoints and runs the program.
-   The visualizer under test is either a natvis file (`visualizerFile`,
-   `showDisplayString`) or a pretty-printer script (`setupCommands` that
-   enable pretty printing and `source` the script, isolated as described
-   above).
-3. **Every time** a breakpoint is hit, it evaluates the identifier with the DAP
-   `evaluate` request (context `watch`, as in the Watch window), walks the tree
-   with `variables`, and prints it to stdout. A call in a loop prints once per
-   iteration.
-4. It reports problems the output alone may not show on stderr, and exits
-   with status 1 if there are any:
-   * errors the debug adapter reports, printed verbatim: failed requests
-     (e.g. a failed launch), breakpoints it could not set, and its natvis
-     diagnostics (debug-console lines starting with `[Natvis]`, e.g. for
-     malformed XML; warnings too), and anything the adapter writes to its own
-     stderr apart from its `waiting for v8 protocol on stdin/stdout` banner
-     (e.g. a crash report), shown at the end;
-   * cxx-debug-visualize's own errors, prefixed with `error: `, such as an unexpected
-     stop (e.g. a segfault), the adapter going away, or a breakpoint that
-     landed on a different line than its `visualize` call (see below).
-     A breakpoint that is not set on its own line stops the run at once,
-     before any further output.
-
-   Evaluation errors and calls that are never reached are not reported
-   separately: they show up as output that differs from the expected output.
-
-The test then checks stdout, e.g. by comparing it with the expected output, as the
-example project's tests do (see "CMake / CTest").
-
-The implementation is pure Python standard library (3.10+): `cxx_debug_visualize/dap.py`
-is a small DAP client, and `runner.py` holds the test logic.
-
-## Writing tests
-
-A test is an ordinary C++ program compiled with debug info and without
-optimizations (e.g. `-g -O0`, or CMake's `Debug` configuration). Each line
-holding just `visualize(x);` prints the tree of `x` when it runs. A line holding
-anything else as well (another statement, even a trailing comment) is not a
-breakpoint.
-
-`visualize` only has to exist. The repository's `include/cxx_debug_visualize.hpp`
-defines it as a no-op function, but a test can define its own instead, e.g.:
-
-```cpp
-template <typename T> void visualize(const T &) {}
-```
-
-Each `visualize` line must compile to code of its own. If it doesn't, e.g.
-inside `if (false)` or an `#if 0` block, or when `visualize` is a macro that
-expands to nothing or to code-free expressions such as `(void)(x)`, gdb moves
-its breakpoint to the next line with code, and cxx-debug-visualize fails with
-`breakpoint landed on line N instead` rather than stopping somewhere else. A
-function call, as above, always compiles to code without optimizations.
-
-### Output format
-
-```
-visualize(v) at test_containers.cpp:34
-  { size=3 } [mylib::Vector<int>]
-    [size] = 3 [std::size_t]
-    [capacity] = 4 [std::size_t]
-    [0] = 10 [int]
-    [1] = 20 [int]
-    [2] = 30 [int]
-```
-
-* A header line gives the identifier and the call's file name and line.
-* Everything below the header is indented by at least one level (two
-  spaces). The first such line is the object itself, as `value [type]`,
-  without a name.
-* Each child is `name = value [type]`, indented one more level. Nodes
-  without a type (e.g. a natvis `<Item>` whose expression failed) have no
-  `[type]`.
-* Below the object come its children: the items its type's visualizer
-  produces (with natvis, its members if the type has no `<Expand>`; with a
-  pretty printer, what `children()` yields). They are not expanded further,
-  since their own children come from their own types' visualizers.
-* natvis's `[More...]` pages, which hold children 50 and up of a list, are
-  flattened: their children are printed in place, at the list's level, and
-  the `[More...]` lines are left out, so the output looks as if the list were
-  not paged (as with a pretty printer).
-* natvis's `[Raw View]` child, which holds the object's plain members, is left
-  out. When a visualizer's `<Expand>` is silently dropped, the plain members
-  appear in place of the visualized children.
-* Values are printed exactly as the debugger shows them, including addresses.
-
-### Expected output
-
-A test's expected output is a text file holding exactly what cxx-debug-visualize
-prints, one per visualizer and debug adapter: the example project's tests (see
-"CMake / CTest") compare the output of `tests/test_containers.cpp` with
-`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-vs.txt`
-(pretty printers through OpenDebugAD7), `tests/test_containers.gdb-native.txt`
-(pretty printers through gdb's own DAP support) and
-`tests/test_containers.lldb-native.txt` (lldb formatters through lldb-dap).
-Before comparing, it replaces every hexadecimal number (`0x...`) with `0x?`,
-because addresses differ between machines; the expected files contain `0x?` in their place:
-
-```
-visualize(hello) at test_strings.cpp:13
-  0x? "hello" [mylib::String]
-    [size] = 5 [std::size_t]
-```
-
-* The comparison is exact: every line, value and amount of indentation counts,
-  and so does the line number in each header. Adding or removing lines in the
-  test source above a call changes its expected output.
-* cxx-debug-visualize doesn't flag evaluation errors or unreached calls itself. A failed
-  natvis expression shows as `-var-create: unable to create variable object` in
-  place of the value, a pretty printer that raises leaves the value empty or
-  the children missing, and an unreached call prints nothing; all of these
-  change the output.
-* Calls in other functions print when that function runs, so their output
-  appears in execution order, which may not be source order. See `greet()` in
-  [`examples/tests/test_strings.cpp`][example-strings].
-
-When a test fails, the example's tests print a diff and write the actual output to
-`<kind>.<name>.actual.txt` in the build directory. To create or update an
-expected file, check that output and copy it over the expected file.
-
-### Testing several visualizers together
-
-A test source can be checked against a natvis file, a pretty-printer script
-and an lldb formatter script for the same types, e.g. when a library ships
-all of them; each run has its own expected file. The example's printers
-([`examples/visualizers/mylib_printers.py`][example-printers]) and formatters
-([`examples/visualizers/mylib_formatters.py`][example-formatters]) mirror
-[`examples/visualizers/mylib.natvis`][example-natvis]
-(same display strings and children, the members of `Point`, `[0]`, `[1]`, ...
-for the map), so its expected files are the same except where a debugger
-formats a value in its own way: gdb for `Optional<String*>`, and lldb-dap,
-which puts a space before summaries and shows a reference's or pointer's
-address before the summary of what it points to. See
-[`examples/tests/`][example-tests] for complete tests.
-
-### Finding out what the debugger shows
-
-Run `cxx-debug-visualize` by hand to see its output, e.g. to write a first expected
-file (replace the addresses with `0x?`, e.g. with
-`sed -E 's/0x[0-9a-fA-F]+/0x?/g'`), or let a failing test write it.
-
-## Running
-
-```
-python3 -m cxx_debug_visualize [--debugger gdb|lldb] [--debugger-path PATH] \
-    [--adapter native|vs] [--vs-adapter PATH] \
-    (--natvis FILE.natvis | --gdb-printers FILE.py | --lldb-formatters FILE.py) [options] \
-    TEST.cpp PROGRAM [--] [ARG...]
-```
-
-`TEST.cpp` is the test source: its `visualize(x);` lines get
-breakpoints. Calls in other files of the program are not breakpoints.
-
-`--adapter` chooses how cxx-debug-visualize talks to the debugger: `native`
-uses the debugger's own DAP support, found on `PATH` unless `--debugger-path`
-gives its path: `gdb -i dap` (GDB 14 and later), or lldb-dap (called
-lldb-vscode before LLVM 18). `vs` uses the Visual Studio debug adapter,
-OpenDebugAD7 (see "Getting the debug adapter"). natvis needs
-`vs`, lldb formatters `native`, and gdb printers work with either.
-
-| Option | Meaning |
-|---|---|
-| `--debugger gdb\|lldb` | the debugger (default: deduced from `--debugger-path`, otherwise `gdb`); `lldb` requires `--adapter native` |
-| `--debugger-path PATH` | the debugger to run instead of the one found on `PATH`: the gdb executable, or lldb's DAP server (`lldb-dap`, `lldb-vscode`, e.g. `/usr/bin/lldb-vscode-16`). Without `--debugger`, the type is deduced from the file name: `lldb` in it means lldb, `gdb` means gdb. With OpenDebugAD7, a gdb path is passed as `miDebuggerPath` |
-| `--adapter native\|vs` | the debugger's own DAP support, or the Visual Studio debug adapter (see above). Default: `vs` for `--natvis`, `native` for `--lldb-formatters`, and for `--gdb-printers` `vs` if `--vs-adapter` is given, otherwise `native` |
-| `--vs-adapter PATH` | OpenDebugAD7 for `--adapter vs`; by default, `$CXX_DEBUG_VISUALIZE_VS_ADAPTER`, otherwise the one of the newest installed VS Code C/C++ extension (see below). An error with `--adapter native` |
-| `--natvis FILE` | the natvis file under test; requires `--adapter vs` |
-| `--gdb-printers FILE` | the gdb pretty-printer script (Python) under test; requires `--debugger gdb` |
-| `--lldb-formatters FILE` | the lldb formatter script (Python, loaded with `command script import`) under test; requires `--debugger lldb`. Exactly one of `--natvis`, `--gdb-printers` and `--lldb-formatters` is required |
-| `--trace` | dump DAP traffic to stderr |
-| `ARG...` | arguments after `PROGRAM` are passed to it; put `--` before them if any starts with `-` |
-
-The output goes to stdout. A test passes if cxx-debug-visualize exits with status 0
-and its output matches the expected output (see above). The installed package
-provides the same as a `cxx-debug-visualize` command (see "Installation").
-
-There is no timeout: cxx-debug-visualize waits as long as the program runs; stop it
-with Ctrl+C. cxx-debug-visualize doesn't handle signals itself. When it exits, the
-debug adapter's input closes, and the adapter is expected to shut down, taking
-gdb and the program with it. Current OpenDebugAD7 releases don't do this:
-they keep running (with gdb and the program) when their input closes. Until
-this is fixed in MIEngine, Ctrl+C in a terminal still cleans up (the adapter
-receives the SIGINT too),
-but killing cxx-debug-visualize alone, e.g. with SIGTERM, leaves those processes
-behind.
-
-### CMake / CTest
-
-Build test programs in the `Debug` configuration (e.g.
-`-DCMAKE_BUILD_TYPE=Debug`), which means debug info and no optimizations with
-any compiler, and run cxx-debug-visualize as a test:
-
-```cmake
-add_executable(test_vector tests/test_vector.cpp)
-target_link_libraries(test_vector PRIVATE mylib)
-
-add_test(NAME natvis.test_vector
-         COMMAND cxx-debug-visualize --natvis ${CMAKE_CURRENT_SOURCE_DIR}/mylib.natvis
-                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_vector.cpp $<TARGET_FILE:test_vector>)
-```
-
-A test like this only checks that cxx-debug-visualize succeeds. Checking the
-output, e.g. piping it into FileCheck or comparing it with an expected file,
-takes a small script, since a CTest test is a single command.
-
-The [example project][example] does the latter:
-[`examples/cmake/ExpectedOutputTests.cmake`][example-expected] defines
-`add_visualizer_test()`, which builds a test program and registers a CTest
-test (label `visualizers`) per visualizer and way of debugging. It runs
-cxx-debug-visualize from the repository, so needs no installation:
-
-```cmake
-add_visualizer_test(test_containers
-  SOURCES tests/test_containers.cpp
-  NATVIS visualizers/mylib.natvis             # at least one of these three
-  GDB_PRINTERS visualizers/mylib_printers.py
-  LLDB_FORMATTERS visualizers/mylib_formatters.py
-  LINK_LIBRARIES mylib)
-```
-
-This registers `natvis.test_containers` for the natvis file, and for the pretty
-printers both `gdb-vs.test_containers` (through OpenDebugAD7, as in Visual
-Studio) and `gdb-native.test_containers` (through gdb's own DAP support, which
-needs GDB 14 or later), and `lldb-native.test_containers` for the lldb
-formatters (through lldb-dap). Each test runs cxx-debug-visualize and fails
-unless it succeeds and its output matches the expected file (see "Expected
-output" above). The first file in `SOURCES` is the test source: its `visualize`
-lines are breakpoints, and its expected files sit next to it
-(`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-vs.txt`,
-`tests/test_containers.gdb-native.txt`,
-`tests/test_containers.lldb-native.txt`). The example tests
-`visualizers/mylib.natvis`, `visualizers/mylib_printers.py` and
-`visualizers/mylib_formatters.py` against the same tests:
-
-```
-cmake -S examples -B build -DCMAKE_BUILD_TYPE=Debug \
-  -DCXXDV_GDB=gdb -DCXXDV_LLDB_DAP=lldb-dap -DCXXDV_VS_ADAPTER=/path/to/OpenDebugAD7
-cmake --build build && ctest --test-dir build
-```
-
-Three variables give the executables to test with, for both the example's tests
-and the self-tests (see "Self-tests"). Each is an absolute path, or a name
-looked up on `PATH`; one that is set must exist, or configuration fails. The
-tests of an executable that is not set are not registered, so e.g. leaving out
-`CXXDV_VS_ADAPTER` tests without OpenDebugAD7. At least one of the debuggers
-must be set.
-
-| Variable | Executable | Tests |
-|---|---|---|
-| `CXXDV_GDB` | gdb | through gdb's own DAP support (gdb-native), and through OpenDebugAD7 |
-| `CXXDV_LLDB_DAP` | lldb-dap (or lldb-vscode) | through lldb-dap (lldb-native) |
-| `CXXDV_VS_ADAPTER` | OpenDebugAD7 | through OpenDebugAD7 (natvis, gdb-vs); needs `CXXDV_GDB`, as OpenDebugAD7 runs gdb |
-
-The repository's root project builds and runs them too, along with the
-self-tests.
-
-## Getting the debug adapter
-
-With `--adapter vs`, `--vs-adapter` gives the path of an
-`OpenDebugAD7` executable (or `OpenDebugAD7.dll`, run with `dotnet`). Without
-it, `cxx-debug-visualize` uses the `CXX_DEBUG_VISUALIZE_VS_ADAPTER`
-environment variable (ignored with `--adapter native`), and without that, the
-adapter of the newest VS Code C/C++ extension installed in your home directory:
-`~/.vscode`, `~/.vscode-insiders`, and `~/.vscode-server` or
-`~/.vscode-server-insiders` for remote development (e.g. Remote SSH), each
-under `extensions/ms-vscode.cpptools-<version>-<platform>/debugAdapters/bin/`.
-The extension makes the adapter executable only when VS Code first activates
-it, so a version that has not been activated yet (e.g. right after an update)
-is skipped. `--trace` shows which adapter is used.
-
-* **Developer machines**: rely on the installed C/C++ extension. You then test
-  exactly the version you debug with.
-* **CI**: the extension's license only covers use with Microsoft
-  products (VS Code, Visual Studio, …). Build OpenDebugAD7 from the
-  MIT-licensed [MIEngine](https://github.com/microsoft/MIEngine) sources
-  instead, with the .NET SDK (8 or later):
+* **Developer machines**: it is possible to rely on the debug adapter installed via the VS Code
+  C/C++ extension. Otherwise, a specific executable (or .NET `.dll`) may be specified using
+  `--vs-adapter`. For remote development (e.g. via SSH), the installed VS Code server extensions are
+  also searched.
+* **CI**: Build `OpenDebugAD7` from the MIT-licensed
+  [MIEngine](https://github.com/microsoft/MIEngine) source (with .NET 8 or later):
 
   ```
   git clone --depth 1 https://github.com/microsoft/MIEngine.git
@@ -462,98 +110,29 @@ is skipped. `--trace` shows which adapter is used.
   cxx-debug-visualize --vs-adapter miengine/OpenDebugAD7 ...
   ```
 
-  The build is self-contained: it includes the .NET runtime, so running it
-  needs no .NET installation. Give `-o` an absolute path, since the script
-  changes to its own directory. The [GitHub Actions workflow][workflow] builds
-  it this way, from a pinned MIEngine commit, and caches the result.
-
-  The source-built adapter produced the same results as the one in cpptools
-  1.34.4 on the example and self-tests.
-
-## Self-tests
-
-The [self-tests][tests] are part of the repository, not of the package. The
-root `CMakeLists.txt` builds their fixture program and runs them with CTest,
-together with the example project's tests; from a checkout:
-
-```
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
-  -DCXXDV_GDB=gdb -DCXXDV_LLDB_DAP=lldb-dap -DCXXDV_VS_ADAPTER=/path/to/OpenDebugAD7
-cmake --build build
-ctest --test-dir build --output-on-failure
-```
-
-CMake builds `tests/fixtures/test_program.cpp` and passes the program to the
-self-tests (`python3 -m tests --program PATH …`), which compile nothing
-themselves. The program crashes after its last `visualize()` call when given
-an argument, which the crash tests pass to it.
-
-Each self-test is a CTest test of its own, named by its unittest ID, e.g.
-`tests.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls`, so
-`ctest -R LldbTests` runs a subset and `ctest -j 8` runs them in parallel.
-CMake lists the tests (`python3 -m tests --list`) when it configures, and a
-build re-runs that when a file in `tests/` changes; each test runs with
-`python3 -m tests --test ID`.
-
-The tests of the `visualize` line scanner and of the launch configurations
-always run. The integration tests need the fixture programs, and OpenDebugAD7
-and gdb (`CXXDV_VS_ADAPTER` and `CXXDV_GDB`, which CMake passes as
-`--vs-adapter` and `--gdb`). They check the printed trees for natvis files and
-pretty printers (including unexpanded children, nested flattened `[More...]`
-pages, the `map` display hint, calls in loops and calls never reached), how bad
-visualizers show in them (natvis evaluation errors, a dropped `Expand`, raising
-printers), and the errors cxx-debug-visualize reports (malformed XML, a printer
-script that doesn't load, crashes). The tests of gdb's own DAP support check the
-same for pretty printers; they need gdb 14 or later (`CXXDV_GDB`), but no
-adapter. There, a printer that raises fails the run with gdb's message, while a
-script that doesn't load passes silently. The lldb tests check the same for lldb
-formatters ([`tests/fixtures/good_formatters.py`][tests-formatters] and
-its bad and malformed counterparts); they need lldb-dap (or lldb-vscode;
-`CXXDV_LLDB_DAP`, passed as `--lldb-dap`). Both a formatter that raises and a
-script that doesn't load pass silently there, and only show in the output.
-
-The integration tests that need an executable not given are not registered
-with CTest: CMake passes the full paths of those given to `python3 -m tests
---list`, which leaves the others out (run without them, they are skipped).
-
-The [GitHub Actions workflow][workflow] runs the self-tests and the example's
-CTest tests on every released Python version that is not end-of-life, with
-OpenDebugAD7 built from the MIEngine sources, gdb and lldb 18. It also checks
-that all Python code is formatted with `ruff format` and passes `ruff check`
-(both configured in `pyproject.toml`), and type-checks the package with mypy,
-under Python 3.10.
+  The build is self-contained: it includes the .NET runtime, so running it needs no .NET
+  installation. Give `-o` an absolute path, since the script changes to its own directory. See the
+  [test workflow][test_workflow] for a full CI example.
 
 ## Limitations
 
-* The debugger is the `gdb` or lldb-dap found on `PATH`, or given with
-  `--debugger-path`. lldb is only supported through lldb-dap, so not with
-  OpenDebugAD7 or natvis.
-* Windows' `cppvsdbg` / Visual Studio natvis is a different engine and is not
-  tested by this tool.
-* Exceptions inside pretty printers pass silently (see above); only the
-  comparison with the expected output catches them.
+* `lldb` with the Visual Studio debug adapter is currently unsupported (VS Code on macOS).
+* `cppvsdbg` uses a different engine and is currently unsupported (Visual Studio Natvis).
+* `cxx-debug-visualize` has thus far only been tested on Linux.
 
 ## License
 
-cxx-debug-visualize is free software: you can redistribute it and/or modify it under the terms of
+`cxx-debug-visualize` is free software: you can redistribute it and/or modify it under the terms of
 the GNU General Public License as published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version. See [LICENSE.md][license] for the full text.
 
 The exception is [`include/cxx_debug_visualize.hpp`][header], which test programs may include
 (although doing so is not necessary). This header is licensed under the MIT No Attribution License
-(MIT-0, see [LICENSE-MIT-0.txt][license-mit-0]), meaning it can be used, copied and changed freely,
+(MIT-0, see [LICENSE-MIT-0][license-mit-0]), meaning it can be used, copied and changed freely,
 without any attribution requirements.
 
 [header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.hpp
-[example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples
-[example-tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples/tests
-[example-strings]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/tests/test_strings.cpp
-[example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/visualizers/mylib.natvis
-[example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/visualizers/mylib_printers.py
-[example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/visualizers/mylib_formatters.py
-[tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/tests
-[tests-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/tests/fixtures/good_formatters.py
+[examples]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples/
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
-[license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0.txt
-[workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml
-[example-expected]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/cmake/ExpectedOutputTests.cmake
+[license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0
+[test_workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml
