@@ -1,9 +1,9 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m selftest` (e.g. by CTest), which passes the built fixture program
-# test_program.cpp (--program) and the adapter (--vs-code-adapter). Each test class is skipped
-# when what it needs is missing: the program, the adapter, gdb, or lldb-dap. With --fail-on-skip,
-# that fails the run.
+# test_program.cpp (--program) and the adapter (--vs-code-adapter). A test class is skipped if
+# the debugger or adapter it tests is turned off (--no-vs-code, --no-gdb, --no-lldb), and otherwise
+# fails if what it needs is missing: the program, the adapter, gdb, or lldb-dap.
 
 import contextlib
 import io
@@ -21,9 +21,12 @@ SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 
 
 # Set from the command line by selftest/__main__.py: the paths of OpenDebugAD7 and of the built
-# fixture program.
+# fixture program, and whether to test the VS Code adapter, gdb and lldb.
 ADAPTER = None
 PROGRAM = None
+VS_CODE = True
+GDB = True
+LLDB = True
 
 
 # Runs cxx-debug-visualize on the fixture program; the test classes below say which debug adapter
@@ -36,7 +39,7 @@ class FixtureTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if not PROGRAM:
-            raise unittest.SkipTest("needs the fixture program (--program)")
+            raise AssertionError("needs the fixture program (--program)")
 
     # Run the fixture with a natvis file, a pretty-printer script or an lldb formatter script
     # from fixtures/, and the command line arguments `program_args` (any make it crash at the
@@ -65,8 +68,10 @@ class FixtureTestCase(unittest.TestCase):
 class IntegrationTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
+        if not (VS_CODE and GDB):
+            raise unittest.SkipTest("--no-vs-code or --no-gdb")
         if not (ADAPTER and shutil.which("gdb")):
-            raise unittest.SkipTest("needs --vs-code-adapter and gdb")
+            raise AssertionError("needs --vs-code-adapter and gdb")
         cls.adapter = ADAPTER
         super().setUpClass()
 
@@ -199,6 +204,8 @@ class IntegrationTests(FixtureTestCase):
 class NativeDapTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
+        if not GDB:
+            raise unittest.SkipTest("--no-gdb")
         if (
             not shutil.which("gdb")
             or subprocess.run(
@@ -206,7 +213,7 @@ class NativeDapTests(FixtureTestCase):
             ).returncode
             != 0
         ):
-            raise unittest.SkipTest("needs gdb 14 or later")
+            raise AssertionError("needs gdb 14 or later")
         super().setUpClass()
 
     def test_good_printers(self):
@@ -277,8 +284,10 @@ class LldbTests(FixtureTestCase):
 
     @classmethod
     def setUpClass(cls):
+        if not LLDB:
+            raise unittest.SkipTest("--no-lldb")
         if not find_lldb_dap():
-            raise unittest.SkipTest("needs lldb-dap (or lldb-vscode) on PATH")
+            raise AssertionError("needs lldb-dap (or lldb-vscode) on PATH")
         super().setUpClass()
 
     def test_good_formatters(self):

@@ -29,13 +29,15 @@
 # The actual output is then written to <kind>.<name>.actual.txt in the build directory, for
 # review or to copy over the expected file, and a diff is printed.
 #
-# Cache variables:
-#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, passed as --vs-code-adapter to the
-#                                        natvis and gdb-adapter tests (the native tests use no
-#                                        adapter). Without it, those tests are registered
-#                                        disabled, which CTest reports as "Not Run (Disabled)".
-#   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP     make a missing CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER an
-#                                        error instead (default: OFF)
+# Cache variables, which select the tests registered:
+#   CXX_DEBUG_VISUALIZE_TEST_VS_CODE     test through the VS Code C/C++ debug adapter, OpenDebugAD7
+#                                        (default: ON); these tests also need
+#                                        CXX_DEBUG_VISUALIZE_TEST_GDB, as the adapter runs gdb
+#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, required with
+#                                        CXX_DEBUG_VISUALIZE_TEST_VS_CODE
+#   CXX_DEBUG_VISUALIZE_TEST_GDB         test with gdb (default: ON)
+#   CXX_DEBUG_VISUALIZE_TEST_LLDB        test with lldb (default: ON)
+# The tests of each enabled debugger and adapter fail if it is missing.
 #
 # The test programs need debug info and no optimizations, so that each `visualize(x);` line
 # compiles to code of its own: CMake's Debug configuration, whatever the compiler. A
@@ -50,7 +52,15 @@ set(CXX_DEBUG_VISUALIZE_COMMAND
     "${Python3_EXECUTABLE}" -m cxx_debug_visualize)
 
 set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
-option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail instead of skipping tests that cannot run" OFF)
+option(CXX_DEBUG_VISUALIZE_TEST_VS_CODE "Test through the VS Code C/C++ debug adapter" ON)
+option(CXX_DEBUG_VISUALIZE_TEST_GDB "Test with gdb" ON)
+option(CXX_DEBUG_VISUALIZE_TEST_LLDB "Test with lldb" ON)
+if(CXX_DEBUG_VISUALIZE_TEST_VS_CODE AND NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
+  message(FATAL_ERROR "set CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
+                      "-DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="
+                      "<cpptools>/debugAdapters/bin/OpenDebugAD7, or turn "
+                      "CXX_DEBUG_VISUALIZE_TEST_VS_CODE off")
+endif()
 
 get_property(_visualizer_test_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 string(TOUPPER "${CMAKE_BUILD_TYPE}" _visualizer_test_build_type)
@@ -75,13 +85,6 @@ function(add_visualizer_test name)
     message(FATAL_ERROR "add_visualizer_test(${name}): NATVIS, GDB_PRINTERS or "
                         "LLDB_FORMATTERS is required")
   endif()
-  if((TV_NATVIS OR TV_GDB_PRINTERS) AND NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER
-     AND CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP)
-    message(FATAL_ERROR "add_visualizer_test(${name}): set "
-                        "CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
-                        "-DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="
-                        "<cpptools>/debugAdapters/bin/OpenDebugAD7")
-  endif()
 
   add_executable(${name} ${TV_SOURCES})
   target_include_directories(${name} PRIVATE "${CXX_DEBUG_VISUALIZE_ROOT}/include"
@@ -93,28 +96,26 @@ function(add_visualizer_test name)
   list(GET TV_SOURCES 0 test_source)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
-  if(TV_NATVIS)
+  # OpenDebugAD7 runs gdb.
+  set(vs_code OFF)
+  if(CXX_DEBUG_VISUALIZE_TEST_VS_CODE AND CXX_DEBUG_VISUALIZE_TEST_GDB)
+    set(vs_code ON)
+  endif()
+  if(TV_NATVIS AND vs_code)
     _add_visualizer_run(natvis ${name} "${test_source}" vs-code
                         --natvis "${TV_NATVIS}" ${TV_ARGS})
   endif()
-  if(TV_GDB_PRINTERS)
+  if(TV_GDB_PRINTERS AND vs_code)
     _add_visualizer_run(gdb-adapter ${name} "${test_source}" vs-code
                         --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
+  endif()
+  if(TV_GDB_PRINTERS AND CXX_DEBUG_VISUALIZE_TEST_GDB)
     _add_visualizer_run(gdb-native ${name} "${test_source}" native
                         --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
-  if(TV_LLDB_FORMATTERS)
+  if(TV_LLDB_FORMATTERS AND CXX_DEBUG_VISUALIZE_TEST_LLDB)
     _add_visualizer_run(lldb-native ${name} "${test_source}" native
                         --lldb-formatters "${TV_LLDB_FORMATTERS}" --debugger lldb ${TV_ARGS})
-  endif()
-
-  # The natvis and gdb-adapter tests need OpenDebugAD7; without it, they never run.
-  if(NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
-    foreach(kind IN ITEMS natvis gdb-adapter)
-      if(TEST ${kind}.${name})
-        set_tests_properties(${kind}.${name} PROPERTIES DISABLED TRUE)
-      endif()
-    endforeach()
   endif()
 endfunction()
 
@@ -171,7 +172,8 @@ endif()
   if(_visualizer_test_multi_config)
     set(debug_only CONFIGURATIONS Debug)
   endif()
-  add_test(NAME ${kind}.${name} COMMAND "${CMAKE_COMMAND}" "-Dprogram=$<TARGET_FILE:${name}>" -P "${script}"
+  add_test(NAME ${kind}.${name}
+           COMMAND "${CMAKE_COMMAND}" "-Dprogram=$<TARGET_FILE:${name}>" -P "${script}"
            ${debug_only})
   set_tests_properties(${kind}.${name} PROPERTIES LABELS visualizers)
   # Report a missing visualizer file as "not run" instead of running the test.

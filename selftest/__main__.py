@@ -1,13 +1,13 @@
 # Run the self-tests:
 #
-#   python3 -m selftest [--program PATH] [--vs-code-adapter PATH] [--fail-on-skip] [--test ID]...
-#                       [unittest options]
+#   python3 -m selftest [--program PATH] [--vs-code-adapter PATH] [--no-vs-code] [--no-gdb]
+#                       [--no-lldb] [--test ID]... [unittest options]
 #   python3 -m selftest --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
-# CTest test, which runs it with --test. Tests whose requirements are missing (the fixture
-# program, --vs-code-adapter, gdb, lldb-dap) are skipped. With --fail-on-skip, any skipped test
-# makes the run fail.
+# CTest test, which runs it with --test. The integration tests of the debuggers and adapter turned
+# off with --no-vs-code, --no-gdb and --no-lldb are skipped; the others fail if what they need
+# (the fixture program, --vs-code-adapter, gdb, lldb-dap) is missing.
 
 import argparse
 import os
@@ -22,10 +22,12 @@ parser.add_argument(
 )
 parser.add_argument("--vs-code-adapter", metavar="PATH", help="path to OpenDebugAD7")
 parser.add_argument(
-    "--fail-on-skip",
+    "--no-vs-code",
     action="store_true",
-    help="fail if any test is skipped, e.g. because a tool is missing",
+    help="skip the integration tests through the VS Code C/C++ debug adapter",
 )
+parser.add_argument("--no-gdb", action="store_true", help="skip the integration tests with gdb")
+parser.add_argument("--no-lldb", action="store_true", help="skip the integration tests with lldb")
 parser.add_argument("--list", action="store_true", help="print the IDs of all tests and exit")
 parser.add_argument(
     "--test",
@@ -44,6 +46,9 @@ if ns.vs_code_adapter:
     if not os.path.isfile(ns.vs_code_adapter):
         parser.error(f"debug adapter not found: {ns.vs_code_adapter}")
     test_integration.ADAPTER = os.path.abspath(ns.vs_code_adapter)
+test_integration.VS_CODE = not ns.no_vs_code
+test_integration.GDB = not ns.no_gdb
+test_integration.LLDB = not ns.no_lldb
 
 here = os.path.dirname(os.path.abspath(__file__))
 
@@ -67,12 +72,4 @@ if ns.test:
 else:
     argv = [sys.argv[0], "discover", "-s", here, "-t", os.path.dirname(here)] + rest
 program = unittest.main(module=None, argv=argv, exit=False)
-
-success = program.result.wasSuccessful()
-if ns.fail_on_skip and program.result.skipped:
-    print(f"error: {len(program.result.skipped)} skipped:", file=sys.stderr)
-    for test, reason in program.result.skipped:
-        print(f"  {test}: {reason}", file=sys.stderr)
-    success = False
-
-sys.exit(0 if success else 1)
+sys.exit(0 if program.result.wasSuccessful() else 1)

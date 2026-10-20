@@ -3,18 +3,30 @@
 # The self-tests compile nothing themselves: CMake builds fixtures/test_program.cpp and passes the
 # program to them. Each self-test is a CTest test of its own, named by its unittest ID (e.g.
 # selftest.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls). They are listed when
-# CMake configures, which a build redoes when a file in this directory changes. A skipped test is
-# reported as skipped.
+# CMake configures, which a build redoes when a file in this directory changes.
 #
-# Cache variables:
-#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, for the tests that use it
-#   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP     fail a self-test that is skipped, e.g. because a tool is
-#                                        missing, instead of reporting it as skipped (default: OFF)
+# Cache variables, which select the self-tests run (the others are reported as skipped):
+#   CXX_DEBUG_VISUALIZE_TEST_VS_CODE     test through the VS Code C/C++ debug adapter, OpenDebugAD7
+#                                        (default: ON); these tests also need
+#                                        CXX_DEBUG_VISUALIZE_TEST_GDB, as the adapter runs gdb
+#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, required with
+#                                        CXX_DEBUG_VISUALIZE_TEST_VS_CODE
+#   CXX_DEBUG_VISUALIZE_TEST_GDB         test with gdb (default: ON)
+#   CXX_DEBUG_VISUALIZE_TEST_LLDB        test with lldb (default: ON)
+# The self-tests of each enabled debugger and adapter fail if it is missing.
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
 set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
-option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail if any self-test is skipped" OFF)
+option(CXX_DEBUG_VISUALIZE_TEST_VS_CODE "Test through the VS Code C/C++ debug adapter" ON)
+option(CXX_DEBUG_VISUALIZE_TEST_GDB "Test with gdb" ON)
+option(CXX_DEBUG_VISUALIZE_TEST_LLDB "Test with lldb" ON)
+if(CXX_DEBUG_VISUALIZE_TEST_VS_CODE AND NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
+  message(FATAL_ERROR "set CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
+                      "-DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="
+                      "<cpptools>/debugAdapters/bin/OpenDebugAD7, or turn "
+                      "CXX_DEBUG_VISUALIZE_TEST_VS_CODE off")
+endif()
 
 # The fixture program needs debug info and no optimizations: CMake's Debug configuration, whatever
 # the compiler. A single-configuration generator must build it (CMAKE_BUILD_TYPE); with a
@@ -35,8 +47,15 @@ set(selftest_args --program "$<TARGET_FILE:test_program>")
 if(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
   list(APPEND selftest_args --vs-code-adapter "${CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER}")
 endif()
-if(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP)
-  list(APPEND selftest_args --fail-on-skip)
+# The integration tests of the debuggers and adapter not tested are skipped.
+if(NOT CXX_DEBUG_VISUALIZE_TEST_VS_CODE)
+  list(APPEND selftest_args --no-vs-code)
+endif()
+if(NOT CXX_DEBUG_VISUALIZE_TEST_GDB)
+  list(APPEND selftest_args --no-gdb)
+endif()
+if(NOT CXX_DEBUG_VISUALIZE_TEST_LLDB)
+  list(APPEND selftest_args --no-lldb)
 endif()
 
 # Every self-test, as `python -m selftest --list` prints them, run from the source tree's root,
@@ -60,9 +79,7 @@ foreach(test IN LISTS selftests)
   add_test(NAME "${test}"
            COMMAND "${Python3_EXECUTABLE}" -m selftest ${selftest_args} --test "${test}"
            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" ${debug_only})
-  set_tests_properties("${test}" PROPERTIES LABELS selftest)
   # unittest reports a skipped test as "OK (skipped=1)".
-  if(NOT CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP)
-    set_tests_properties("${test}" PROPERTIES SKIP_REGULAR_EXPRESSION "OK \\(skipped=")
-  endif()
+  set_tests_properties("${test}" PROPERTIES LABELS selftest
+                       SKIP_REGULAR_EXPRESSION "OK \\(skipped=")
 endforeach()
