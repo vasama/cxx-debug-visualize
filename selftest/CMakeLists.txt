@@ -5,7 +5,7 @@
 # selftest.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls). They are listed when
 # CMake configures, which a build redoes when a file in this directory changes.
 #
-# Cache variables, which select the self-tests run (the others are reported as skipped):
+# Cache variables, which select the self-tests registered:
 #   CXXDV_TEST_VS     test through the Visual Studio debug adapter, OpenDebugAD7 (default: ON);
 #                     these tests also need CXXDV_TEST_GDB, as the adapter runs gdb
 #   CXXDV_VS_ADAPTER  path to OpenDebugAD7, required with CXXDV_TEST_VS
@@ -40,27 +40,30 @@ endif()
 add_executable(test_program fixtures/test_program.cpp)
 target_include_directories(test_program PRIVATE "${PROJECT_SOURCE_DIR}/include")
 
-set(selftest_args --program "$<TARGET_FILE:test_program>")
+# The debuggers and adapter not tested, whose integration tests --list leaves out.
+set(selftest_turned_off "")
+if(NOT CXXDV_TEST_VS)
+  list(APPEND selftest_turned_off --no-vs)
+endif()
+if(NOT CXXDV_TEST_GDB)
+  list(APPEND selftest_turned_off --no-gdb)
+endif()
+if(NOT CXXDV_TEST_LLDB)
+  list(APPEND selftest_turned_off --no-lldb)
+endif()
+
+set(selftest_args --program "$<TARGET_FILE:test_program>" ${selftest_turned_off})
 if(CXXDV_VS_ADAPTER)
   list(APPEND selftest_args --vs-adapter "${CXXDV_VS_ADAPTER}")
 endif()
-# The integration tests of the debuggers and adapter not tested are skipped.
-if(NOT CXXDV_TEST_VS)
-  list(APPEND selftest_args --no-vs)
-endif()
-if(NOT CXXDV_TEST_GDB)
-  list(APPEND selftest_args --no-gdb)
-endif()
-if(NOT CXXDV_TEST_LLDB)
-  list(APPEND selftest_args --no-lldb)
-endif()
 
-# Every self-test, as `python -m selftest --list` prints them, run from the source tree's root,
-# where the selftest and cxx_debug_visualize packages are. Changing the self-tests reruns this.
+# Every self-test not turned off, as `python -m selftest --list` prints them, run from the source
+# tree's root, where the selftest and cxx_debug_visualize packages are. Changing the self-tests
+# reruns this.
 file(GLOB selftest_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${selftest_sources})
 execute_process(
-  COMMAND "${Python3_EXECUTABLE}" -m selftest --list
+  COMMAND "${Python3_EXECUTABLE}" -m selftest ${selftest_turned_off} --list
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
   OUTPUT_VARIABLE selftests
   RESULT_VARIABLE result)
@@ -76,7 +79,8 @@ foreach(test IN LISTS selftests)
   add_test(NAME "${test}"
            COMMAND "${Python3_EXECUTABLE}" -m selftest ${selftest_args} --test "${test}"
            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" ${debug_only})
-  # unittest reports a skipped test as "OK (skipped=1)".
+  # unittest reports a skipped test (e.g. one that doesn't apply to the platform) as
+  # "OK (skipped=1)".
   set_tests_properties("${test}" PROPERTIES LABELS selftest
                        SKIP_REGULAR_EXPRESSION "OK \\(skipped=")
 endforeach()

@@ -498,9 +498,10 @@ malformed counterparts); they need lldb-dap (or lldb-vscode) on `PATH`, and run
 with `CXXDV_TEST_LLDB`. Both a formatter that raises and a script that doesn't
 load pass silently there, and only show in the output.
 
-The integration tests of a debugger or adapter turned off (`python3 -m selftest
---no-vs`, `--no-gdb`, `--no-lldb`) are skipped, and CTest reports them as
-skipped. The others fail if what they need is missing, saying why.
+The integration tests of a debugger or adapter turned off are not registered
+with CTest: CMake passes `--no-vs`, `--no-gdb` or `--no-lldb` to `python3 -m
+selftest --list`, which leaves them out (and run with these options, they are
+skipped). The others fail if what they need is missing, saying why.
 
 The [GitHub Actions workflow][workflow] runs the self-tests and the example's
 CTest tests on every released Python version that is not end-of-life, with

@@ -2,12 +2,12 @@
 #
 #   python3 -m selftest [--program PATH] [--vs-adapter PATH] [--no-vs] [--no-gdb]
 #                       [--no-lldb] [--test ID]... [unittest options]
-#   python3 -m selftest --list
+#   python3 -m selftest [--no-vs] [--no-gdb] [--no-lldb] --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
 # CTest test, which runs it with --test. The integration tests of the debuggers and adapter turned
-# off with --no-vs, --no-gdb and --no-lldb are skipped; the others fail if what they need
-# (the fixture program, --vs-adapter, gdb, lldb-dap) is missing.
+# off with --no-vs, --no-gdb and --no-lldb are skipped, and left out of --list; the others fail if
+# what they need (the fixture program, --vs-adapter, gdb, lldb-dap) is missing.
 
 import argparse
 import os
@@ -28,7 +28,9 @@ parser.add_argument(
 )
 parser.add_argument("--no-gdb", action="store_true", help="skip the integration tests with gdb")
 parser.add_argument("--no-lldb", action="store_true", help="skip the integration tests with lldb")
-parser.add_argument("--list", action="store_true", help="print the IDs of all tests and exit")
+parser.add_argument(
+    "--list", action="store_true", help="print the IDs of the tests not turned off and exit"
+)
 parser.add_argument(
     "--test",
     metavar="ID",
@@ -46,9 +48,7 @@ if ns.vs_adapter:
     if not os.path.isfile(ns.vs_adapter):
         parser.error(f"debug adapter not found: {ns.vs_adapter}")
     test_integration.ADAPTER = os.path.abspath(ns.vs_adapter)
-test_integration.VS = not ns.no_vs
-test_integration.GDB = not ns.no_gdb
-test_integration.LLDB = not ns.no_lldb
+test_integration.DISABLE = {tool for tool in ("vs", "gdb", "lldb") if getattr(ns, f"no_{tool}")}
 
 here = os.path.dirname(os.path.abspath(__file__))
 
@@ -58,7 +58,7 @@ if ns.list:
         for test in suite:
             if isinstance(test, unittest.TestSuite):
                 yield from test_ids(test)
-            else:
+            elif not (isinstance(test, test_integration.FixtureTestCase) and test.turned_off()):
                 yield test.id()
 
     tests = unittest.defaultTestLoader.discover(here, top_level_dir=os.path.dirname(here))
