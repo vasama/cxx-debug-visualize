@@ -210,9 +210,11 @@ visualize(v) at test_containers.cpp:34
 ### Expected output
 
 A test's expected output is a text file holding exactly what cxx-debug-visualize
-prints, one per visualizer: the CMake helper below compares the output of
-`tests/test_containers.cpp` with `tests/test_containers.natvis.txt` and
-`tests/test_containers.gdb.txt`. Before comparing, it replaces every
+prints, one per visualizer and debug adapter: the CMake helper below compares
+the output of `tests/test_containers.cpp` with
+`tests/test_containers.natvis.txt`, `tests/test_containers.gdb.txt` (pretty
+printers through OpenDebugAD7) and `tests/test_containers.gdb-dap.txt` (pretty
+printers through gdb's own DAP support). Before comparing, it replaces every
 hexadecimal number (`0x...`) with `0x?`, because addresses differ between
 machines; the expected files contain `0x?` in their place:
 
@@ -308,13 +310,17 @@ cxx_debug_visualize_add_test(test_containers
   LINK_LIBRARIES mylib)
 ```
 
-This builds the program once, with `-O0 -g`, and registers a CTest test per
-visualizer: `natvis.test_containers` and `gdb.test_containers` (label
-`visualizers`). Each test runs cxx-debug-visualize and fails unless it succeeds and
-its output matches the expected file (see "Expected output" above). The first
+This builds the program once, with `-O0 -g`, and registers CTest tests (label
+`visualizers`): `natvis.test_containers` for the natvis file, and for the
+pretty printers both `gdb.test_containers` (through OpenDebugAD7, as in VS
+Code) and `gdb-dap.test_containers` (through gdb's own DAP support, which needs
+GDB 14 or later; `$CXX_DEBUG_VISUALIZE_ADAPTER` is ignored there). Each test
+runs cxx-debug-visualize and fails unless it succeeds and its output matches
+the expected file (see "Expected output" above). The first
 file in `SOURCES` is the test source: its `visualize` lines are breakpoints,
 and its expected files sit next to it (`tests/test_containers.natvis.txt`,
-`tests/test_containers.gdb.txt`). `CXX_DEBUG_VISUALIZE_ADAPTER` must be set when
+`tests/test_containers.gdb.txt`, `tests/test_containers.gdb-dap.txt`).
+`CXX_DEBUG_VISUALIZE_ADAPTER` must be set when
 configuring; configuration fails without it. See `example/` for a complete
 project, which tests `natvis/mylib.natvis` and `printers/mylib_printers.py`
 against the same tests:

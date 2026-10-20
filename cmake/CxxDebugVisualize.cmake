@@ -11,22 +11,25 @@
 #   )
 #
 # Builds <name> once, without optimizations and with debug info, and registers
-# a CTest test for each visualizer given (at least one): "natvis.<name>" and
-# "gdb.<name>", labelled "visualizers".  Each runs <name> under the VS Code
-# C/C++ debug adapter and compares the printed Variables trees with an
-# expected output file next to the test source, the first file in SOURCES:
-# <test>.natvis.txt and <test>.gdb.txt for tests/<test>.cpp.  cxx-debug-visualize
-# breaks on the test source's visualize() lines.
+# CTest tests labelled "visualizers", which run <name> under cxx-debug-visualize:
+#   natvis.<name>   NATVIS, through the VS Code C/C++ debug adapter (OpenDebugAD7)
+#   gdb.<name>      GDB_PRINTERS, through OpenDebugAD7
+#   gdb-dap.<name>  GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
+# Each compares the printed Variables trees with an expected output file next
+# to the test source, the first file in SOURCES: <test>.<kind>.txt, e.g.
+# <test>.natvis.txt, <test>.gdb.txt and <test>.gdb-dap.txt for tests/<test>.cpp.
+# cxx-debug-visualize breaks on the test source's visualize() lines.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the
 # output is replaced by "0x?" before comparing; expected files contain "0x?" in
-# their place.  A test fails if cxx-debug-visualize fails or the output differs from the
-# expected file (or that is missing).  The actual output is then written to
-# <kind>.<name>.actual.txt in the build directory, for review or to copy over
-# the expected file, and a diff is printed.
+# their place.  A test fails if cxx-debug-visualize fails or the output differs
+# from the expected file (or that is missing).  The actual output is then
+# written to <kind>.<name>.actual.txt in the build directory, for review or to
+# copy over the expected file, and a diff is printed.
 #
 # Cache variable (required):
 #   CXX_DEBUG_VISUALIZE_ADAPTER    path to OpenDebugAD7, passed as --adapter
+#                                  (gdb-dap tests use no adapter)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
@@ -67,27 +70,39 @@ function(cxx_debug_visualize_add_test name)
   list(GET TV_SOURCES 0 test_source)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
+  set(adapter "${CXX_DEBUG_VISUALIZE_ADAPTER}")
   if(TV_NATVIS)
-    _cxx_debug_visualize_add_run(natvis ${name} "${test_source}" --natvis "${TV_NATVIS}" ${TV_ARGS})
+    _cxx_debug_visualize_add_run(natvis ${name} "${test_source}" "${adapter}"
+                                 --natvis "${TV_NATVIS}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS)
-    _cxx_debug_visualize_add_run(gdb ${name} "${test_source}" --gdb-printers "${TV_GDB_PRINTERS}"
-                         ${TV_ARGS})
+    _cxx_debug_visualize_add_run(gdb ${name} "${test_source}" "${adapter}"
+                                 --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
+    _cxx_debug_visualize_add_run(gdb-dap ${name} "${test_source}" ""
+                                 --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
 endfunction()
 
-# Register the CTest test "<kind>.<name>", which runs the program <name> with
-# the visualizer <option> <file> and compares the output with
-# <test source>.<kind>.txt.  Further arguments are passed on to cxx-debug-visualize.
-function(_cxx_debug_visualize_add_run kind name test_source option file)
+# Register the CTest test "<kind>.<name>", which runs the program <name> through
+# the debug <adapter> (empty: the debugger's own DAP support) with the
+# visualizer <option> <file>, and compares the output with
+# <test source>.<kind>.txt.  Further arguments are passed on to
+# cxx-debug-visualize.
+function(_cxx_debug_visualize_add_run kind name test_source adapter option file)
   get_filename_component(file "${file}" ABSOLUTE)
   get_filename_component(test_dir "${test_source}" DIRECTORY)
   get_filename_component(test_name "${test_source}" NAME_WE)
   set(expected "${test_dir}/${test_name}.${kind}.txt")
   set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
-  set(run "${Python3_EXECUTABLE}" -m cxx_debug_visualize
-      --adapter "${CXX_DEBUG_VISUALIZE_ADAPTER}" ${option} "${file}"
-      ${ARGN} "${test_source}" "$<TARGET_FILE:${name}>")
+  set(run "${Python3_EXECUTABLE}" -m cxx_debug_visualize)
+  if(adapter)
+    list(APPEND run --adapter "${adapter}")
+    set(environment "")
+  else()
+    # cxx-debug-visualize would use CXX_DEBUG_VISUALIZE_ADAPTER as --adapter.
+    set(environment "unset(ENV{CXX_DEBUG_VISUALIZE_ADAPTER})\n")
+  endif()
+  list(APPEND run ${option} "${file}" ${ARGN} "${test_source}" "$<TARGET_FILE:${name}>")
 
   # A CTest test is a single command, so the comparison runs from a generated
   # script.
@@ -97,7 +112,7 @@ function(_cxx_debug_visualize_add_run kind name test_source option file)
   endforeach()
   set(script "${CMAKE_CURRENT_BINARY_DIR}/${kind}-${name}.cmake")
   file(GENERATE OUTPUT "${script}" CONTENT
-"execute_process(
+"${environment}execute_process(
   COMMAND${run_quoted}
   OUTPUT_VARIABLE output
   RESULT_VARIABLE result)
