@@ -75,14 +75,13 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      # gdb 15 (with DAP support). lldb 18 comes with the image (with Clang 18), but only its
-      # versioned commands are on PATH, not lldb-dap's directory. lldb-dap's output differs
-      # between LLVM versions, so the expected lldb outputs must be lldb 18's.
-      - name: Install gdb and put lldb-dap on PATH
+      # gdb 15 (with DAP support). lldb 18 comes with the image (with Clang 18); only its versioned
+      # commands are on PATH, so lldb-dap is given to CMake as lldb-dap-18. lldb-dap's output
+      # differs between LLVM versions, so the expected lldb outputs must be lldb 18's.
+      - name: Install gdb
         run: |
           sudo apt-get update
           sudo apt-get install -y gdb
-          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
       # the adapter job has made sure the cache holds the build
       - uses: actions/cache/restore@v6
         with:
@@ -92,7 +91,11 @@ jobs:
       # The self-tests and the example's tests, of every debugger and the adapter
       - name: Build and run tests
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
-              -DCXXDV_VS_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCXXDV_GDB=gdb \
+            -DCXXDV_LLDB_DAP=lldb-dap-18 \
+            -DCXXDV_VS_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
+
           cmake --build build
           ctest --test-dir build --output-on-failure

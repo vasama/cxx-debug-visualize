@@ -1,13 +1,13 @@
 # Run the self-tests:
 #
-#   python3 -m selftest [--program PATH] [--vs-adapter PATH] [--no-vs] [--no-gdb]
-#                       [--no-lldb] [--test ID]... [unittest options]
-#   python3 -m selftest [--no-vs] [--no-gdb] [--no-lldb] --list
+#   python3 -m selftest [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH]
+#                       [--test ID]... [unittest options]
+#   python3 -m selftest [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH] --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
-# CTest test, which runs it with --test. The integration tests of the debuggers and adapter turned
-# off with --no-vs, --no-gdb and --no-lldb are skipped, and left out of --list; the others fail if
-# what they need (the fixture program, --vs-adapter, gdb, lldb-dap) is missing.
+# CTest test, which runs it with --test. The integration tests run with the executables given with
+# --gdb, --lldb-dap and --vs-adapter; those that need one not given are skipped, and left out of
+# --list. Without the fixture program (--program), the integration tests fail.
 
 import argparse
 import os
@@ -20,16 +20,19 @@ parser = argparse.ArgumentParser(prog="python3 -m selftest")
 parser.add_argument(
     "--program", metavar="PATH", help="the built fixture program selftest/fixtures/test_program.cpp"
 )
-parser.add_argument("--vs-adapter", metavar="PATH", help="path to OpenDebugAD7")
+parser.add_argument("--gdb", metavar="PATH", help="gdb, to run the integration tests with")
 parser.add_argument(
-    "--no-vs",
-    action="store_true",
-    help="skip the integration tests through the Visual Studio debug adapter",
+    "--lldb-dap", metavar="PATH", help="lldb-dap (or lldb-vscode), to run the lldb tests with"
 )
-parser.add_argument("--no-gdb", action="store_true", help="skip the integration tests with gdb")
-parser.add_argument("--no-lldb", action="store_true", help="skip the integration tests with lldb")
 parser.add_argument(
-    "--list", action="store_true", help="print the IDs of the tests not turned off and exit"
+    "--vs-adapter",
+    metavar="PATH",
+    help="OpenDebugAD7, the Visual Studio debug adapter, to run tests through (with --gdb)",
+)
+parser.add_argument(
+    "--list",
+    action="store_true",
+    help="print the IDs of the tests that the executables given allow and exit",
 )
 parser.add_argument(
     "--test",
@@ -44,11 +47,12 @@ if ns.program:
     if not os.path.isfile(ns.program):
         parser.error(f"fixture program not found: {ns.program}")
     test_integration.PROGRAM = os.path.abspath(ns.program)
-if ns.vs_adapter:
-    if not os.path.isfile(ns.vs_adapter):
-        parser.error(f"debug adapter not found: {ns.vs_adapter}")
-    test_integration.ADAPTER = os.path.abspath(ns.vs_adapter)
-test_integration.DISABLE = {tool for tool in ("vs", "gdb", "lldb") if getattr(ns, f"no_{tool}")}
+for tool in test_integration.TOOLS:
+    path = getattr(ns, tool.replace("-", "_"))
+    if path:
+        if not os.path.isfile(path):
+            parser.error(f"--{tool}: not found: {path}")
+        test_integration.TOOLS[tool] = os.path.abspath(path)
 
 here = os.path.dirname(os.path.abspath(__file__))
 
@@ -58,7 +62,7 @@ if ns.list:
         for test in suite:
             if isinstance(test, unittest.TestSuite):
                 yield from test_ids(test)
-            elif not (isinstance(test, test_integration.FixtureTestCase) and test.turned_off()):
+            elif not (isinstance(test, test_integration.FixtureTestCase) and test.missing()):
                 yield test.id()
 
     tests = unittest.defaultTestLoader.discover(here, top_level_dir=os.path.dirname(here))

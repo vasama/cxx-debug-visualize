@@ -1,18 +1,16 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m selftest` (e.g. by CTest), which passes the built fixture program
-# test_program.cpp (--program) and the adapter (--vs-adapter). A test class is skipped, and left
-# out of --list, if a debugger or adapter it tests is turned off (--no-vs, --no-gdb, --no-lldb), and
-# otherwise fails if what it needs is missing: the program, the adapter, gdb, or lldb-dap.
+# test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --vs-adapter).
+# A test class is skipped, and left out of --list, unless every executable it uses was given, and
+# fails without the fixture program.
 
 import contextlib
 import io
 import os
-import shutil
 import subprocess
 import unittest
 
-from cxx_debug_visualize.adapter import find_lldb_dap
 from cxx_debug_visualize.runner import Runner
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -20,11 +18,10 @@ FIXTURES = os.path.join(HERE, "fixtures")
 SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 
 
-# Set from the command line by selftest/__main__.py: the paths of OpenDebugAD7 and of the built
-# fixture program, and the debuggers and adapter turned off ("vs", "gdb", "lldb").
-ADAPTER = None
+# Set from the command line by selftest/__main__.py: the path of the built fixture program, and
+# the full paths of the executables to test with, by option name (None if not given).
 PROGRAM = None
-DISABLE = set()
+TOOLS = {"gdb": None, "lldb-dap": None, "vs-adapter": None}
 
 
 # Runs cxx-debug-visualize on the fixture program; the test classes below say which debug adapter
@@ -33,18 +30,18 @@ class FixtureTestCase(unittest.TestCase):
     # path of OpenDebugAD7, or None for the debugger's own DAP support (the default)
     adapter = None
     debugger = "gdb"
-    # the debuggers and adapter the tests use, as --no-vs, --no-gdb and --no-lldb name them
+    # the executables the tests use, as keys of TOOLS
     tools = ()
 
-    # The options that turn off a debugger or adapter the tests use; none if they are to run.
+    # The options of the executables the tests use that were not given; none if they are to run.
     @classmethod
-    def turned_off(cls):
-        return [f"--no-{tool}" for tool in cls.tools if tool in DISABLE]
+    def missing(cls):
+        return [f"--{tool}" for tool in cls.tools if not TOOLS[tool]]
 
     @classmethod
     def setUpClass(cls):
-        if cls.turned_off():
-            raise unittest.SkipTest(" ".join(cls.turned_off()))
+        if cls.missing():
+            raise unittest.SkipTest("needs " + " ".join(cls.missing()))
         if not PROGRAM:
             raise AssertionError("needs the fixture program (--program)")
 
@@ -59,6 +56,7 @@ class FixtureTestCase(unittest.TestCase):
             PROGRAM,
             list(program_args),
             debugger=self.debugger,
+            debugger_path=TOOLS["gdb" if self.debugger == "gdb" else "lldb-dap"],
             natvis=fixture(natvis),
             gdb_printers=fixture(gdb_printers),
             lldb_formatters=fixture(lldb_formatters),
@@ -73,14 +71,12 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class IntegrationTests(FixtureTestCase):
-    tools = ("vs", "gdb")
+    tools = ("vs-adapter", "gdb")
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        if not (ADAPTER and shutil.which("gdb")):
-            raise AssertionError("needs --vs-adapter and gdb")
-        cls.adapter = ADAPTER
+        cls.adapter = TOOLS["vs-adapter"]
 
     def test_good_natvis(self):
         output, errors = self.run_visualizer(natvis="good.natvis")
@@ -215,9 +211,8 @@ class NativeDapTests(FixtureTestCase):
     def setUpClass(cls):
         super().setUpClass()
         if (
-            not shutil.which("gdb")
-            or subprocess.run(
-                ["gdb", "-nx", "-batch", "-ex", "python import gdb.dap"],
+            subprocess.run(
+                [TOOLS["gdb"], "-nx", "-batch", "-ex", "python import gdb.dap"],
                 capture_output=True,
                 check=False,
             ).returncode
@@ -290,13 +285,7 @@ class NativeDapTests(FixtureTestCase):
 # The lldb formatters through lldb's own DAP server (lldb-dap, or lldb-vscode before LLVM 18).
 class LldbTests(FixtureTestCase):
     debugger = "lldb"
-    tools = ("lldb",)
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        if not find_lldb_dap():
-            raise AssertionError("needs lldb-dap (or lldb-vscode) on PATH")
+    tools = ("lldb-dap",)
 
     def test_good_formatters(self):
         output, errors = self.run_visualizer(lldb_formatters="good_formatters.py")
