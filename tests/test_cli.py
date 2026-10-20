@@ -30,6 +30,7 @@ class DebuggerTypeTests(unittest.TestCase):
             ("/opt/cross/bin/x86_64-linux-gnu-gdb", "gdb"),
             ("/usr/lib/llvm-18/bin/lldb-dap", "lldb"),
             ("/usr/bin/lldb-vscode-16", "lldb"),
+            ("/usr/local/bin/lldb-mi", "lldb"),
             ("C:/LLVM/bin/LLDB-DAP.EXE", "lldb"),
             ("/usr/bin/python3", None),
         ]:
@@ -88,6 +89,24 @@ class AdapterOptionTests(unittest.TestCase):
         status, errors = run_cli("--debugger", "lldb", "--trace", "t.cpp", "t")
         self.assertEqual(status, 2)
         self.assertEqual(errors[:2], ["adapter: lldb-dap", "debugger: lldb"])
+
+    # natvis needs a debug adapter: MIEngine with lldb (lldb-mi), as with gdb
+    def test_natvis_with_lldb(self):
+        status, errors = run_cli(
+            "--miengine",
+            "OpenDebugAD7",
+            "--debugger-path",
+            "lldb-mi",
+            "--natvis",
+            "my.natvis",
+            "--trace",
+            "t.cpp",
+            "t",
+        )
+        self.assertEqual(status, 2)
+        self.assertEqual(
+            errors[:2], ["adapter: OpenDebugAD7", f"debugger: {os.path.abspath('lldb-mi')}"]
+        )
 
     def test_no_default_visualizers_needs_visualizer(self):
         status, errors = run_cli("--no-default-visualizers", "t.cpp", "t")

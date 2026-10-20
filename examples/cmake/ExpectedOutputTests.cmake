@@ -14,14 +14,16 @@
 # Builds the program <name> with the repository's include/ directory, for cxx_debug_visualize.hpp,
 # and registers CTest tests labelled
 # "visualizers", which run <name> under cxx-debug-visualize:
-#   natvis-miengine.<name>  NATVIS, through MIEngine's debug adapter (OpenDebugAD7)
-#   natvis-dbgeng.<name>    NATVIS, through the Windows debug engine's adapter (dbgeng-adapter)
-#   gdb-miengine.<name>     GDB_PRINTERS, through OpenDebugAD7
-#   gdb-native.<name>       GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
-#   lldb-native.<name>      LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18)
+#   natvis-miengine-gdb.<name>   NATVIS, through MIEngine's debug adapter (OpenDebugAD7), with gdb
+#   natvis-miengine-lldb.<name>  NATVIS, through OpenDebugAD7, with lldb (lldb-mi)
+#   natvis-dbgeng.<name>         NATVIS, through the Windows debug engine's adapter (dbgeng-adapter)
+#   gdb-miengine.<name>          GDB_PRINTERS, through OpenDebugAD7
+#   gdb-native.<name>            GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
+#   lldb-miengine.<name>         LLDB_FORMATTERS, through OpenDebugAD7 (lldb-mi)
+#   lldb-native.<name>           LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18)
 # Only the visualizer under test is active (--no-default-visualizers). Each test compares the
 # printed Variables trees with an expected output file next to the test source, the first file in
-# SOURCES: <test>.<kind>.txt, e.g. <test>.natvis-miengine.txt, <test>.natvis-dbgeng.txt,
+# SOURCES: <test>.<kind>.txt, e.g. <test>.natvis-miengine-gdb.txt, <test>.natvis-dbgeng.txt,
 # <test>.gdb-miengine.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the output is
@@ -36,12 +38,15 @@
 #   CXXDEBVIS_GDB       gdb, for the tests with gdb, natively (GDB 14 and later) and through
 #                       OpenDebugAD7
 #   CXXDEBVIS_LLDB_DAP  lldb-dap (or lldb-vscode), for the tests with lldb
+#   CXXDEBVIS_LLDB_MI   lldb-mi (LLDB's implementation of gdb's machine interface), for the tests
+#                       with lldb through OpenDebugAD7; needs CXXDEBVIS_MIENGINE
 #   CXXDEBVIS_MIENGINE  OpenDebugAD7, MIEngine's debug adapter, for the tests through it; needs
-#                       CXXDEBVIS_GDB, as the adapter runs gdb
+#                       CXXDEBVIS_GDB or CXXDEBVIS_LLDB_MI, as the adapter runs gdb or lldb-mi
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
 # registered. The tests with the Windows debug engine (DbgEng) are registered if this repository's
 # root build builds the dbgeng adapter (with MSVC, or Clang targeting MSVC), and use the dbgeng.dll
-# it found. At least one of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP must be set, or the adapter built.
+# it found. At least one of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_LLDB_MI must be set, or
+# the adapter built.
 #
 # The test programs need debug info and no optimizations, so that each `visualize(x);` line
 # compiles to code of its own: CMake's Debug configuration, whatever the compiler. A
@@ -57,11 +62,13 @@ set(CXX_DEBUG_VISUALIZE_COMMAND
 
 set(CXXDEBVIS_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
 set(CXXDEBVIS_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_LLDB_MI "" CACHE STRING "lldb-mi: an absolute path, or a name looked up on PATH")
 set(CXXDEBVIS_MIENGINE ""
     CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
 
 # The full path of each executable given, as <variable>_PATH; empty if not given.
-foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_MIENGINE)
+foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_LLDB_MI
+                               CXXDEBVIS_MIENGINE)
   set(cxxdebvis_value "${${cxxdebvis_var}}")
   set(${cxxdebvis_var}_PATH "")
   if(cxxdebvis_value STREQUAL "")
@@ -89,13 +96,19 @@ set(_visualizer_test_dbgeng "")
 if(TARGET dbgeng-adapter)
   set(_visualizer_test_dbgeng "$<TARGET_FILE:dbgeng-adapter>")
 endif()
-if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH AND NOT _visualizer_test_dbgeng)
-  message(FATAL_ERROR "set one or more of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP to the debuggers "
+if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH AND NOT CXXDEBVIS_LLDB_MI_PATH
+   AND NOT _visualizer_test_dbgeng)
+  message(FATAL_ERROR "set one or more of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_LLDB_MI "
+                      "to the debuggers "
                       "to test with, e.g. -DCXXDEBVIS_GDB=gdb (or with MSVC, or Clang targeting "
                       "MSVC, install the Debugging Tools for Windows)")
 endif()
-if(CXXDEBVIS_MIENGINE_PATH AND NOT CXXDEBVIS_GDB_PATH)
-  message(FATAL_ERROR "CXXDEBVIS_MIENGINE needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
+if(CXXDEBVIS_MIENGINE_PATH AND NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_MI_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_MIENGINE needs CXXDEBVIS_GDB or CXXDEBVIS_LLDB_MI, as "
+                      "OpenDebugAD7 runs gdb or lldb-mi")
+endif()
+if(CXXDEBVIS_LLDB_MI_PATH AND NOT CXXDEBVIS_MIENGINE_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_LLDB_MI needs CXXDEBVIS_MIENGINE, as OpenDebugAD7 runs lldb-mi")
 endif()
 
 get_property(_visualizer_test_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -133,21 +146,30 @@ function(add_visualizer_test name)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
   set(gdb --debugger gdb --debugger-path "${CXXDEBVIS_GDB_PATH}")
-  if(TV_NATVIS AND CXXDEBVIS_MIENGINE_PATH)
-    _add_visualizer_run(natvis-miengine ${name} "${test_source}" miengine
+  set(lldb_mi --debugger lldb --debugger-path "${CXXDEBVIS_LLDB_MI_PATH}")
+  if(TV_NATVIS AND CXXDEBVIS_MIENGINE_PATH AND CXXDEBVIS_GDB_PATH)
+    _add_visualizer_run(natvis-miengine-gdb ${name} "${test_source}" miengine
                         --natvis "${TV_NATVIS}" ${gdb} ${TV_ARGS})
+  endif()
+  if(TV_NATVIS AND CXXDEBVIS_LLDB_MI_PATH)
+    _add_visualizer_run(natvis-miengine-lldb ${name} "${test_source}" miengine
+                        --natvis "${TV_NATVIS}" ${lldb_mi} ${TV_ARGS})
   endif()
   if(TV_NATVIS AND _visualizer_test_dbgeng)
     _add_visualizer_run(natvis-dbgeng ${name} "${test_source}" dbgeng
                         --natvis "${TV_NATVIS}" --debugger-path "${DbgEng_DLL}" ${TV_ARGS})
   endif()
-  if(TV_GDB_PRINTERS AND CXXDEBVIS_MIENGINE_PATH)
+  if(TV_GDB_PRINTERS AND CXXDEBVIS_MIENGINE_PATH AND CXXDEBVIS_GDB_PATH)
     _add_visualizer_run(gdb-miengine ${name} "${test_source}" miengine
                         --gdb-printers "${TV_GDB_PRINTERS}" ${gdb} ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS AND CXXDEBVIS_GDB_PATH)
     _add_visualizer_run(gdb-native ${name} "${test_source}" native
                         --gdb-printers "${TV_GDB_PRINTERS}" ${gdb} ${TV_ARGS})
+  endif()
+  if(TV_LLDB_FORMATTERS AND CXXDEBVIS_LLDB_MI_PATH)
+    _add_visualizer_run(lldb-miengine ${name} "${test_source}" miengine
+                        --lldb-formatters "${TV_LLDB_FORMATTERS}" ${lldb_mi} ${TV_ARGS})
   endif()
   if(TV_LLDB_FORMATTERS AND CXXDEBVIS_LLDB_DAP_PATH)
     _add_visualizer_run(lldb-native ${name} "${test_source}" native

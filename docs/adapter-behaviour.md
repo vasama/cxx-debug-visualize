@@ -5,7 +5,8 @@ it, and what they mean for tests. Most of them explain why the expected output o
 differs between adapters, or why a broken visualizer only shows up in the output.
 
 Observed with OpenDebugAD7 from vscode-cpptools 1.34.4 and from MIEngine `main` at `fdd4552`
-(September 2026), GDB 15 and lldb-vscode 16 (lldb-dap 18 in CI). Other versions may differ.
+(September 2026), GDB 15, lldb-vscode 16 (lldb-dap 18 in CI) and `lldb-mi` (see below). Other
+versions may differ.
 
 ## OpenDebugAD7 (MIEngine)
 
@@ -73,6 +74,27 @@ Pretty printers are applied by gdb itself; MIEngine shows what gdb's `-var-creat
 | a pointer to a printed type | shown as an address (unlike natvis), unless a lookup function also handles the pointer type |
 | exception in `to_string()` / `children()` | **no diagnostic**; the value is empty, or the children are missing |
 | error while loading the script (e.g. a syntax error) | the launch fails: `Unable to start debugging. ... Error occurred in Python: ...` |
+
+### LLDB (`lldb-mi`)
+
+With `MIMode: lldb`, MIEngine runs `lldb-mi`, LLDB's implementation of gdb's machine interface,
+instead of gdb. The C/C++ extension ships it only for macOS; LLVM no longer does, so elsewhere it is
+built from `lldb-tools/lldb-mi`. Observed with `lldb-mi` at `1aa9e8f` (April 2026) and LLDB 18.
+
+* **Natvis shows the same as with gdb**, but for LLDB's spelling of types (`mylib::string *` for
+  gdb's `mylib::string*`). Natvis expressions are evaluated by LLDB.
+* **An invalid expression shows LLDB's whole error in place of the value**, over several lines (e.g.
+  `<1,error: <user expression 1>:1:1: use of undeclared identifier 'c'`, then the source excerpt),
+  where gdb shows `-var-create: unable to create variable object`.
+* **lldb formatters show as through `lldb-dap`.** Summaries and synthetic children apply, as LLDB
+  computes the values MIEngine shows. But a summary that raises falls back to `{...}`, not to
+  lldb's default summary, and a script that fails to import passes silently.
+* **Isolation.** `lldb-mi` reads no init files, and LLDB's commands, such as those that load the
+  script under test, are `setupCommands`.
+* **`lldb-mi` needs `lldb-server`** to run the program. Ubuntu's LLDB looks for it (as
+  `lldb-server-18.1.3`, with its version) next to the program using LLDB, where a self-built
+  `lldb-mi` does not have it, unless `LLDB_DEBUGSERVER_PATH` names it. Otherwise the launch fails
+  with `Unable to start debugging. ... unable to locate lldb-server-18.1.3`.
 
 ## GDB (`gdb -i dap`)
 

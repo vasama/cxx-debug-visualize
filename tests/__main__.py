@@ -1,13 +1,15 @@
 # Run the self-tests:
 #
-#   python3 -m tests [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--miengine PATH]
-#                       [--dbgeng PATH [--dbgeng-dll PATH]] [--test ID]... [unittest options]
-#   python3 -m tests [--gdb PATH] [--lldb-dap PATH] [--miengine PATH] [--dbgeng PATH] --list
+#   python3 -m tests [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--lldb-mi PATH]
+#                       [--miengine PATH] [--dbgeng PATH [--dbgeng-dll PATH]] [--test ID]...
+#                       [unittest options]
+#   python3 -m tests [--gdb PATH] [--lldb-dap PATH] [--lldb-mi PATH] [--miengine PATH]
+#                       [--dbgeng PATH] --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
 # CTest test, which runs it with --test. The integration tests run with the executables given with
-# --gdb, --lldb-dap, --miengine and --dbgeng; those that need one not given are skipped, and left out of
-# --list. Without the fixture program (--program), the integration tests fail.
+# --gdb, --lldb-dap, --lldb-mi, --miengine and --dbgeng; those that need one not given are skipped,
+# and left out of --list. Without the fixture program (--program), the integration tests fail.
 
 import argparse
 import os
@@ -23,6 +25,11 @@ parser.add_argument(
 parser.add_argument("--gdb", metavar="PATH", help="gdb, to run the integration tests with")
 parser.add_argument(
     "--lldb-dap", metavar="PATH", help="lldb-dap (or lldb-vscode), to run the lldb tests with"
+)
+parser.add_argument(
+    "--lldb-mi",
+    metavar="PATH",
+    help="lldb-mi, to run the lldb tests through MIEngine with (with --miengine)",
 )
 parser.add_argument(
     "--miengine",

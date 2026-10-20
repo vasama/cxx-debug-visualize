@@ -11,6 +11,10 @@ from .dap import DapClient, DapError
 # console output such as "[Natvis] [Error] Error ... while reading file: ...".
 _NATVIS_PREFIX = "[Natvis]"
 
+# MIEngine reports its own errors (e.g. "ERROR: Unable to start debugging. ...") as stderr output,
+# where the program's own stderr output also arrives, but without the prefix.
+_MIENGINE_ERROR_PREFIX = "ERROR: "
+
 
 # One row of the Variables/Watch tree.
 class VisualizationNode:
@@ -67,9 +71,6 @@ class DebugSession:
         assert debugger != "dbgeng" or adapter is not None, (
             "dbgeng is only supported through an adapter"
         )
-        assert debugger != "lldb" or adapter is None, (
-            "lldb is only supported through its native DAP support"
-        )
         assert natvis is None or adapter == "miengine" or debugger == "dbgeng", (
             "natvis needs MIEngine or dbgeng"
         )
@@ -89,7 +90,7 @@ class DebugSession:
         self._log = log
         self._breakpoints: dict[int, dict[str, Any]] = {}
         self._client_or_none: DapClient | None = None
-        self._natvis_diagnostics: list[str] = []
+        self._diagnostics: list[str] = []
 
     # The client of a started session.
     @property
@@ -113,19 +114,20 @@ class DebugSession:
                 config["debuggerPath"] = self._debugger_path
             return config
 
-        if self._debugger == "lldb":
-            # Without the default visualizers, lldb's built-in C++ formatters (e.g. for libstdc++)
-            # are disabled before the script is loaded.
-            init_commands = []
-            if not self._default_visualizers:
-                init_commands.append("type category disable -l c++")
-            if self._lldb_formatters:
-                init_commands.append(f"command script import {self._lldb_formatters}")
+        # Without the default visualizers, lldb's built-in C++ formatters (e.g. for libstdc++) are
+        # disabled before the script is loaded.
+        lldb_commands = []
+        if not self._default_visualizers:
+            lldb_commands.append("type category disable -l c++")
+        if self._lldb_formatters:
+            lldb_commands.append(f"command script import {self._lldb_formatters}")
+
+        if self._debugger == "lldb" and self._adapter is None:
             return {
                 "program": self._program,
                 "args": self._program_args,
                 "cwd": os.path.dirname(self._program),
-                "initCommands": init_commands,
+                "initCommands": lldb_commands,
             }
 
         cfg: dict[str, Any] = {
@@ -135,11 +137,10 @@ class DebugSession:
             "program": self._program,
             "args": self._program_args,
             "cwd": os.path.dirname(self._program),
-            "MIMode": "gdb",
+            "MIMode": self._debugger,
             "externalConsole": False,
             "stopAtEntry": False,
             "logging": {"natvisDiagnostics": "warning", "moduleLoad": False},
-            "miDebuggerArgs": "-nx",
         }
 
         if self._debugger_path:
@@ -151,6 +152,15 @@ class DebugSession:
             # MIEngine follows VS Code's default of hiding display strings, and moves the visualized
             # children under a "[Visualized View]" node. This is not desirable for testing purposes.
             cfg["showDisplayString"] = True
+
+        # lldb-mi reads no init files, and runs LLDB's commands as setup commands.
+        if self._debugger == "lldb":
+            if lldb_commands:
+                cfg["setupCommands"] = [{"text": command} for command in lldb_commands]
+            return cfg
+
+        # gdb reads no init files either.
+        cfg["miDebuggerArgs"] = "-nx"
 
         # Pretty printing is enabled for the printers under test, and as in VS Code's default
         # configuration, for those gdb loads by default (e.g. libstdc++'s), which with natvis show
@@ -172,7 +182,10 @@ class DebugSession:
                 self._breakpoints[bp_id] = bp
             case {"event": "output", "body": {"category": "console", "output": text}}:
                 if text.startswith(_NATVIS_PREFIX):
-                    self._natvis_diagnostics.append(text)
+                    self._diagnostics.append(text)
+            case {"event": "output", "body": {"category": "stderr", "output": text}}:
+                if self._adapter == "miengine" and text.startswith(_MIENGINE_ERROR_PREFIX):
+                    self._diagnostics.append(text)
 
     # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
@@ -288,8 +301,8 @@ class DebugSession:
         if self._client_or_none:
             self._client_or_none.close()
 
-    def natvis_diagnostics(self) -> list[str]:
-        return self._natvis_diagnostics
+    def diagnostics(self) -> list[str]:
+        return self._diagnostics
 
     def stderr_output(self) -> str:
         return self._client_or_none.stderr_output() if self._client_or_none else ""

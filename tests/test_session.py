@@ -118,6 +118,42 @@ class LaunchConfigTests(unittest.TestCase):
             ],
         )
 
+    # through MIEngine, lldb-mi reads no init files (it has no -nx), and LLDB's commands are setup
+    # commands
+    def test_miengine_lldb(self):
+        cfg = DebugSession(
+            "miengine",
+            "OpenDebugAD7",
+            "test_program",
+            [],
+            debugger="lldb",
+            debugger_path="/usr/bin/lldb-mi",
+            natvis="my.natvis",
+        )._launch_config()
+        self.assertEqual(cfg["MIMode"], "lldb")
+        self.assertEqual(cfg["miDebuggerPath"], "/usr/bin/lldb-mi")
+        self.assertEqual(cfg["visualizerFile"], os.path.abspath("my.natvis"))
+        self.assertNotIn("miDebuggerArgs", cfg)
+        self.assertNotIn("setupCommands", cfg)
+
+    def test_miengine_lldb_formatters_without_default_visualizers(self):
+        cfg = DebugSession(
+            "miengine",
+            "OpenDebugAD7",
+            "test_program",
+            [],
+            debugger="lldb",
+            lldb_formatters="my_formatters.py",
+            default_visualizers=False,
+        )._launch_config()
+        self.assertEqual(
+            [c["text"] for c in cfg["setupCommands"]],
+            [
+                "type category disable -l c++",
+                f"command script import {os.path.abspath('my_formatters.py')}",
+            ],
+        )
+
     # without a visualizer under test, only the default visualizers are active
     def test_default_visualizers_only(self):
         cfg = DebugSession(
@@ -206,3 +242,32 @@ class LaunchConfigTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             DebugSession(None, None, "test_program", [], debugger="gdb", natvis="my.natvis")
         DebugSession(None, None, "test_program", [], debugger="gdb", gdb_printers="my_printers.py")
+
+
+# Which output the adapter's events report as problems; the events are given to the session as they
+# would arrive.
+class DiagnosticsTests(unittest.TestCase):
+    @staticmethod
+    def receive(session, category, text):
+        session._handle_event({"event": "output", "body": {"category": category, "output": text}})
+
+    def test_miengine_errors_and_natvis_diagnostics(self):
+        session = DebugSession(
+            "miengine", "OpenDebugAD7", "test_program", [], debugger="lldb", natvis="my.natvis"
+        )
+        error = "ERROR: Unable to start debugging. unable to locate lldb-server-18.1.3\n"
+        natvis = "[Natvis] [Error] Error while reading file: my.natvis\n"
+        self.receive(session, "stderr", error)
+        # the program's own output, on stderr and stdout
+        self.receive(session, "stderr", "something the program printed\n")
+        self.receive(session, "stdout", "ERROR: printed by the program\n")
+        self.receive(session, "console", natvis)
+        self.assertEqual(session.diagnostics(), [error, natvis])
+
+    # the prefix is MIEngine's: through lldb-dap, such stderr output is the program's
+    def test_program_stderr_through_lldb_dap(self):
+        session = DebugSession(
+            None, None, "test_program", [], debugger="lldb", lldb_formatters="my_formatters.py"
+        )
+        self.receive(session, "stderr", "ERROR: printed by the program\n")
+        self.assertEqual(session.diagnostics(), [])

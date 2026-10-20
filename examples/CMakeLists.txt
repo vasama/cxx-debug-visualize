@@ -41,6 +41,8 @@ add_visualizer_test(
 )
 
 # Released versions of MIEngine ignore CustomListItems: they need microsoft/MIEngine#1580.
-if(TEST natvis-miengine.test_custom_list)
-  set_tests_properties(natvis-miengine.test_custom_list PROPERTIES DISABLED TRUE)
-endif()
+foreach(kind IN ITEMS natvis-miengine-gdb natvis-miengine-lldb)
+  if(TEST ${kind}.test_custom_list)
+    set_tests_properties(${kind}.test_custom_list PROPERTIES DISABLED TRUE)
+  endif()
+endforeach()

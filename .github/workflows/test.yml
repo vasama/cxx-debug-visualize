@@ -12,6 +12,10 @@ env:
   # The .NET SDK version used for building MIEngine.
   MIENGINE_DOTNET_SDK: "10.0.x"
 
+  # The lldb-tools/lldb-mi commit lldb-mi is built from: main as of 2026-04-09, as it has no
+  # releases. It is built against the image's LLVM 18, whose lldb-dap is tested too.
+  LLDB_MI_REF: 1aa9e8fa609d7118dd8f0cb2c79e6cee9a53aeac
+
   # Version and hash of the Microsoft.Debugging.Platform.DbgEng NuGet package, which provides the
   # DbgEng headers and dll.
   DBGENG_VERSION: "20260319.1511.0"
@@ -78,9 +82,40 @@ jobs:
           DOTNET_NOLOGO: 1
         run: sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$RUNNER_TEMP/miengine"
 
+  # Builds lldb-mi, LLDB's implementation of gdb's machine interface for OpenDebugAD7, from the
+  # lldb-mi sources, only when the cache has no build of LLDB_MI_REF yet.
+  lldb-mi:
+    name: Build lldb-mi
+    runs-on: ubuntu-24.04
+    steps:
+      - id: cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/lldb-mi
+          key: lldb-mi-${{ runner.os }}-${{ env.LLDB_MI_REF }}-llvm-18
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: lldb-tools/lldb-mi
+          ref: ${{ env.LLDB_MI_REF }}
+          path: lldb-mi
+          persist-credentials: false
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-18-dev liblldb-18-dev
+
+          cmake -S lldb-mi -B lldb-mi/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
+          cmake --build lldb-mi/build --parallel
+
+          mkdir -p "$RUNNER_TEMP/lldb-mi"
+          cp lldb-mi/build/src/lldb-mi "$RUNNER_TEMP/lldb-mi/"
+
   test-linux:
     name: Linux - Python ${{ matrix.python }}
-    needs: adapter
+    needs: [adapter, lldb-mi]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -105,13 +140,24 @@ jobs:
           key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.MIENGINE_DOTNET_SDK }}
           fail-on-cache-miss: true
 
+      - uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/lldb-mi
+          key: lldb-mi-${{ runner.os }}-${{ env.LLDB_MI_REF }}-llvm-18
+          fail-on-cache-miss: true
+
       - name: Build and run tests
+        env:
+          # Ubuntu's LLDB finds lldb-server only next to the program using it, as lldb-dap has
+          # it but the lldb-mi built here does not.
+          LLDB_DEBUGSERVER_PATH: /usr/lib/llvm-18/bin/lldb-server
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DPython3_EXECUTABLE="${{ steps.python.outputs.python-path }}" \
             -DCXXDEBVIS_GDB=gdb \
             -DCXXDEBVIS_LLDB_DAP=lldb-dap-18 \
+            -DCXXDEBVIS_LLDB_MI="$RUNNER_TEMP/lldb-mi/lldb-mi" \
             -DCXXDEBVIS_MIENGINE="$RUNNER_TEMP/miengine/OpenDebugAD7"
 
           cmake --build build

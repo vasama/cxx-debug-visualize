@@ -1,0 +1,6 @@
+visualize(hello) at test_strings.cpp
+  0x? "hello" [mylib::string]
+    [size] = 5 [unsigned int]
+visualize(ptr) at test_strings.cpp
+  0x? "hello" [mylib::optional<mylib::string *>]
+    [value] = 0x? "hello" [mylib::string *]

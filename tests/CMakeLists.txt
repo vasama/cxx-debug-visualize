@@ -9,13 +9,15 @@
 #   CXXDEBVIS_GDB       gdb, for the tests with gdb, natively (GDB 14 and later) and through
 #                       OpenDebugAD7
 #   CXXDEBVIS_LLDB_DAP  lldb-dap (or lldb-vscode), for the tests with lldb
+#   CXXDEBVIS_LLDB_MI   lldb-mi (LLDB's implementation of gdb's machine interface), for the tests
+#                       with lldb through OpenDebugAD7; needs CXXDEBVIS_MIENGINE
 #   CXXDEBVIS_MIENGINE  OpenDebugAD7, MIEngine's debug adapter, for the tests through it; needs
-#                       CXXDEBVIS_GDB, as the adapter runs gdb
+#                       CXXDEBVIS_GDB or CXXDEBVIS_LLDB_MI, as the adapter runs gdb or lldb-mi
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
 # registered. The tests with the Windows debug engine (DbgEng) are registered if the root build
 # builds the dbgeng adapter (with MSVC, or Clang targeting MSVC; see the root CMakeLists.txt), and
-# use the dbgeng.dll it found. At least one of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP must be set, or
-# the adapter built.
+# use the dbgeng.dll it found. At least one of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and
+# CXXDEBVIS_LLDB_MI must be set, or the adapter built.
 #
 # CXXDEBVIS_TEST_STDLIB (default OFF) also registers the standard library tests (see below).
 
@@ -23,11 +25,13 @@ find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
 set(CXXDEBVIS_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
 set(CXXDEBVIS_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
+set(CXXDEBVIS_LLDB_MI "" CACHE STRING "lldb-mi: an absolute path, or a name looked up on PATH")
 set(CXXDEBVIS_MIENGINE ""
     CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
 
 # The full path of each executable given, as <variable>_PATH; empty if not given.
-foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_MIENGINE)
+foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_LLDB_MI
+                               CXXDEBVIS_MIENGINE)
   set(cxxdebvis_value "${${cxxdebvis_var}}")
   set(${cxxdebvis_var}_PATH "")
   if(cxxdebvis_value STREQUAL "")
@@ -55,13 +59,19 @@ set(dbgeng_adapter "")
 if(TARGET dbgeng-adapter)
   set(dbgeng_adapter "$<TARGET_FILE:dbgeng-adapter>")
 endif()
-if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH AND NOT dbgeng_adapter)
-  message(FATAL_ERROR "set one or more of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP to the debuggers "
+if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH AND NOT CXXDEBVIS_LLDB_MI_PATH
+   AND NOT dbgeng_adapter)
+  message(FATAL_ERROR "set one or more of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_LLDB_MI "
+                      "to the debuggers "
                       "to test with, e.g. -DCXXDEBVIS_GDB=gdb (or with MSVC, or Clang targeting "
                       "MSVC, install the Debugging Tools for Windows)")
 endif()
-if(CXXDEBVIS_MIENGINE_PATH AND NOT CXXDEBVIS_GDB_PATH)
-  message(FATAL_ERROR "CXXDEBVIS_MIENGINE needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
+if(CXXDEBVIS_MIENGINE_PATH AND NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_MI_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_MIENGINE needs CXXDEBVIS_GDB or CXXDEBVIS_LLDB_MI, as "
+                      "OpenDebugAD7 runs gdb or lldb-mi")
+endif()
+if(CXXDEBVIS_LLDB_MI_PATH AND NOT CXXDEBVIS_MIENGINE_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_LLDB_MI needs CXXDEBVIS_MIENGINE, as OpenDebugAD7 runs lldb-mi")
 endif()
 
 # The fixture program needs debug info and no optimizations: CMake's Debug configuration, whatever
@@ -87,6 +97,9 @@ if(CXXDEBVIS_GDB_PATH)
 endif()
 if(CXXDEBVIS_LLDB_DAP_PATH)
   list(APPEND selftest_tools --lldb-dap "${CXXDEBVIS_LLDB_DAP_PATH}")
+endif()
+if(CXXDEBVIS_LLDB_MI_PATH)
+  list(APPEND selftest_tools --lldb-mi "${CXXDEBVIS_LLDB_MI_PATH}")
 endif()
 if(CXXDEBVIS_MIENGINE_PATH)
   list(APPEND selftest_tools --miengine "${CXXDEBVIS_MIENGINE_PATH}")

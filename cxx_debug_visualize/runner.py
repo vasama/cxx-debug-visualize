@@ -216,7 +216,7 @@ class Runner:
         finally:
             session.close()
 
-            for text in session.natvis_diagnostics():
+            for text in session.diagnostics():
                 self._report(text)
 
             # Anything written to stderr by the adapter is considered a failure.

@@ -1,9 +1,9 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m tests` (e.g. by CTest), which passes the built fixture program
-# test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --miengine,
-# --dbgeng). A test class is skipped, and left out of --list, unless every executable it uses was
-# given, and fails without the fixture program.
+# test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --lldb-mi,
+# --miengine, --dbgeng). A test class is skipped, and left out of --list, unless every executable
+# it uses was given, and fails without the fixture program.
 
 import contextlib
 import io
@@ -22,7 +22,14 @@ SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 # Set from the command line by tests/__main__.py: the path of the built fixture program, and
 # the full paths of the executables to test with, by option name (None if not given).
 PROGRAM = None
-TOOLS = {"gdb": None, "lldb-dap": None, "miengine": None, "dbgeng": None, "dbgeng-dll": None}
+TOOLS = {
+    "gdb": None,
+    "lldb-dap": None,
+    "lldb-mi": None,
+    "miengine": None,
+    "dbgeng": None,
+    "dbgeng-dll": None,
+}
 
 
 # Runs cxx-debug-visualize on the fixture program; the test classes below say which debug adapter
@@ -33,6 +40,8 @@ class FixtureTestCase(unittest.TestCase):
     adapter = None
     adapter_path = None
     debugger = "gdb"
+    # the executable given as the debugger, as a key of TOOLS
+    debugger_tool = "gdb"
     # the executables the tests use, as keys of TOOLS
     tools = ()
 
@@ -60,12 +69,7 @@ class FixtureTestCase(unittest.TestCase):
             PROGRAM,
             list(program_args),
             debugger=self.debugger,
-            # without --dbgeng-dll, dbgeng's adapter loads the Debugging Tools' dbgeng.dll
-            debugger_path={
-                "gdb": TOOLS["gdb"],
-                "lldb": TOOLS["lldb-dap"],
-                "dbgeng": TOOLS["dbgeng-dll"],
-            }.get(self.debugger),
+            debugger_path=TOOLS[self.debugger_tool],
             natvis=fixture(natvis),
             gdb_printers=fixture(gdb_printers),
             lldb_formatters=fixture(lldb_formatters),
@@ -81,9 +85,10 @@ class FixtureTestCase(unittest.TestCase):
         return out.getvalue(), errors
 
 
-class IntegrationTests(FixtureTestCase):
+# The natvis tests through MIEngine (OpenDebugAD7) whose outcome is the same with gdb as with lldb
+# (lldb-mi), for the test classes of each.
+class MiengineNatvisTests:
     adapter = "miengine"
-    tools = ("miengine", "gdb")
 
     @classmethod
     def setUpClass(cls):
@@ -137,16 +142,6 @@ class IntegrationTests(FixtureTestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_bad_natvis(self):
-        output, errors = self.run_visualizer(natvis="bad.natvis")
-        # the DisplayString refers to a missing member: the engine's error text
-        # appears in place of the value, for the expected output to catch
-        self.assertIn("<1,-var-create: unable to create variable object> [pair]", output)
-        self.assertEqual(errors, [])
-        # the ArrayItems <Size> is wrong, so the engine silently shows raw members
-        self.assertIn("  {...} [int_array]\n    data = ", output)
-        self.assertIn("\n    n = 3 [int]\n", output)
-
     def test_malformed_natvis(self):
         # the engine ignores the file and reports it on the debug console
         output, errors = self.run_visualizer(natvis="malformed.natvis")
@@ -164,6 +159,21 @@ class IntegrationTests(FixtureTestCase):
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
         self.assertIn("crash", crash[0])
+
+
+# natvis files and gdb's pretty printers through MIEngine, with gdb.
+class MiengineGdbTests(MiengineNatvisTests, FixtureTestCase):
+    tools = ("miengine", "gdb")
+
+    def test_bad_natvis(self):
+        output, errors = self.run_visualizer(natvis="bad.natvis")
+        # the DisplayString refers to a missing member: the engine's error text
+        # appears in place of the value, for the expected output to catch
+        self.assertIn("<1,-var-create: unable to create variable object> [pair]", output)
+        self.assertEqual(errors, [])
+        # the ArrayItems <Size> is wrong, so the engine silently shows raw members
+        self.assertIn("  {...} [int_array]\n    data = ", output)
+        self.assertIn("\n    n = 3 [int]\n", output)
 
     def test_good_printers(self):
         output, errors = self.run_visualizer(gdb_printers="good_printers.py")
@@ -307,11 +317,9 @@ class NativeDapTests(FixtureTestCase):
         self.assertIn("crash", crash[0])
 
 
-# The lldb formatters through lldb's own DAP server (lldb-dap, or lldb-vscode before LLVM 18).
-class LldbTests(FixtureTestCase):
-    debugger = "lldb"
-    tools = ("lldb-dap",)
-
+# The lldb formatter tests whose outcome is the same through lldb-dap as through MIEngine, for the
+# test classes of each.
+class LldbFormatterTests:
     def test_good_formatters(self):
         output, errors = self.run_visualizer(lldb_formatters="good_formatters.py")
         self.assertEqual(
@@ -347,8 +355,8 @@ class LldbTests(FixtureTestCase):
                 ]
                 + [f"    [{i}] = {i} [int]" for i in range(120)]
                 + [
-                    # a call in another function, on a reference, whose address lldb-dap shows
-                    # before the summary
+                    # a call in another function, on a reference, whose address lldb shows before
+                    # the summary
                     "visualize(ref) at test_program.cpp",
                     "  0x? <1,2> [const pair &]",
                     "    a = 1 [int]",
@@ -358,6 +366,13 @@ class LldbTests(FixtureTestCase):
             ),
         )
         self.assertEqual(errors, [])
+
+
+# The lldb formatters through lldb's own DAP server (lldb-dap, or lldb-vscode before LLVM 18).
+class LldbTests(LldbFormatterTests, FixtureTestCase):
+    debugger = "lldb"
+    debugger_tool = "lldb-dap"
+    tools = ("lldb-dap",)
 
     def test_bad_formatters(self):
         # exceptions in formatters pass silently: a summary falls back to lldb's default and
@@ -393,11 +408,53 @@ class LldbTests(FixtureTestCase):
         self.assertIn("crash", crash[0])
 
 
+# natvis files and lldb formatters through MIEngine, with lldb (lldb-mi, LLDB's implementation of
+# gdb's machine interface).
+class MiengineLldbTests(MiengineNatvisTests, LldbFormatterTests, FixtureTestCase):
+    debugger = "lldb"
+    debugger_tool = "lldb-mi"
+    tools = ("miengine", "lldb-mi")
+
+    def test_bad_natvis(self):
+        output, errors = self.run_visualizer(natvis="bad.natvis")
+        # the DisplayString refers to a missing member: LLDB's error, over several lines, appears
+        # in place of the value, for the expected output to catch
+        self.assertIn("  <1,error: <user expression", output)
+        self.assertIn("use of undeclared identifier 'c'", output)
+        self.assertEqual(errors, [])
+        # the ArrayItems <Size> is wrong, so the engine silently shows raw members
+        self.assertIn("  {...} [int_array]\n    data = ", output)
+        self.assertIn("\n    n = 3 [int]\n", output)
+
+    def test_bad_formatters(self):
+        # exceptions in formatters pass silently: a summary falls back to MIEngine's {...} and
+        # synthetic children are missing, for the expected output to catch
+        output, errors = self.run_visualizer(lldb_formatters="bad_formatters.py")
+        self.assertIn(
+            "visualize(pr) at test_program.cpp\n  {...} [pair]\n    a = 1 [int]\n", output
+        )
+        self.assertIn(
+            "visualize(arr) at test_program.cpp\n  n=3 [int_array]\nvisualize(pr)", output
+        )
+        self.assertEqual(errors, [])
+
+    def test_malformed_formatters(self):
+        # importing the script fails, which passes silently: values show without formatters, for
+        # the expected output to catch
+        output, errors = self.run_visualizer(lldb_formatters="malformed_formatters.py")
+        self.assertIn(
+            "visualize(arr) at test_program.cpp\n  {...} [int_array]\n    data = ", output
+        )
+        self.assertEqual(errors, [])
+
+
 # natvis through the dbgeng debug adapter (cxx_debug_visualize_dbgeng/), with the Windows debug
 # engine, whose data model applies the natvis file.
 class DbgengTests(FixtureTestCase):
     adapter = "dbgeng"
     debugger = "dbgeng"
+    # without --dbgeng-dll, the adapter loads the Debugging Tools' dbgeng.dll
+    debugger_tool = "dbgeng-dll"
     tools = ("dbgeng",)
 
     @classmethod

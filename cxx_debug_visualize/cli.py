@@ -43,9 +43,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--debugger-path",
         metavar="PATH",
-        help="the gdb executable, the lldb DAP server (lldb-dap or lldb-vscode), or for dbgeng the "
-        "directory of dbgeng.dll or a file in it (default: gdb, lldb-dap or lldb-vscode available "
-        "on PATH; for dbgeng, the Debugging Tools for Windows)",
+        help="the gdb executable, the lldb DAP server (lldb-dap or lldb-vscode) or through MIEngine "
+        "lldb-mi, or for dbgeng the directory of dbgeng.dll or a file in it (default: gdb, "
+        "lldb-dap, lldb-vscode or lldb-mi available on PATH; for dbgeng, the Debugging Tools for "
+        "Windows)",
     )
 
     parser.add_argument(
@@ -139,13 +140,13 @@ def main(argv: list[str] | None = None) -> int:
     # If --adapter was not specified explicitly, deduce it as:
     #   * "dbgeng"    if debugger is "dbgeng"
     #   * "miengine"  if --miengine was specified, or
-    #                 if --natvis was specified and debugger is "gdb"
+    #                 if --natvis was specified (with debugger "gdb" or "lldb")
     #
     #   * "native"    otherwise
     if ns.adapter is None:
         if ns.debugger == "dbgeng":
             ns.adapter = "dbgeng"
-        elif ns.miengine or (ns.natvis and ns.debugger == "gdb"):
+        elif ns.miengine or ns.natvis:
             ns.adapter = "miengine"
         else:
             ns.adapter = "native"
@@ -154,12 +155,6 @@ def main(argv: list[str] | None = None) -> int:
         print("error: --debugger dbgeng requires --adapter dbgeng, and vice versa", file=sys.stderr)
         return 2
 
-    if ns.adapter == "miengine" and ns.debugger == "lldb":
-        print(
-            "error: using lldb via the MIEngine debug adapter is not currently supported",
-            file=sys.stderr,
-        )
-        return 2
     if ns.miengine is not None and ns.adapter != "miengine":
         print("error: --miengine requires --adapter=miengine", file=sys.stderr)
         return 2

@@ -18,6 +18,7 @@ dap.py        DAP client: message framing, requests, responses and events over s
   │
 debug adapter (separate process)
   ├─ OpenDebugAD7 (MIEngine) ── gdb            --adapter miengine  natvis, gdb pretty printers
+  ├─ OpenDebugAD7 (MIEngine) ── lldb-mi        --adapter miengine  natvis, lldb formatters
   ├─ dbgeng-adapter ── DbgEng                  --adapter dbgeng    natvis (Windows)
   ├─ gdb -i dap                                --adapter native    gdb pretty printers
   └─ lldb-dap (lldb-vscode)                    --adapter native    lldb formatters
@@ -43,11 +44,12 @@ options. Inconsistent combinations of options are rejected with exit code `2`.
   means `gdb`, `--lldb-formatters` means `lldb`). Natvis is technically debugger-independent, so
   with `--natvis`, or without a visualizer (only the default visualizers), the type is deduced from
   the name of `--debugger-path`, defaulting to `dbgeng` on Windows and `gdb` elsewhere.
-  However, Natvis with LLDB has not yet been tested and is for now unsupported.
 * **Adapter** (`miengine`, `dbgeng` or `native`): `--adapter`, otherwise `dbgeng` for the `dbgeng`
-  debugger, `miengine` for `--natvis` or when `--miengine` is given, and `native` otherwise. Natvis
-  requires `miengine` or `dbgeng`, LLDB requires `native`, and the `dbgeng` debugger and adapter
-  require each other.
+  debugger, `miengine` for `--natvis` or when `--miengine` is given, and `native` otherwise.
+  * Natvis requires `miengine` or `dbgeng`, and the `dbgeng` debugger and adapter require each other.
+  * `miengine` requires debugger `gdb` or `lldb` (`lldb-mi`).
+  * `native` requires debugger `gdb` (15 or later) or `lldb` (`lldb-dap`).
+  * `dbgeng` requires debugger `dbgeng`.
 * **OpenDebugAD7** (only required with `--adapter=miengine`): `--miengine`, then
   `$CXX_DEBUG_VISUALIZE_MIENGINE`, then the newest VS Code C/C++ extension found by
   `adapter.find_miengine()`.
@@ -87,11 +89,15 @@ to its stderr. The adapter's own messages are passed on verbatim.
 * **Adapter process:** `OpenDebugAD7` (a `.dll` build is run with `dotnet`), the dbgeng adapter,
   `lldb-dap`, or `gdb -i dap`, which is started with the script loaded and the program given up
   front.
-* **Launch configuration:** For `OpenDebugAD7`, a `cppdbg` configuration as VS Code would send it,
-  with `visualizerFile` and `showDisplayString` for Natvis, or `setupCommands` that enable pretty
-  printing and load the script. For LLDB, `initCommands` that load the formatter script. For the
-  dbgeng adapter, its own: the program, its arguments and working directory, `visualizerFile`,
-  `defaultVisualizers`, and `debuggerPath` for `--debugger-path`.
+* **Launch configuration:** The tool contructs an appropriate launch configuration for the debug
+  adapter being used:
+  * For `OpenDebugAD7`: a `cppdbg` configuration as VS Code would send it, with `visualizerFile` and
+    `showDisplayString` for Natvis, or `setupCommands` that enable pretty printing and load the
+    script; with LLDB, `MIMode: lldb`, and `setupCommands` that are LLDB's commands, which load the
+    formatter script.
+  * For `lldb-dap`: `initCommands` that load the formatter script.
+  * For `cxx_debug_visualize_dbgeng`: the program, its arguments and working directory,
+    `visualizerFile`, `defaultVisualizers`, and `debuggerPath`.
 * **Isolation:** If `default_visualizers` is true, the debuggers's default visualizers are loaded.
   Otherwise, adapter and debugger specific configuration is provided in order to disable all default
   visualizers. This ensures that test results do not depend on the host configuration.
@@ -99,6 +105,7 @@ to its stderr. The adapter's own messages are passed on verbatim.
   * GDB: If disabled, Python script auto-loading is disabled (`set auto-load python-scripts off`).
   * GDB: If enabled, when using Natvis with MIEngine, GDB pretty printing is enabled
     (`enable-pretty-printing`).
+  * LLDB: `lldb-mi` reads no init files regardless of configuration.
   * LLDB: If disabled, the `c++` visualizer category is disabled (`type category disable -l c++`).
   * dbgeng: If disabled, `defaultVisualizers=false` is passed to the adapter on startup.
 * **Request order:** `OpenDebugAD7`, the dbgeng adapter and LLDB follow the DAP specification
@@ -134,10 +141,10 @@ example's tests, they disable the default visualizers, so that only the visualiz
 active.
 
 `python3 -m tests` takes the fixture program (`--program`) and the executables to test with
-(`--gdb`, `--lldb-dap`, `--miengine`, `--dbgeng`). An integration test class runs only when the
-executables it needs are given, and is otherwise skipped and left out of `--list`. The self-tests
-never compile anything. CMake is used to build the fixture program and CTest to drive the test
-execution.
+(`--gdb`, `--lldb-dap`, `--lldb-mi`, `--miengine`, `--dbgeng`). An integration test class runs only
+when the executables it needs are given, and is otherwise skipped and left out of `--list`. The
+self-tests never compile anything. CMake is used to build the fixture program and CTest to drive the
+test execution.
 
 The standard library tests (`CXXDEBVIS_TEST_STDLIB`) run `fixtures/standard_types.cpp` without a
 visualizer under test, so that only the debuggers' default visualizers for the standard library are
@@ -153,8 +160,10 @@ any of the three with LLDB, and MSVC's STL with DbgEng.
 * `CXXDEBVIS_GDB`: GDB executable name or absolute path. Enables GDB pretty printer tests.
 * `CXXDEBVIS_LLDB_DAP`: LLDB DAP server executable name or absolute path. Enables LLDB formatter
   tests.
+* `CXXDEBVIS_LLDB_MI`: `lldb-mi` executable name or absolute path. Enables Natvis and LLDB formatter
+  tests through `OpenDebugAD7` with LLDB (`CXXDEBVIS_MIENGINE` is also required).
 * `CXXDEBVIS_MIENGINE`: `OpenDebugAD7` executable name or absolute path. Enables Natvis tests (GDB
-  is also required).
+  or `lldb-mi` is also required).
 * `DbgEng_ROOT`: with MSVC (or Clang targeting MSVC), the Windows debug engine (DbgEng) to build
   the dbgeng adapter with and test it with, if not that of the Debugging Tools for Windows: a
   directory laid out like the Debugging Tools' (`inc/`, `x64/`) or the
