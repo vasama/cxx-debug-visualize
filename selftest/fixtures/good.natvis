@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="Pair"><DisplayString>&lt;{a},{b}&gt;</DisplayString></Type>
+  <Type Name="Arr">
+    <Expand><ArrayItems><Size>n</Size><ValuePointer>data</ValuePointer></ArrayItems></Expand>
+  </Type>
+  <Type Name="PairArr">
+    <Expand><ArrayItems><Size>n</Size><ValuePointer>data</ValuePointer></ArrayItems></Expand>
+  </Type>
+</AutoVisualizer>

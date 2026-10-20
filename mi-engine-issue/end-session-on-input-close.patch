@@ -1,0 +1,70 @@
+diff --git a/src/OpenDebugAD7/AD7DebugSession.cs b/src/OpenDebugAD7/AD7DebugSession.cs
+index 19b03af..d30c3a5 100644
+--- a/src/OpenDebugAD7/AD7DebugSession.cs
++++ b/src/OpenDebugAD7/AD7DebugSession.cs
+@@ -1480,6 +1480,27 @@ namespace OpenDebugAD7
+         }
+ 
+         protected override void HandleDisconnectRequestAsync(IRequestResponder<DisconnectArguments> responder)
++        {
++            // Detach if it is attach or TerminateDebuggee is set to false
++            EndSession(() => m_isAttach || !responder.Arguments.TerminateDebuggee.GetValueOrDefault(true));
++
++            responder.SetResponse(new DisconnectResponse());
++
++            // Disconnect should terminate protocol
++            this.Protocol.Stop();
++        }
++
++        /// <summary>
++        /// Called when the client's input stream has ended. If the session is still active (the client went away
++        /// without a disconnect request), end it the way a disconnect with default arguments would: terminate a
++        /// launched debuggee, detach from an attached one. This shuts the debugger down, which lets this process exit.
++        /// </summary>
++        public void HandleInputClosed()
++        {
++            EndSession(() => m_isAttach);
++        }
++
++        private void EndSession(Func<bool> shouldDetach)
+         {
+             int hr;
+ 
+@@ -1491,9 +1512,7 @@ namespace OpenDebugAD7
+                 string errorReason = null;
+                 try
+                 {
+-                    // Detach if it is attach or TerminateDebuggee is set to false
+-                    bool shouldDetach = m_isAttach || !responder.Arguments.TerminateDebuggee.GetValueOrDefault(true);
+-                    hr = shouldDetach ? m_program.Detach() : m_engineLaunch.TerminateProcess(m_process);
++                    hr = shouldDetach() ? m_program.Detach() : m_engineLaunch.TerminateProcess(m_process);
+ 
+                     if (hr < 0)
+                     {
+@@ -1520,11 +1539,6 @@ namespace OpenDebugAD7
+                     m_logger.WriteLine(LoggingCategory.DebuggerError, message);
+                 }
+             }
+-
+-            responder.SetResponse(new DisconnectResponse());
+-
+-            // Disconnect should terminate protocol
+-            this.Protocol.Stop();
+         }
+ 
+         protected override void HandleConfigurationDoneRequestAsync(IRequestResponder<ConfigurationDoneArguments> responder)
+diff --git a/src/OpenDebugAD7/OpenDebug/Program.cs b/src/OpenDebugAD7/OpenDebug/Program.cs
+index 21eb7c3..9f3a349 100644
+--- a/src/OpenDebugAD7/OpenDebug/Program.cs
++++ b/src/OpenDebugAD7/OpenDebug/Program.cs
+@@ -229,6 +229,10 @@ namespace OpenDebug
+ 
+             debugSession.Protocol.Run();
+             debugSession.Protocol.WaitForReader();
++
++            // The input stream has ended. If the client went away without a disconnect request, end the session
++            // here; otherwise the debugger and the debuggee keep running, and keep this process alive.
++            debugSession.HandleInputClosed();
+         }
+ 
+         public static void DisableInheritance(Socket s)

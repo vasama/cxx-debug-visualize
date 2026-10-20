@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="mylib::Point">
+    <DisplayString>({x}, {y})</DisplayString>
+  </Type>
+
+  <Type Name="mylib::String">
+    <DisplayString>{Data,s8}</DisplayString>
+    <StringView>Data,s8</StringView>
+    <Expand>
+      <Item Name="[size]">Length</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="mylib::Vector&lt;*&gt;">
+    <DisplayString>{{ size={Size} }}</DisplayString>
+    <Expand>
+      <Item Name="[size]">Size</Item>
+      <Item Name="[capacity]">Capacity</Item>
+      <ArrayItems>
+        <Size>Size</Size>
+        <ValuePointer>Begin</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="mylib::Optional&lt;*&gt;">
+    <DisplayString Condition="!HasValue">empty</DisplayString>
+    <DisplayString>{*($T1*)Storage}</DisplayString>
+    <Expand>
+      <Item Name="[value]" Condition="HasValue">*($T1*)Storage</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="mylib::List&lt;*&gt;">
+    <DisplayString>{{ size={Count} }}</DisplayString>
+    <Expand>
+      <LinkedListItems>
+        <Size>Count</Size>
+        <HeadPointer>Head</HeadPointer>
+        <NextPointer>Next</NextPointer>
+        <ValueNode>Value</ValueNode>
+      </LinkedListItems>
+    </Expand>
+  </Type>
+
+  <Type Name="mylib::IntMap&lt;*&gt;">
+    <DisplayString>{{ size={Count} }}</DisplayString>
+    <Expand>
+      <TreeItems>
+        <Size>Count</Size>
+        <HeadPointer>Root</HeadPointer>
+        <LeftPointer>Left</LeftPointer>
+        <RightPointer>Right</RightPointer>
+        <ValueNode Name="[{Key}]">Value</ValueNode>
+      </TreeItems>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>
