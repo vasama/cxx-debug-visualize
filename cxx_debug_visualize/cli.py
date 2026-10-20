@@ -88,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
             ns.debugger = "lldb"
         elif debugger_path:
             ns.debugger = deduce_debugger_type(debugger_path)
+        else:
+            ns.debugger = "gdb"
 
         if ns.debugger is None:
             print(
