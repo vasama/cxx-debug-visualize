@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.add_argument("--trace", action="store_true", help="Print the DAP traffic to stderr")
 
-    ns = parser.parse_args(argv)
+    ns = parser.parse_intermixed_args(argv)
 
     # Without --debugger, the debugger type is deduced from the visualizer: gdb for --gdb-printers,
     # lldb for --lldb-formatters. natvis files work with either, so with --natvis it is deduced from
