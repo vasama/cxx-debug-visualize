@@ -204,6 +204,8 @@ class DebugSession:
     # Returns {source path: [resolved breakpoint dicts]} in request order.
     def start(self, breakpoints: dict[str, list[int]]) -> dict[str, list[int]]:
         if self._adapter is not None:
+            assert self._adapter_path is not None
+
             if self._adapter == "miengine":
                 argv = miengine_argv(self._adapter_path)
             else:
