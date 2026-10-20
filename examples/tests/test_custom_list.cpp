@@ -2,8 +2,8 @@
 #include "mylib/containers.hpp"
 
 // natvis CustomListItems: loops over a data structure with local variables, as Visual Studio
-// evaluates them. MIEngine supports them with microsoft/MIEngine#1580. The output is compared with
-// test_custom_list.natvis.txt.
+// evaluates them. MIEngine supports them with microsoft/MIEngine#1580, but names by their index the
+// items whose names are expressions. The output is compared with test_custom_list.<kind>.txt.
 
 int main()
 {
