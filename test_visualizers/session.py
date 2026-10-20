@@ -29,13 +29,13 @@ class DebugSession:
         self._natvis = natvis and os.path.abspath(natvis)
         self._printers = printers and os.path.abspath(printers)
         self._log = log
-        self._initial_breakpoint_states = {}
+        self._breakpoints = {}
 
         self.client = None
 
     # -- Lifecycle -----------------------------------------------------------
 
-    def launch_config(self):
+    def _launch_config(self):
         cfg = {
             "type": "cppdbg",
             "request": "launch",
@@ -67,31 +67,11 @@ class DebugSession:
 
         return cfg
 
-    # Launch the program with `breakpoints` = {source path: [lines]}.
-    #
-    # Returns {source path: [resolved breakpoint dicts]} in request order.
-    def start(self, breakpoints):
-        self.client = DapClient(adapter_argv(self._adapter), log=self._log)
-        self.client.request("initialize", {
-            "clientID": "vscode",
-            "clientName": "test_visualizers",
-            "adapterID": "cppdbg",
-            "pathFormat": "path",
-            "linesStartAt1": True,
-            "columnsStartAt1": True,
-            "supportsVariableType": True,
-            "supportsVariablePaging": True,
-            "supportsRunInTerminalRequest": False,
-            "locale": "en-us",
-        })
-        launch_seq = self.client.request_async("launch", self.launch_config())
-        self.client.wait_event("initialized", request_seq=launch_seq)
-        resolved = {}
-        for source, lines in breakpoints.items():
-            resolved[source] = self._set_breakpoints(source, lines)
-        self.client.request("configurationDone")
-        self.client.wait_response(launch_seq)
-        return resolved
+    # Called by the client with every event as it arrives.
+    def _handle_event(self, event):
+        match event:
+            case {"event": "breakpoint", "body": {"breakpoint": {"id": bp_id} as bp}}:
+                self._breakpoints[bp_id] = bp
 
     # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
@@ -106,17 +86,44 @@ class DebugSession:
         breakpoints = body.get("breakpoints", [])
         for bp in breakpoints:
             bp["line"] = None
-            self._initial_breakpoint_states[bp["id"]] = bp
+            # events are handled while waiting for the reply, so one may already be newer
+            self._breakpoints.setdefault(bp["id"], bp)
 
         return [bp["id"] for bp in breakpoints]
 
+    # Launch the program with `breakpoints` = {source path: [lines]}.
+    #
+    # Returns {source path: [resolved breakpoint dicts]} in request order.
+    def start(self, breakpoints):
+        self.client = DapClient(adapter_argv(self._adapter), log=self._log,
+                                on_event=self._handle_event)
+        self.client.request("initialize", {
+            "clientID": "vscode",
+            "clientName": "test_visualizers",
+            "adapterID": "cppdbg",
+            "pathFormat": "path",
+            "linesStartAt1": True,
+            "columnsStartAt1": True,
+            "supportsVariableType": True,
+            "supportsVariablePaging": True,
+            "supportsRunInTerminalRequest": False,
+            "locale": "en-us",
+        })
+        launch_seq = self.client.request_async("launch", self._launch_config())
+        self.client.wait_event("initialized", request_seq=launch_seq)
+        resolved = {}
+        for source, lines in breakpoints.items():
+            resolved[source] = self._set_breakpoints(source, lines)
+        self.client.request("configurationDone")
+        self.client.wait_response(launch_seq)
+        return resolved
+
     # Latest state of a breakpoint returned by _set_breakpoints.
     #
-    # That is the last "breakpoint" event describing the specified breakpoing. If no event has been
+    # That is the last "breakpoint" event describing the specified breakpoint. If no event has been
     # received, the initial reply to `setBreakpoints` is returned.
     def get_breakpoint(self, breakpoint_id):
-        initial = self._initial_breakpoint_states[breakpoint_id]
-        return self.client.breakpoints.get(breakpoint_id, initial)
+        return self._breakpoints[breakpoint_id]
 
     # Wait for the program to stop or exit. Returns the relevant DAP event.
     def wait_stop(self):

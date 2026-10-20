@@ -22,7 +22,9 @@ class AdapterError(DapError):
     pass
 
 class DapClient:
-    def __init__(self, argv, log=None):
+    # `on_event` is called with every event as soon as it arrives, before it is queued for
+    # wait_event().
+    def __init__(self, argv, log=None, on_event=None):
         env = dict(os.environ)
         env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"
 
@@ -39,12 +41,10 @@ class DapClient:
         self._events = collections.deque()
         self._stderr = None
         self._log = log
+        self._on_event = on_event
 
         # (category, text) of every "output" event
         self.output = []
-
-        # id -> latest breakpoint from "breakpoint" events.
-        self.breakpoints = {}
 
     # -- Message handling ----------------------------------------------------
 
@@ -60,8 +60,8 @@ class DapClient:
                 match msg:
                     case {"event": "output", "body": body}:
                         self.output.append((body["category"], body["output"]))
-                    case {"event": "breakpoint", "body": {"breakpoint": {"id": bp_id} as bp}}:
-                        self.breakpoints[bp_id] = bp
+                if self._on_event:
+                    self._on_event(msg)
                 self._events.append(msg)
 
             case {"type": "request", "seq": seq, "command": command}:
