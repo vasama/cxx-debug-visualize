@@ -50,7 +50,7 @@ def main(argv=None):
 
     # Check that the specified debug adapter is executable:
     if not os.access(ns.adapter, os.X_OK):
-        print(f"The specified debug adapter is not executable.", file=sys.stderr)
+        print("The specified debug adapter is not executable.", file=sys.stderr)
         return 2
 
     # Check that all specified paths refer to existing files:

@@ -123,7 +123,8 @@ class Runner:
                 self._source: [invocation.line for invocation in invocations]
             })
 
-            for invocation, breakpoint_id in zip(invocations, breakpoint_ids[self._source]):
+            for invocation, breakpoint_id in zip(invocations, breakpoint_ids[self._source],
+                                                 strict=True):
                 invocation.breakpoint_id = breakpoint_id
 
             if not self._verify_breakpoints(session, invocations):
