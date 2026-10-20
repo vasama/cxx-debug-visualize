@@ -177,21 +177,30 @@ class DebugSession:
         resolved: dict[str, list[int]] = {}
 
         if self._adapter is None and self._debugger == "gdb":
-            # gdb runs the program as soon as it is launched, so it is configured first.
+            # OpenDebugAD7 and lldb-dap send "initialized" in response to "launch", and only run the
+            # program after "configurationDone", as the DAP specification intends. gdb 14 and 15
+            # instead send "initialized" right after "initialize", and run the program as soon as
+            # "launch" arrives, after which "configurationDone" fails with "notStopped" because
+            # the program is running. So gdb is configured first and launched last.
+            #
+            # GDB 16 fixed this: "launch" may be sent at any time after "initialized", but does not
+            # take effect (or send its response) until "configurationDone" has been sent (see
+            # "Changes in GDB 16" in gdb/NEWS). Once GDB 16 is the minimum, gdb can use the same
+            # order as the other adapters below, and this branch can go.
             self._client.wait_event("initialized")
             for source, lines in breakpoints.items():
                 resolved[source] = self._set_breakpoints(source, lines)
             self._client.request("configurationDone")
             self._client.request("launch", {"cwd": os.path.dirname(self._program)})
             return resolved
-
-        launch_seq = self._client.request_async("launch", self._launch_config())
-        self._client.wait_event("initialized", request_seq=launch_seq)
-        for source, lines in breakpoints.items():
-            resolved[source] = self._set_breakpoints(source, lines)
-        self._client.request("configurationDone")
-        self._client.wait_response(launch_seq)
-        return resolved
+        else:
+            launch_seq = self._client.request_async("launch", self._launch_config())
+            self._client.wait_event("initialized", request_seq=launch_seq)
+            for source, lines in breakpoints.items():
+                resolved[source] = self._set_breakpoints(source, lines)
+            self._client.request("configurationDone")
+            self._client.wait_response(launch_seq)
+            return resolved
 
     # Latest state of a breakpoint returned by _set_breakpoints.
     #
