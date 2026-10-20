@@ -1,4 +1,4 @@
-# Tests of finding OpenDebugAD7 in installed VS Code extensions.
+# Tests of debug adapter discovery from installed VS Code extensions.
 
 import os
 import shutil
@@ -8,9 +8,8 @@ from unittest import mock
 
 from cxx_debug_visualize.adapter import _EXECUTABLE, find_adapter
 
-
 class FindAdapterTests(unittest.TestCase):
-    # find_adapter() searches the home directory, i.e. $HOME
+    # `find_adapter` searches the home directory, i.e. $HOME.
     def setUp(self):
         self.home = tempfile.mkdtemp(prefix="cxx-debug-visualize-home-")
         home = mock.patch.dict(os.environ, {"HOME": self.home})
@@ -20,7 +19,7 @@ class FindAdapterTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.home, ignore_errors=True)
 
-    # Install a fake extension; return its adapter's path.
+    # Set up a mock extension installation. Return the full adapter path.
     def install(self, extensions_dir, extension, with_adapter=True, executable=True):
         bin_dir = os.path.join(self.home, extensions_dir, "extensions", extension,
                                "debugAdapters", "bin")
@@ -47,13 +46,8 @@ class FindAdapterTests(unittest.TestCase):
         wanted = self.install(".vscode-insiders", "ms-vscode.cpptools-1.20.0-linux-x64")
         self.assertEqual(find_adapter(), wanted)
 
-    # a version VS Code has not activated yet, e.g. right after an update
     @unittest.skipIf(os.name == "nt", "no execute permission on Windows")
     def test_skips_non_executable(self):
         wanted = self.install(".vscode", "ms-vscode.cpptools-1.20.0-linux-x64")
         self.install(".vscode", "ms-vscode.cpptools-1.21.0-linux-x64", executable=False)
         self.assertEqual(find_adapter(), wanted)
-
-
-if __name__ == "__main__":
-    unittest.main()

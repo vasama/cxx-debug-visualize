@@ -4,7 +4,6 @@ import unittest
 
 from cxx_debug_visualize.runner import discover_test_lines
 
-
 class DiscoverTestLinesTests(unittest.TestCase):
     def scan(self, text):
         with tempfile.NamedTemporaryFile("w", suffix=".cpp", delete=False) as f:
@@ -27,7 +26,3 @@ class DiscoverTestLinesTests(unittest.TestCase):
                                    "  visualize(v)\n"
                                    "}\n"),
                          [(2, "v"), (3, "m_2")])
-
-
-if __name__ == "__main__":
-    unittest.main()

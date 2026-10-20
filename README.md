@@ -448,9 +448,9 @@ gdb 14 or later and g++/clang++, but no `--adapter`. The lldb tests check the
 same for lldb formatters ([`selftest/fixtures/good_formatters.py`][selftest-formatters]); they need
 lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
 
-Tests whose requirements are missing are skipped, and any skipped test makes
-the run fail (exit status 1), listing what was skipped and why, so a passing
-run means every test ran.
+Tests whose requirements are missing are skipped. With `--fail-on-skip`, any
+skipped test makes the run fail (exit status 1), listing what was skipped and
+why, so a passing run means every test ran; the GitHub workflow uses it.
 
 The [GitHub Actions workflow][workflow] runs the self-tests and the example's
 CTest tests on every released Python version that is not end-of-life, with

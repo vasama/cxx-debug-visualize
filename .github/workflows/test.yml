@@ -73,7 +73,7 @@ jobs:
           fail-on-cache-miss: true
       # fails if any test is skipped, e.g. because of a missing tool
       - name: Run self-tests
-        run: python -m selftest --adapter "$RUNNER_TEMP/miengine/OpenDebugAD7"
+        run: python -m selftest --adapter "$RUNNER_TEMP/miengine/OpenDebugAD7" --fail-on-skip
       - name: Build and run examples
         run: |
           cmake -S example -B build -DCXX_DEBUG_VISUALIZE_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"

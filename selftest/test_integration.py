@@ -1,7 +1,8 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
-# Run through `python3 -m selftest --adapter PATH`. Each test class is skipped, which fails the
-# run, when what it needs is missing: the adapter (--adapter), gdb, lldb-dap, or a C++ compiler.
+# Run through `python3 -m selftest --adapter PATH`. Each test class is skipped when what it needs
+# is missing: the adapter (--adapter), gdb, lldb-dap, or a C++ compiler. With --fail-on-skip, that
+# fails the run.
 
 import contextlib
 import io
@@ -281,7 +282,3 @@ class LldbTests(FixtureTestCase):
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
         self.assertIn("crash", crash[0])
-
-
-if __name__ == "__main__":
-    unittest.main()

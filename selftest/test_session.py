@@ -5,7 +5,6 @@ import unittest
 
 from cxx_debug_visualize.session import DebugSession
 
-
 class LaunchConfigTests(unittest.TestCase):
     def test_natvis(self):
         cfg = DebugSession("adapter", "prog", debugger="gdb", natvis="my.natvis")._launch_config()
@@ -57,7 +56,3 @@ class LaunchConfigTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             DebugSession(None, "prog", debugger="gdb", natvis="my.natvis")
         DebugSession(None, "prog", debugger="gdb", gdb_printers="my_printers.py")
-
-
-if __name__ == "__main__":
-    unittest.main()

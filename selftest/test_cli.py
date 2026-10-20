@@ -4,7 +4,6 @@ import unittest
 
 from cxx_debug_visualize.cli import deduce_debugger_type
 
-
 class DebuggerTypeTests(unittest.TestCase):
     def test_from_file_name(self):
         for path, expected in [
@@ -22,7 +21,3 @@ class DebuggerTypeTests(unittest.TestCase):
     def test_ignores_directories(self):
         self.assertIsNone(deduce_debugger_type("/opt/gdb/bin/debugger"))
         self.assertEqual(deduce_debugger_type("/home/lldb/bin/gdb"), "gdb")
-
-
-if __name__ == "__main__":
-    unittest.main()
