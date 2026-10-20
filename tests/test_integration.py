@@ -317,33 +317,32 @@ class LldbTests(FixtureTestCase):
             re.sub(r"0x[0-9a-f]+", "0x?", output),
             "\n".join(
                 [
-                    # lldb-dap shows a summary after an empty value and a space, and a summary does not
-                    # hide the members
+                    # a summary does not hide the members
                     "visualize(pr) at test_program.cpp",
-                    "   <1,2> [pair]",
+                    "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
                     "visualize(arr) at test_program.cpp",
-                    "   n=3 [int_array]",
+                    "  n=3 [int_array]",
                     "    [0] = 7 [int]",
                     "    [1] = 8 [int]",
                     "    [2] = 9 [int]",
                     "visualize(pr) at test_program.cpp",
-                    "   <0,2> [pair]",
+                    "  <0,2> [pair]",
                     "    a = 0 [int]",
                     "    b = 2 [int]",
                     "visualize(pr) at test_program.cpp",
-                    "   <1,2> [pair]",
+                    "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
                     # synthetic children named by key, like the gdb "map" display hint in OpenDebugAD7
                     "visualize(pa) at test_program.cpp",
-                    "   pairs=2 [pair_array]",
+                    "  pairs=2 [pair_array]",
                     "    [3] = 4 [int]",
                     "    [5] = 6 [int]",
                     # no paging
                     "visualize(big) at test_program.cpp",
-                    "   n=120 [int_array]",
+                    "  n=120 [int_array]",
                 ]
                 + [f"    [{i}] = {i} [int]" for i in range(120)]
                 + [
@@ -369,7 +368,7 @@ class LldbTests(FixtureTestCase):
             r"  pair @ 0x[0-9a-f]+ \[pair\]\n    a = 1 \[int\]\n",
         )
         self.assertIn(
-            "visualize(arr) at test_program.cpp\n   n=3 [int_array]\nvisualize(pr)", output
+            "visualize(arr) at test_program.cpp\n  n=3 [int_array]\nvisualize(pr)", output
         )
         self.assertEqual(errors, [])
 
