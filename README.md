@@ -141,19 +141,6 @@ Use `--trace` to print all DAP traffic to stderr.
   installation. Give `-o` an absolute path, since the script changes to its own directory. See the
   [test workflow][test_workflow] for a full CI example.
 
-## Building the dbgeng adapter
-
-The dbgeng adapter is built from [`dbgeng-adapter/`][dbgeng] with CMake 3.24 or later and the
-Windows SDK (e.g. from Visual Studio's C++ workload), and uses
-[nlohmann/json](https://github.com/nlohmann/json), found installed or downloaded. At run time it
-needs the Debugging Tools for Windows, whose `dbgeng.dll` it loads.
-
-```powershell
-cmake -S dbgeng-adapter -B build-dbgeng
-cmake --build build-dbgeng --config Release
-cxx-debug-visualize --dbgeng build-dbgeng\Release\dbgeng-adapter.exe --natvis my.natvis ...
-```
-
 ## Limitations
 
 * `lldb` with the MIEngine debug adapter is currently unsupported (VS Code on macOS).
