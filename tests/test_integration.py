@@ -22,7 +22,7 @@ SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 # Set from the command line by tests/__main__.py: the path of the built fixture program, and
 # the full paths of the executables to test with, by option name (None if not given).
 PROGRAM = None
-TOOLS = {"gdb": None, "lldb-dap": None, "miengine": None, "dbgeng": None}
+TOOLS = {"gdb": None, "lldb-dap": None, "miengine": None, "dbgeng": None, "dbgeng-dll": None}
 
 
 # Runs cxx-debug-visualize on the fixture program; the test classes below say which debug adapter
@@ -60,8 +60,12 @@ class FixtureTestCase(unittest.TestCase):
             PROGRAM,
             list(program_args),
             debugger=self.debugger,
-            # dbgeng's adapter finds DbgEng itself
-            debugger_path={"gdb": TOOLS["gdb"], "lldb": TOOLS["lldb-dap"]}.get(self.debugger),
+            # without --dbgeng-dll, dbgeng's adapter loads the Debugging Tools' dbgeng.dll
+            debugger_path={
+                "gdb": TOOLS["gdb"],
+                "lldb": TOOLS["lldb-dap"],
+                "dbgeng": TOOLS["dbgeng-dll"],
+            }.get(self.debugger),
             natvis=fixture(natvis),
             gdb_printers=fixture(gdb_printers),
             lldb_formatters=fixture(lldb_formatters),

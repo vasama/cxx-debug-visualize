@@ -101,10 +101,16 @@ cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
 
 ## Development
 
-Building and running the test suite requires `CMake`, a C++ compiler, either `gdb` or `lldb-dap`,
-and optionally `OpenDebugAD7`, or on Windows the dbgeng adapter (`-DCXXDEBVIS_DBGENG`). Only the
-tests that can be executed using the specified set of tools are configured. Due to the need for
-debug information, only debug builds are supported.
+### Requirements
+* CMake
+* C++ compiler
+* At least one of:
+  * GDB (14 or later for builtin DAP support)
+  * LLDB DAP server (`lldb-dap`, previously `lldb-vscode`)
+  * Debugging Tools for Windows (DbgEng)
+* Optional: MIEngine debug adapter (`OpenDebugAD7`)
+
+### Example commands
 
 ```bash
 cmake -B build . \
@@ -117,11 +123,13 @@ cmake --build build
 ctest --test-dir build
 ```
 
-`-DCXXDEBVIS_TEST_STDLIB=ON` also tests the visualizers that the debuggers load by default for the
-standard library used by the configured compiler (libstdc++, libc++ or MSVC's STL). The expected
-output depends on the versions of the standard library and the debugger.
+Use `-DCXXDEBVIS_TEST_STDLIB=ON` to enable testing of builtin visualizers load by the debugger by
+default (e.g. libstdc++, libc++ or MSVC's STL). The expected output depends on the versions of the
+standard library and the debugger. This is mostly useful for CI where the configuration is stable.
 
-Use `--trace` to print all DAP traffic to stderr.
+### Debugging
+
+Use the `--trace` option with `cxx-debug-visualize` to print all DAP traffic to stderr.
 
 ## Getting `OpenDebugAD7`
 
@@ -146,8 +154,6 @@ Use `--trace` to print all DAP traffic to stderr.
 
 * `lldb` with the MIEngine debug adapter is currently unsupported (VS Code on macOS).
 * `cppvsdbg` uses a different engine and is currently unsupported (Visual Studio Natvis).
-* `cxx-debug-visualize` has thus far only been tested on Linux. The dbgeng adapter is a prototype,
-  and has not yet been tested.
 
 ## License
 

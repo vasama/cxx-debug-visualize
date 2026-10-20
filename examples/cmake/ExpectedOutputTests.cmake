@@ -38,10 +38,10 @@
 #   CXXDEBVIS_LLDB_DAP  lldb-dap (or lldb-vscode), for the tests with lldb
 #   CXXDEBVIS_MIENGINE  OpenDebugAD7, MIEngine's debug adapter, for the tests through it; needs
 #                       CXXDEBVIS_GDB, as the adapter runs gdb
-#   CXXDEBVIS_DBGENG    dbgeng-adapter (see cxx_debug_visualize_dbgeng/), for the tests with the
-#                       Windows debug engine (DbgEng)
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
-# registered. At least one of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_DBGENG must be set.
+# registered. The tests with the Windows debug engine (DbgEng) are registered if this repository's
+# root build builds the dbgeng adapter (with MSVC, or Clang targeting MSVC), and use the dbgeng.dll
+# it found. At least one of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP must be set, or the adapter built.
 #
 # The test programs need debug info and no optimizations, so that each `visualize(x);` line
 # compiles to code of its own: CMake's Debug configuration, whatever the compiler. A
@@ -59,12 +59,9 @@ set(CXXDEBVIS_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on
 set(CXXDEBVIS_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
 set(CXXDEBVIS_MIENGINE ""
     CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
-set(CXXDEBVIS_DBGENG ""
-    CACHE STRING "dbgeng-adapter: an absolute path, or a name looked up on PATH")
 
 # The full path of each executable given, as <variable>_PATH; empty if not given.
-foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_MIENGINE
-                               CXXDEBVIS_DBGENG)
+foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_MIENGINE)
   set(cxxdebvis_value "${${cxxdebvis_var}}")
   set(${cxxdebvis_var}_PATH "")
   if(cxxdebvis_value STREQUAL "")
@@ -87,9 +84,15 @@ foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_MIENGI
     unset(cxxdebvis_found CACHE)
   endif()
 endforeach()
-if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH AND NOT CXXDEBVIS_DBGENG_PATH)
-  message(FATAL_ERROR "set one or more of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_DBGENG "
-                      "to the debuggers to test with, e.g. -DCXXDEBVIS_GDB=gdb")
+# The dbgeng adapter, if this repository's root build builds it.
+set(_visualizer_test_dbgeng "")
+if(TARGET dbgeng-adapter)
+  set(_visualizer_test_dbgeng "$<TARGET_FILE:dbgeng-adapter>")
+endif()
+if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH AND NOT _visualizer_test_dbgeng)
+  message(FATAL_ERROR "set one or more of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP to the debuggers "
+                      "to test with, e.g. -DCXXDEBVIS_GDB=gdb (or with MSVC, or Clang targeting "
+                      "MSVC, install the Debugging Tools for Windows)")
 endif()
 if(CXXDEBVIS_MIENGINE_PATH AND NOT CXXDEBVIS_GDB_PATH)
   message(FATAL_ERROR "CXXDEBVIS_MIENGINE needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
@@ -134,9 +137,9 @@ function(add_visualizer_test name)
     _add_visualizer_run(natvis-miengine ${name} "${test_source}" miengine
                         --natvis "${TV_NATVIS}" ${gdb} ${TV_ARGS})
   endif()
-  if(TV_NATVIS AND CXXDEBVIS_DBGENG_PATH)
+  if(TV_NATVIS AND _visualizer_test_dbgeng)
     _add_visualizer_run(natvis-dbgeng ${name} "${test_source}" dbgeng
-                        --natvis "${TV_NATVIS}" ${TV_ARGS})
+                        --natvis "${TV_NATVIS}" --debugger-path "${DbgEng_DLL}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS AND CXXDEBVIS_MIENGINE_PATH)
     _add_visualizer_run(gdb-miengine ${name} "${test_source}" miengine
@@ -166,12 +169,13 @@ function(_add_visualizer_run kind name test_source adapter option file)
   if(adapter STREQUAL "miengine")
     list(APPEND run --miengine "${CXXDEBVIS_MIENGINE_PATH}")
   elseif(adapter STREQUAL "dbgeng")
-    list(APPEND run --dbgeng "${CXXDEBVIS_DBGENG_PATH}")
+    list(APPEND run --dbgeng "\${dbgeng}")
   endif()
   list(APPEND run ${option} "${file}" ${ARGN} "${test_source}")
 
   # A CTest test is a single command, so the comparison runs from a generated script. The program
-  # is passed to it as `program`, as its path depends on the configuration.
+  # is passed to it as `program`, and the dbgeng adapter (built here too) as `dbgeng`, as their
+  # paths depend on the configuration.
   set(run_quoted "")
   foreach(arg IN LISTS run)
     string(APPEND run_quoted " \"${arg}\"")
@@ -211,7 +215,10 @@ endif()
     set(debug_only CONFIGURATIONS Debug)
   endif()
   add_test(NAME ${kind}.${name}
-           COMMAND "${CMAKE_COMMAND}" "-Dprogram=$<TARGET_FILE:${name}>" -P "${script}"
+           COMMAND "${CMAKE_COMMAND}"
+                   "-Dprogram=$<TARGET_FILE:${name}>"
+                   "-Ddbgeng=${_visualizer_test_dbgeng}"
+                   -P "${script}"
            ${debug_only})
   set_tests_properties(${kind}.${name} PROPERTIES LABELS visualizers)
   # Report a missing visualizer file as "not run" instead of running the test.

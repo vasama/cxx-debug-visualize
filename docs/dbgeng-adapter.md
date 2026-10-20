@@ -1,8 +1,13 @@
 # DbgEng adapter
 
-A DAP server for the Windows debug engine (DbgEng), in C++, built separately with CMake (Windows
-only). It supports what `cxx-debug-visualize` uses: one program, reported as a single thread,
-line breakpoints, the top stack frame, and values with their direct children.
+A DAP server for the Windows debug engine (DbgEng), in C++, built with CMake (Windows only): by the
+root build with MSVC (or Clang targeting MSVC, including `clang-cl`), or on its own. It supports
+what `cxx-debug-visualize` uses: one program, reported as a single thread, line breakpoints, the top
+stack frame, and values with their direct children.
+
+It needs DbgEng's headers to build, and its `dbgeng.dll` to run: by default those of the Debugging
+Tools for Windows. `DbgEng_ROOT` may name another copy, such as an extracted
+`Microsoft.Debugging.Platform.DbgEng` NuGet package (see `cmake/FindDbgEng.cmake`).
 
 * `main.cpp` implements the protocol. Requests are handled one at a time, and none are read while
   the program runs.

@@ -155,9 +155,13 @@ any of the three with LLDB, and MSVC's STL with DbgEng.
   tests.
 * `CXXDEBVIS_MIENGINE`: `OpenDebugAD7` executable name or absolute path. Enables Natvis tests (GDB
   is also required).
-* `CXXDEBVIS_DBGENG`: dbgeng adapter executable name or absolute path. Enables Natvis tests with
-  DbgEng (Windows).
+* `DbgEng_ROOT`: with MSVC (or Clang targeting MSVC), the Windows debug engine (DbgEng) to build
+  the dbgeng adapter with and test it with, if not that of the Debugging Tools for Windows: a
+  directory laid out like the Debugging Tools' (`inc/`, `x64/`) or the
+  `Microsoft.Debugging.Platform.DbgEng` NuGet package's (`build/native/inc/`, `content/amd64/`).
+  If DbgEng is found, the adapter in `cxx_debug_visualize_dbgeng/` is built, and Natvis tests with
+  DbgEng are enabled.
 * `CXXDEBVIS_TEST_STDLIB`: boolean (default `OFF`). Enables standard library tests.
 
-At least one debugger tool (GDB, LLDB or the dbgeng adapter) must be specified. Only the `Debug`
+At least one debugger (GDB, LLDB or DbgEng) must be specified or found. Only the `Debug`
 configuration is supported.

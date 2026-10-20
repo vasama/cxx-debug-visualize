@@ -1,7 +1,7 @@
 # Run the self-tests:
 #
 #   python3 -m tests [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--miengine PATH]
-#                       [--dbgeng PATH] [--test ID]... [unittest options]
+#                       [--dbgeng PATH [--dbgeng-dll PATH]] [--test ID]... [unittest options]
 #   python3 -m tests [--gdb PATH] [--lldb-dap PATH] [--miengine PATH] [--dbgeng PATH] --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
@@ -35,6 +35,11 @@ parser.add_argument(
     help="dbgeng-adapter, to run the tests with the Windows debug engine (DbgEng)",
 )
 parser.add_argument(
+    "--dbgeng-dll",
+    metavar="PATH",
+    help="the dbgeng.dll for dbgeng-adapter to load (default: the Debugging Tools for Windows')",
+)
+parser.add_argument(
     "--list",
     action="store_true",
     help="print the IDs of the tests that the executables given allow and exit",
@@ -55,7 +60,9 @@ if ns.program:
 for tool in test_integration.TOOLS:
     path = getattr(ns, tool.replace("-", "_"))
     if path:
-        if not os.path.isfile(path):
+        # Listing only needs to know which are given: CMake lists the tests before it builds the
+        # dbgeng adapter.
+        if not ns.list and not os.path.isfile(path):
             parser.error(f"--{tool}: not found: {path}")
         test_integration.TOOLS[tool] = os.path.abspath(path)
 
