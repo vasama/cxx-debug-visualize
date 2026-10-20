@@ -5,7 +5,6 @@ import os
 from .adapter import adapter_argv
 from .dap import DapClient, DapError
 
-
 # One row of the Variables/Watch tree.
 class Node:
     def __init__(self, name, value, type_, ref):
@@ -18,10 +17,9 @@ class Node:
     def expandable(self):
         return self.ref > 0
 
-
 class DebugSession:
-    # The visualizer under test is either a natvis file (`natvis`) or a gdb
-    # pretty-printer script (`printers`); exactly one must be given.
+    # The visualizer under test is either a natvis file or a gdb pretty-printer script. Exactly one
+    # must be specified.
     def __init__(self, adapter, program, *, natvis=None, printers=None, log=None):
         if (natvis is None) == (printers is None):
             raise ValueError("exactly one of natvis or printers is required")
@@ -30,16 +28,12 @@ class DebugSession:
         self.program = os.path.abspath(program)
         self.natvis = natvis and os.path.abspath(natvis)
         self.printers = printers and os.path.abspath(printers)
-        # the program runs in its own directory
-        self.cwd = os.path.dirname(self.program)
         self.log = log
         self.client = None
         self._children_cache = {}
-        # breakpoint id -> state from the setBreakpoints reply (with "line" None),
-        # before any "breakpoint" event updates it
         self._initial_breakpoint_states = {}
 
-    # -- lifecycle -----------------------------------------------------------
+    # -- Lifecycle -----------------------------------------------------------
 
     def launch_config(self):
         cfg = {
@@ -47,8 +41,7 @@ class DebugSession:
             "request": "launch",
             "name": "test_visualizers",
             "program": self.program,
-            "cwd": self.cwd,
-            # without miDebuggerPath, the adapter runs the gdb found on PATH
+            "cwd": os.path.dirname(self.program),
             "MIMode": "gdb",
             "externalConsole": False,
             "stopAtEntry": False,
@@ -100,31 +93,32 @@ class DebugSession:
         self.client.wait_response(launch_seq)
         return resolved
 
-    # Set breakpoints; return the adapter's reply entries, with "line" None.
+    # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
-    # The reply only echoes the requested lines, so "line" is cleared to keep it
-    # from being mistaken for where a breakpoint really landed.
+    # The reply only echoes the requested lines, so "line" is cleared to keep it from being mistaken
+    # for where a breakpoint really landed.
     def set_breakpoints(self, source, lines):
         body = self.client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
             "breakpoints": [{"line": line} for line in lines],
         })
+
         breakpoints = body.get("breakpoints", [])
         for bp in breakpoints:
             bp["line"] = None
             self._initial_breakpoint_states[bp["id"]] = bp
-        return breakpoints
+
+        return [bp["id"] for bp in breakpoints]
 
     # Latest state of a breakpoint returned by set_breakpoints.
     #
-    # That is the last "breakpoint" event about it, which has the line it really
-    # landed on (e.g. moved to the next line with code); without one, the
-    # setBreakpoints reply entry, whose "line" is None.
+    # That is the last "breakpoint" event describing the specified breakpoing. If no event has been
+    # received, the initial reply to `setBreakpoints` is returned.
     def get_breakpoint(self, breakpoint_id):
         initial = self._initial_breakpoint_states[breakpoint_id]
         return self.client.breakpoints.get(breakpoint_id, initial)
 
-    # Wait for the program to stop or end; return the DAP event.
+    # Wait for the program to stop or exit. Returns the relevant DAP event.
     def wait_stop(self):
         return self.client.wait_event(("stopped", "terminated", "exited"))
 
@@ -136,7 +130,7 @@ class DebugSession:
         if self.client:
             self.client.close()
 
-    # -- inspection ----------------------------------------------------------
+    # -- Inspection ----------------------------------------------------------
 
     def top_frame(self, thread_id):
         frames = self.client.request("stackTrace", {"threadId": thread_id, "startFrame": 0,

@@ -2,15 +2,15 @@ import os
 import tempfile
 import unittest
 
-from test_visualizers.runner import find_calls
+from test_visualizers.runner import discover_test_lines
 
 
-class FindCallsTests(unittest.TestCase):
+class DiscoverTestLinesTests(unittest.TestCase):
     def scan(self, text):
         with tempfile.NamedTemporaryFile("w", suffix=".cpp", delete=False) as f:
             f.write(text)
         try:
-            return [(c.line, c.identifier) for c in find_calls(f.name)]
+            return [(c.line, c.identifier) for c in discover_test_lines(f.name)]
         finally:
             os.unlink(f.name)
 

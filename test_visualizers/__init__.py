@@ -1,4 +1,2 @@
-# Automated unit tests for natvis files and gdb pretty printers, using VS Code's
-# C/C++ debug adapter.
-
+# Unit test automation tool for Visual Studio natvis files and gdb pretty printers.
 __version__ = "0.1.0"

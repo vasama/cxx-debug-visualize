@@ -13,25 +13,19 @@ import subprocess
 # OpenDebugAD7 writes this line to stderr whenever it starts in stdio mode.
 _BANNER = "waiting for v8 protocol on stdin/stdout"
 
-
+# The debug session cannot continue, e.g. because the adapter exited.
 class DapError(Exception):
     pass
-
 
 # A request the adapter answered with an error; str() is its message.
 class AdapterError(DapError):
     pass
 
-
 class DapClient:
     def __init__(self, argv, log=None):
         env = dict(os.environ)
-        # The adapter is a .NET app; avoid ICU dependency problems on minimal
-        # systems.
-        env.setdefault("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1")
+        env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"
 
-        # stderr stays in its pipe until the adapter has exited (see close());
-        # the adapter writes next to nothing there.
         self._proc = subprocess.Popen(
             argv,
             stdin=subprocess.PIPE,
@@ -49,10 +43,38 @@ class DapClient:
         # (category, text) of every "output" event
         self.output = []
 
-        # id -> latest breakpoint from "breakpoint" events
+        # id -> latest breakpoint from "breakpoint" events.
         self.breakpoints = {}
 
-    # -- transport -----------------------------------------------------------
+    # -- Message handling ----------------------------------------------------
+
+    def _handle_message(self, msg):
+        if self._log:
+            self._log("<- " + json.dumps(msg))
+
+        match msg:
+            case {"type": "response", "request_seq": seq}:
+                self._responses[seq] = msg
+
+            case {"type": "event"}:
+                match msg:
+                    case {"event": "output", "body": body}:
+                        self.output.append((body["category"], body["output"]))
+                    case {"event": "breakpoint", "body": {"breakpoint": {"id": bp_id} as bp}}:
+                        self.breakpoints[bp_id] = bp
+                self._events.append(msg)
+
+            case {"type": "request", "seq": seq, "command": command}:
+                # Reverse requests (e.g. runInTerminal) are not supported.
+                self._send({
+                    "type": "response",
+                    "request_seq": seq,
+                    "command": command,
+                    "success": False,
+                    "message": "not supported",
+                })
+
+    # -- Transport -----------------------------------------------------------
 
     def _read_message(self):
         headers = {}
@@ -74,33 +96,6 @@ class DapClient:
             body += chunk
         return json.loads(body)
 
-    def _handle_message(self, msg):
-        if self._log:
-            self._log("<- " + json.dumps(msg))
-
-        match msg:
-            case {"type": "response", "request_seq": seq}:
-                self._responses[seq] = msg
-
-            case {"type": "event"}:
-                match msg:
-                    case {"event": "output", "body": body}:
-                        self.output.append((body["category"], body["output"]))
-                    case {"event": "breakpoint", "body": {"breakpoint": {"id": bp_id} as bp}}:
-                        self.breakpoints[bp_id] = bp
-                self._events.append(msg)
-
-            case {"type": "request", "seq": seq, "command": command}:
-                # Reverse requests (e.g. runInTerminal) are not supported; we
-                # launch with externalConsole=false so none should arrive.
-                self._send({
-                    "type": "response",
-                    "request_seq": seq,
-                    "command": command,
-                    "success": False,
-                    "message": "not supported",
-                })
-
     # Read and handle the next message from the adapter.
     def _receive(self):
         msg = self._read_message()
@@ -121,15 +116,16 @@ class DapClient:
 
         return self._seq
 
-    # -- requests / events ---------------------------------------------------
+    # -- Public interface ----------------------------------------------------
 
+    # Send a request without waiting for a response. Returns the message sequence number.
     def request_async(self, command, arguments=None):
         msg = {"type": "request", "command": command}
         if arguments is not None:
             msg["arguments"] = arguments
         return self._send(msg)
 
-    # Wait for the response to request `seq`.
+    # Wait for the response to a request sent with the specified sequence number.
     def wait_response(self, seq):
         while seq not in self._responses:
             self._receive()
@@ -142,9 +138,7 @@ class DapClient:
         return self.wait_response(self.request_async(command, arguments))
 
     # Return the next event whose name is in `names`, discarding others.
-    #
-    # If request `request_seq` fails in the meantime, raise its error instead
-    # (e.g. a failed `launch` never sends `initialized`).
+    # If request `request_seq` fails in the meantime, raise its error instead.
     def wait_event(self, names, request_seq=None):
         if isinstance(names, str):
             names = (names,)
@@ -172,8 +166,8 @@ class DapClient:
             except (OSError, ValueError):
                 pass
 
-            # read whatever the adapter still sends, so that it never blocks
-            # writing to a pipe nobody reads while shutting down
+            # Read whatever the adapter still sends, so that it never blocks writing to a pipe
+            # nobody reads while shutting down.
             try:
                 while True:
                     msg = self._read_message()
@@ -192,7 +186,7 @@ class DapClient:
                 except (OSError, ValueError):
                     pass
 
-    # What the adapter wrote to stderr, without its startup banner.
+    # What the adapter wrote to stderr (ignoring the MIEngine startup banner).
     #
     # Only available once close() has returned.
     def stderr_output(self):

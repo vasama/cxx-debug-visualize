@@ -1,22 +1,20 @@
-# Running visualizer tests: break on check_visualizer() calls, print snapshots.
+# Running visualizer tests: break on check_visualizer() invocations, print variable visualization.
 #
-# Every line of the test source that consists of exactly `check_visualizer(x);`
-# gets a breakpoint. Each time one is hit, the Variables tree of `x` is written
-# to the output, for FileCheck to verify against the CHECK lines in the test
-# source:
+# A breakpoint is set on each line of the test source consisting of exactly `check_visualizer(x);`
+# (with any identifier accepted in place of `x`). Each time a breakpoint is hit, a visualization of
+# `x` is written to stdout.
 #
+# Example output:
 #     check_visualizer(v) at test_vector.cpp:12
 #       { size=2 } [mylib::Vector<int>]
 #         [size] = 2 [std::size_t]
 #         [0] = 10 [int]
 #         ...
 #
-# Errors the adapter reports (failed requests, unverified breakpoints, natvis
-# diagnostics, anything it writes to its stderr besides its startup banner) are
-# printed to stderr verbatim; test_visualizers's own errors (e.g. an unexpected stop)
-# are prefixed with "error: ". Either fails the run. Everything else, including
-# evaluation errors and calls that are never reached, shows up as output that
-# differs from what the CHECK lines expect.
+# Errors the adapter reports (failed requests, unverified breakpoints, natvis diagnostics, or
+# anything else it writes to its stderr besides its startup banner) are printed to stderr verbatim.
+# test_visualizers's own errors (e.g. an unexpected stop) are prefixed with "error: ". Either one
+# fails the run.
 
 import os
 import re
@@ -31,28 +29,24 @@ CALL_RE = re.compile(r"^\s*check_visualizer\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
 # console output such as "[Natvis] [Error] Error ... while reading file: ...".
 NATVIS_PREFIX = "[Natvis]"
 
-
-# A `check_visualizer(identifier);` line in a test source.
-class Call:
+# Represents a `check_visualizer(identifier);` line in a test source.
+class TestInvocation:
     def __init__(self, line, identifier):
         self.line = line
         self.identifier = identifier
         self.breakpoint_id = -1
 
-
-def find_calls(path):
-    calls = []
+def discover_test_lines(path):
+    invocations = []
     with open(path, encoding="utf-8", errors="replace") as f:
         for lineno, text in enumerate(f, 1):
             m = CALL_RE.match(text)
             if m:
-                calls.append(Call(lineno, m.group(1)))
-    return calls
-
+                invocations.append(TestInvocation(lineno, m.group(1)))
+    return invocations
 
 class Runner:
-    # The visualizer under test is a natvis file or a gdb pretty-printer
-    # script; see DebugSession.
+    # The visualizer under test is a natvis file or a gdb pretty-printer script.
     def __init__(self, adapter, program, source, *, natvis=None, printers=None, log=None):
         self.adapter = adapter
         self.program = program
@@ -63,43 +57,43 @@ class Runner:
 
     # Report an error found by test_visualizers itself.
     def _error(self, message):
-        self.failed = True
         print(f"error: {message}", file=sys.stderr)
-
-    # Pass on an error reported by the adapter, verbatim.
-    def _report(self, text):
         self.failed = True
-        sys.stderr.write(text if text.endswith("\n") else text + "\n")
 
-    # Print `label = value [type]`, or just `value [type]` without a label.
+    # Pass on an error reported by the adapter.
+    def _report(self, text):
+        sys.stderr.write(text if text.endswith("\n") else text + "\n")
+        self.failed = True
+
+    # Print `label = value [type]`, or `value [type]` without a label.
     def _write_node(self, node, indent, label=None):
         type_ = f" [{node.type}]" if node.type else ""
         name = f"{label} = " if label is not None else ""
         print(f"{'  ' * indent}{name}{node.value}{type_}")
 
-    # Write the children of `node`, i.e. what its type's visualizer produces.
+    # Print the children of `node`, i.e. what its type's visualizer produces.
     #
-    # Children are not expanded further (their own children come from their own
-    # types' visualizers).  natvis's "[More...]" pages continue the same list,
-    # so their children are written in its place, as if the list were unpaged.
+    # Children are not expanded further (their own children come from their own types' visualizers).
+    # natvis visualizations use paging with "[More...]" printed when a limit is exceeded. Whenever
+    # "[More...]" is encountered, the remaining children are expanded, as if the list were unpaged.
     #
-    # natvis's "[Raw View]" (the object's plain members) is left out.
+    # "[Raw View]" lines emitted by natvis visualizers are discarded.
     def _write_children(self, session, node, indent):
-        for kid in session.children(node):
-            if kid.name == "[Raw View]":
+        for child in session.children(node):
+            if child.name == "[Raw View]":
                 continue
-            if kid.name == "[More...]":
-                self._write_children(session, kid, indent)
+            if child.name == "[More...]":
+                self._write_children(session, child, indent)
                 continue
-            self._write_node(kid, indent, kid.name)
+            self._write_node(child, indent, child.name)
 
-    # Report and return False unless every breakpoint sits on its requested line.
-    def _verify_breakpoints(self, session, calls):
-        for call in calls:
+    # Report and return false if any breakpoint was placed on a line other than the one requested.
+    def _verify_breakpoints(self, session, invocations):
+        for invocation in invocations:
             def _bp_error(message):
-                self._error(f"{self.source}:{call.line}: {message}")
+                self._error(f"{self.source}:{invocation.line}: {message}")
 
-            bp = session.get_breakpoint(call.breakpoint_id)
+            bp = session.get_breakpoint(invocation.breakpoint_id)
             if not bp.get("verified"):
                 if bp.get("message"):
                     self._report(bp["message"])
@@ -111,35 +105,35 @@ class Runner:
                 _bp_error("breakpoint was not bound to any line")
                 return False
 
-            if bp["line"] != call.line:
+            if bp["line"] != invocation.line:
                 _bp_error(f"breakpoint landed on line "
-                          f"{bp['line']} instead (no code on line {call.line}?)")
+                          f"{bp['line']} instead (no code on line {invocation.line}?)")
                 return False
 
         return True
 
-    # Print snapshots to stdout and errors to stderr; return True if no errors.
+    # Start a debug session, wait for the debuggee to stop at a breakpoint, and print the relevant
+    # visualization to stdout. Finally, close the debug adapter.
     def run(self):
         self.failed = False
-        calls = find_calls(self.source)
+        invocations = discover_test_lines(self.source)
 
-        if not calls:
+        if not invocations:
             return True
 
         session = DebugSession(self.adapter, self.program, **self.visualizer, log=self.log)
         try:
-            resolved = session.start({self.source: [call.line for call in calls]})
+            breakpoint_ids = session.start({
+                self.source: [invocation.line for invocation in invocations]
+            })
 
-            for call, bp in zip(calls, resolved[self.source]):
-                call.breakpoint_id = bp["id"]
+            for invocation, breakpoint_id in zip(invocations, breakpoint_ids[self.source]):
+                invocation.breakpoint_id = breakpoint_id
 
-            # Every breakpoint must land on its own line; otherwise stop without
-            # running any further. The adapter reports where breakpoints land
-            # during startup, and they don't move afterwards.
-            if not self._verify_breakpoints(session, calls):
+            if not self._verify_breakpoints(session, invocations):
                 return False
 
-            breakpoints_by_line = {call.line: call for call in calls}
+            breakpoints_by_line = {invocation.line: invocation for invocation in invocations}
             while True:
                 event = session.wait_stop()
                 if event["event"] != "stopped":
@@ -151,10 +145,10 @@ class Runner:
                 source = frame.get("source", {}).get("path", self.program)
 
                 if body["reason"] == "breakpoint" and frame["line"] in breakpoints_by_line:
-                    call = breakpoints_by_line[frame["line"]]
-                    print(f"check_visualizer({call.identifier}) at "
-                          f"{os.path.basename(source)}:{call.line}")
-                    node = session.evaluate(call.identifier, frame["id"])
+                    invocation = breakpoints_by_line[frame["line"]]
+                    print(f"check_visualizer({invocation.identifier}) at "
+                          f"{os.path.basename(source)}:{invocation.line}")
+                    node = session.evaluate(invocation.identifier, frame["id"])
                     self._write_node(node, 1)
                     self._write_children(session, node, 2)
                     sys.stdout.flush()
