@@ -1,30 +1,33 @@
-# cxx-debug-visualize — unit tests for C++ debugger visualizers
+# `cxx-debug-visualize`: debugger visualizers testing utility
 
-`cxx-debug-visualize` prints what a debugger shows for your C++ objects, so a
-test can compare it with the expected output and check your visualizers:
-`.natvis` files, gdb pretty printers and lldb formatters. It talks to the
-debugger through the Debug Adapter Protocol (DAP), as VS Code does, either:
+`cxx-debug-visualize` runs a test program under a debugger, and prints visualizations of C++ objects
+as defined by the provided visualization script (Natvis, GDB pretty printer, or LLDB formatter).
 
-* through the Visual Studio debug adapter: OpenDebugAD7, the `cppdbg` debug
-  type of VS Code's C/C++ extension. It runs MIEngine, which Visual Studio
-  also uses to debug with gdb. A passing test means the object shows up that
-  way in VS Code's Variables, Watch and hover views; natvis files are only
-  supported this way;
-* or through the debugger's own DAP support: `gdb -i dap` (GDB 14 and later)
-  or lldb-dap, as used by other editors and VS Code extensions.
+`cxx-debug-visualize` relies on the now widely supported
+[Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol).
+* Natvis support is implemented using Visual Studio's open source debug adapter
+([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)).
+* GDB pretty printers can be tested either via the Visual Studio adapter, or using GDB's native
+  DAP support (GDB 14 or later), although the output between the two adapters may vary.
+* LLDB formatters can be tested using LLDB's DAP server (LLVM 8 or later, although the oldest tested
+  version is 16).
+
+## Quick Example
 
 ```cpp
-mylib::Vector<int> v;
+mylib::vector<int> v;
 for (int i = 1; i <= 3; ++i)
   v.push_back(i * 10);
+
 visualize(v);
 ```
 
-prints, and the test expects (in `test_containers.natvis.txt`):
+A breakpoint is automatically placed on each line containing a call to a function named `visualize`,
+and a visualization of the named object is printed to stdout:
 
 ```
 visualize(v) at test_containers.cpp:34
-  { size=3 } [mylib::Vector<int>]
+  { size=3 } [mylib::vector<int>]
     [size] = 3 [std::size_t]
     [capacity] = 4 [std::size_t]
     [0] = 10 [int]
@@ -32,47 +35,62 @@ visualize(v) at test_containers.cpp:34
     [2] = 30 [int]
 ```
 
-With a typo in the `<ArrayItems><Size>` of `mylib::Vector`'s natvis entry, the
-debugger silently drops the whole `<Expand>` and shows the plain members
-instead. cxx-debug-visualize itself succeeds, and the comparison reports it:
-
-```
- visualize(v) at test_containers.cpp:34
-   { size=3 } [mylib::Vector<int>]
--    [size] = 3 [std::size_t]
--    [capacity] = 4 [std::size_t]
--    [0] = 10 [int]
--    [1] = 20 [int]
--    [2] = 30 [int]
-+    Begin = 0x? [int *]
-+    Size = 3 [std::size_t]
-+    Capacity = 4 [std::size_t]
-```
+The method of testing expectations is left up to the user. E.g. by comparing the output against a
+file containing expected output, using LLVM `FileCheck` (standalone Python implementation
+[here](https://pypi.org/project/filecheck/)), or some other means of parsing.
 
 ## Installation
 
-```
+```bash
+# Using pip:
+pip install cxx-debug-visualize
+
+# Using pipx:
 pipx install cxx-debug-visualize
 ```
 
-(or `pip install cxx-debug-visualize`) installs the `cxx-debug-visualize`
-command. It needs Python 3.10 or later and uses only the standard library.
-Running tests also needs, depending on what you test:
+Python 3.10 or later is required, but otherwise only the standard library is used. Usage requires
+`gdb` or `lldb-dap` and optionally `OpenDebugAD7` for testing Natvis visualizers (only via GDB).
 
-* a C++ compiler, to build the test programs with debug information;
-* for gdb pretty printers: gdb 14 or later (for its own DAP support), and/or
-  gdb with OpenDebugAD7 (see "Getting the debug adapter"), to test them as
-  Visual Studio's debug adapter shows them;
-* for lldb formatters: lldb-dap (called lldb-vscode before LLVM 18; some
-  distributions only install a versioned name such as `lldb-vscode-16`);
-* for natvis files: OpenDebugAD7 and gdb.
+## Usage
 
-gdb and lldb-dap are looked up on `PATH`, unless `--debugger-path` names them.
+```bash
+cxx-debug-visualize test.cpp test_program --natvis my_library.natvis
+cxx-debug-visualize test.cpp test_program --gdb-printer my_printer.py
+cxx-debug-visualize test.cpp test_program --lldb-formatter my_formatter.py
+```
 
-The header [`include/cxx_debug_visualize.hpp`][header], which defines the
-`visualize()` function tests call, is not part of the package; take it from the
-[repository](https://github.com/vasama/cxx-debug-visualize) if you want it (a
-test can just as well define its own, see "Writing tests").
+* `test.cpp` is the test source file. It is searched for any occurrences of `visualize(x);` and
+  breakpoints are placed one each matching line. A visualization of the specified object is printed
+  at each breakpoint.
+* Eactly one visualizer script must be specified using `--natvis`, `--gdb-printer`, or
+  `lldb-formatter`.
+* The debugger executable to use may be specified using `--debugger-path`.
+* The type of debugger to use may be specified using `--debugger` (`gdb` or `lldb`), but in most
+  cases it can be selected automatically.
+* The type of debug adapter to use may be specified using `--adapter` (`native` or `vs`), but in
+  most cases it can be selected automatically. Only the `vs` adapter supports Natvis.
+* `--vs-adapter` (or `$CXX_DEBUG_VISUALIZE_VS_ADAPTER`) may be used to specify the `OpenDebugAD7`
+  executable path. If neither is specified, the user's home directory is searched for an installed
+  VS Code C/C++ extension.
+* Unparsed arguments are passed to the test program. Use `--` to escape options.
+
+## Development
+
+Building and running the test suite requires `CMake`, a C++ compiler, either `gdb` or `lldb-dap`,
+and optionally `OpenDebugAD7`. Only the tests that can be executed using the available set of tools
+are configured. Due to the need for debug information, only debug builds are supported.
+
+```bash
+cmake -B build -G Ninja . \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCXXDEBVIS_GDB=gdb \
+  -DCXXDEBVIS_LLDB_DAP=lldb-dap-22 \
+  -DCXXDEBVIS_VS_ADAPTER=/path/to/OpenDebugAD7
+
+cmake --build build
+ctest --test-dir build
+```
 
 ## How natvis support works in VS Code
 
@@ -517,15 +535,14 @@ under Python 3.10.
 
 ## License
 
-cxx-debug-visualize is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version. See [LICENSE.md][license] for the full text.
+cxx-debug-visualize is free software: you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version. See [LICENSE.md][license] for the full text.
 
-The exception is [`include/cxx_debug_visualize.hpp`][header], which test programs
-include: it is under the MIT No Attribution License (MIT-0, see
-[LICENSE-MIT-0.txt][license-mit-0]), so it can be used, copied and changed
-freely, without keeping any notice.
+The exception is [`include/cxx_debug_visualize.hpp`][header], which test programs may include
+(although doing so is not necessary). This header is licensed under the MIT No Attribution License
+(MIT-0, see [LICENSE-MIT-0.txt][license-mit-0]), meaning it can be used, copied and changed freely,
+without any attribution requirements.
 
 [header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.hpp
 [example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples

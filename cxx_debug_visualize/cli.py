@@ -33,17 +33,12 @@ def main(argv: list[str] | None = None) -> int:
         "call to a function named `visualize`",
     )
 
-    parser.add_argument(
-        "--debugger",
-        choices=("gdb", "lldb"),
-        help="debugger to use (default: deduced from --debugger-path, otherwise gdb)",
-    )
+    parser.add_argument("--debugger", choices=("gdb", "lldb"), help="debugger to use")
     parser.add_argument(
         "--debugger-path",
         metavar="PATH",
-        help="the gdb executable, or lldb DAP server (lldb-dap or lldb-vscode), to "
-        "use instead of the one found on PATH; if --debugger is not "
-        "specified, the type is deduced from the file name",
+        help="the gdb executable, or lldb DAP server (lldb-dap or lldb-vscode) (default: gdb, "
+        ", lldb-dap, or lldb-vscode available on PATH)",
     )
 
     parser.add_argument(
@@ -82,10 +77,18 @@ def main(argv: list[str] | None = None) -> int:
 
     ns = parser.parse_args(argv)
 
-    # Without --debugger, the debugger type is deduced from --debugger-path:
+    # Without --debugger, the debugger type is deduced from the visualizer: gdb for --gdb-printers,
+    # lldb for --lldb-formatters. natvis files work with either, so with --natvis it is deduced from
+    # --debugger-path, and is otherwise gdb.
     debugger_path = ns.debugger_path and os.path.abspath(ns.debugger_path)
     if ns.debugger is None:
-        ns.debugger = deduce_debugger_type(debugger_path) if debugger_path else "gdb"
+        if ns.gdb_printers:
+            ns.debugger = "gdb"
+        elif ns.lldb_formatters:
+            ns.debugger = "lldb"
+        elif debugger_path:
+            ns.debugger = deduce_debugger_type(debugger_path)
+
         if ns.debugger is None:
             print(
                 "error: cannot deduce debugger type from its path; use --debugger to specify",
