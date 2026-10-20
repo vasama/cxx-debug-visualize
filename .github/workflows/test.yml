@@ -12,6 +12,11 @@ env:
   # The .NET SDK version used for building MIEngine.
   MIENGINE_DOTNET_SDK: "10.0.x"
 
+  # Version and hash of the Microsoft.Debugging.Platform.DbgEng NuGet package, which provides the
+  # DbgEng headers and dll.
+  DBGENG_VERSION: "20260319.1511.0"
+  DBGENG_SHA256: 875678516f9ceed4a1c8b9b106d165106fcaa38723ad7c584c47b95b231600de
+
 jobs:
   # Fails if `ruff format` would change any Python code, or `ruff check` reports anything (both
   # configured in pyproject.toml). Ruff is pinned, since its formatting and rules can change
@@ -73,7 +78,7 @@ jobs:
           DOTNET_NOLOGO: 1
         run: sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$RUNNER_TEMP/miengine"
 
-  test:
+  test-linux:
     name: Linux - Python ${{ matrix.python }}
     needs: adapter
     runs-on: ubuntu-24.04
@@ -108,3 +113,32 @@ jobs:
 
           cmake --build build
           ctest --test-dir build --output-on-failure
+
+  # On Windows only the DbgEng debugger and the custom adapter are tested.
+  test-windows:
+    name: Windows
+    runs-on: windows-2025
+    steps:
+      - name: Download DbgEng
+        run: |
+          $name = "microsoft.debugging.platform.dbgeng"
+          $version = $env:DBGENG_VERSION
+          $package = Join-Path $env:RUNNER_TEMP dbgeng.nupkg
+          $url = "https://api.nuget.org/v3-flatcontainer/$name/$version/$name.$version.nupkg"
+          Invoke-WebRequest -Uri $url -OutFile $package
+          if ((Get-FileHash $package -Algorithm SHA256).Hash -ne $env:DBGENG_SHA256) {
+            throw "$name $version does not have the expected SHA-256"
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $destination = Join-Path $env:RUNNER_TEMP dbgeng
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
+
+      - uses: actions/checkout@v7
+
+      - name: Build and run tests
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          cmake -S . -B build "-DDbgEng_ROOT=$env:RUNNER_TEMP\dbgeng"
+          cmake --build build --config Debug
+          ctest --test-dir build -C Debug --output-on-failure
