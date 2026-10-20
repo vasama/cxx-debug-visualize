@@ -38,8 +38,8 @@
 #   CXXDEBVIS_LLDB_DAP  lldb-dap (or lldb-vscode), for the tests with lldb
 #   CXXDEBVIS_MIENGINE  OpenDebugAD7, MIEngine's debug adapter, for the tests through it; needs
 #                       CXXDEBVIS_GDB, as the adapter runs gdb
-#   CXXDEBVIS_DBGENG    dbgeng-adapter (see dbgeng-adapter/), for the tests with the Windows debug
-#                       engine (DbgEng)
+#   CXXDEBVIS_DBGENG    dbgeng-adapter (see cxx_debug_visualize_dbgeng/), for the tests with the
+#                       Windows debug engine (DbgEng)
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
 # registered. At least one of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_DBGENG must be set.
 #

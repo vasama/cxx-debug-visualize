@@ -389,8 +389,8 @@ class LldbTests(FixtureTestCase):
         self.assertIn("crash", crash[0])
 
 
-# natvis through the dbgeng debug adapter (dbgeng-adapter/), with the Windows debug engine, whose
-# data model applies the natvis file.
+# natvis through the dbgeng debug adapter (cxx_debug_visualize_dbgeng/), with the Windows debug
+# engine, whose data model applies the natvis file.
 class DbgengTests(FixtureTestCase):
     adapter = "dbgeng"
     debugger = "dbgeng"

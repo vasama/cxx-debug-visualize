@@ -7,7 +7,8 @@ as defined by the provided visualization script (Natvis, GDB pretty printer, or 
 [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol).
 * Natvis support is implemented using Visual Studio's open source debug adapter
 ([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)). On Windows, Natvis can instead be tested
-with the Windows debug engine (DbgEng), through the debug adapter in [`dbgeng-adapter/`][dbgeng].
+with the Windows debug engine (DbgEng), through the debug adapter in
+[`cxx_debug_visualize_dbgeng/`][dbgeng].
 * GDB pretty printers can be tested either via the MIEngine adapter, or using GDB's native
   DAP support (GDB 14 or later), although the output between the two adapters may vary.
 * LLDB formatters can be tested using LLDB's DAP server (`lldb-dap`, or `lldb-vscode` prior to LLVM
@@ -161,7 +162,7 @@ without any attribution requirements.
 
 [header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.hpp
 [examples]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples/
-[dbgeng]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/dbgeng-adapter/
+[dbgeng]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/cxx_debug_visualize_dbgeng/
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
 [license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0
 [test_workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml

@@ -11,7 +11,7 @@
 # test with (absolute paths, or names looked up on PATH), and so select the tests; at least one of
 # the debuggers (gdb, lldb-dap or dbgeng-adapter) is needed. -DCXXDEBVIS_TEST_STDLIB=ON also tests
 # the debuggers' default visualizers for the standard library (see tests/CMakeLists.txt). On
-# Windows, with the dbgeng adapter built from dbgeng-adapter/:
+# Windows, with the dbgeng adapter built from cxx_debug_visualize_dbgeng/:
 #
 #   cmake -S . -B build -DCXXDEBVIS_DBGENG=C:/path/to/dbgeng-adapter.exe
 #   cmake --build build --config Debug
