@@ -209,6 +209,21 @@ class NativeDapTests(FixtureTestCase):
         ]))
         self.assertEqual(errors, [])
 
+    def test_bad_printers(self):
+        # unlike through OpenDebugAD7, a printer that raises makes gdb fail the evaluation: the
+        # run stops there, with gdb's message
+        output, errors = self.run_visualizer(gdb_printers="bad_printers.py")
+        self.assertEqual(output, "visualize(pr) at prog.cpp:17\n")
+        self.assertEqual(errors, ["There is no member named c."])
+
+    def test_malformed_printers(self):
+        # unlike through OpenDebugAD7, a script that doesn't load passes silently: values show
+        # without printers, for the expected output to catch
+        output, errors = self.run_visualizer(gdb_printers="malformed_printers.py")
+        self.assertIn("visualize(pr) at prog.cpp:17\n   [Pair]\n    a = 1 [int]\n"
+                      "    b = 2 [int]\n", output)
+        self.assertEqual(errors, [])
+
     def test_crash(self):
         output, errors = self.run_visualizer("crash", gdb_printers="good_printers.py")
         # the crash comes after the last call, so every call has printed
@@ -263,6 +278,23 @@ class LldbTests(FixtureTestCase):
         ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
             "",
         ]))
+        self.assertEqual(errors, [])
+
+    def test_bad_formatters(self):
+        # exceptions in formatters pass silently: a summary falls back to lldb's default and
+        # synthetic children are missing, for the expected output to catch
+        output, errors = self.run_visualizer(lldb_formatters="bad_formatters.py")
+        self.assertRegex(output, r"visualize\(pr\) at prog.cpp:17\n  Pair @ 0x[0-9a-f]+ \[Pair\]\n"
+                                 r"    a = 1 \[int\]\n")
+        self.assertIn("visualize(arr) at prog.cpp:18\n   n=3 [Arr]\nvisualize(pr)", output)
+        self.assertEqual(errors, [])
+
+    def test_malformed_formatters(self):
+        # importing the script fails, which lldb-dap only reports on its debug console: values
+        # show without formatters, for the expected output to catch
+        output, errors = self.run_visualizer(lldb_formatters="malformed_formatters.py")
+        self.assertRegex(output, r"visualize\(arr\) at prog.cpp:18\n  Arr @ 0x[0-9a-f]+ \[Arr\]\n"
+                                 r"    data = ")
         self.assertEqual(errors, [])
 
     def test_crash(self):

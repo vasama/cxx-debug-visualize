@@ -459,10 +459,14 @@ flattened `[More...]` pages, the `map` display hint, calls in loops and calls
 never reached), how bad visualizers show in them (natvis evaluation errors,
 a dropped `Expand`, raising printers), and the errors cxx-debug-visualize
 reports (malformed XML, a printer script that doesn't load, crashes). The tests
-of gdb's own DAP support check the printed trees and crashes; they need gdb 14
-or later, but no adapter. The lldb tests check the same for lldb formatters
-([`selftest/fixtures/good_formatters.py`][selftest-formatters]); they need
-lldb-dap (or lldb-vscode) on `PATH`.
+of gdb's own DAP support check the same for pretty printers; they need gdb 14
+or later, but no adapter. There, a printer that raises fails the run with gdb's
+message, while a script that doesn't load passes silently. The lldb tests check
+the same for lldb formatters
+([`selftest/fixtures/good_formatters.py`][selftest-formatters] and its bad and
+malformed counterparts); they need lldb-dap (or lldb-vscode) on `PATH`. Both a
+formatter that raises and a script that doesn't load pass silently there, and
+only show in the output.
 
 Tests whose requirements are missing are skipped, and CTest reports them as
 skipped. With `-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON` (`--fail-on-skip`), a
