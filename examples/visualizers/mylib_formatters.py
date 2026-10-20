@@ -4,6 +4,8 @@
 #
 # Loaded with `command script import`, which calls __lldb_init_module.
 
+import lldb
+
 
 # A child named `name` that shows the value `value`.
 def _renamed(name, value):
@@ -148,12 +150,19 @@ class IntMapProvider:
 
 
 def __lldb_init_module(debugger, internal_dict):
+    # The commands run through the command interpreter, so that one that fails fails the import.
+    # (debugger.HandleCommand also crashes lldb-dap 23 on Windows.)
+    interpreter = debugger.GetCommandInterpreter()
+
     def add(kind, function, type_name):
         regex = "-x " if "<" in type_name else ""
         option = "-F" if kind == "summary" else "-l"
-        debugger.HandleCommand(
-            f'type {kind} add {regex}{option} {__name__}.{function} "{type_name}"'
+        result = lldb.SBCommandReturnObject()
+        interpreter.HandleCommand(
+            f'type {kind} add {regex}{option} {__name__}.{function} "{type_name}"', result
         )
+        if not result.Succeeded():
+            raise RuntimeError(result.GetError())
 
     add("summary", "point_summary", "mylib::point")
     add("summary", "string_summary", "mylib::string")
