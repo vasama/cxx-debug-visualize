@@ -80,7 +80,7 @@ class DebugSession:
         cfg: dict[str, Any] = {
             "type": "cppdbg",
             "request": "launch",
-            "name": "cxx-vistest",
+            "name": "cxx-debug-visualize",
             "program": self._program,
             "cwd": os.path.dirname(self._program),
             "MIMode": "gdb",
@@ -166,7 +166,7 @@ class DebugSession:
         self._client_or_none = DapClient(argv, log=self._log, on_event=self._handle_event)
         self._client.request("initialize", {
             "clientID": "vscode",
-            "clientName": "cxx-vistest",
+            "clientName": "cxx-debug-visualize",
             "adapterID": "cppdbg",
             "pathFormat": "path",
             "linesStartAt1": True,

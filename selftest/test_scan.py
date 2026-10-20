@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from cxx_vistest.runner import discover_test_lines
+from cxx_debug_visualize.runner import discover_test_lines
 
 
 class DiscoverTestLinesTests(unittest.TestCase):

@@ -1,6 +1,6 @@
-// Fixture for the cxx-vistest integration self-tests (line numbers matter: the tests
+// Fixture for the cxx-debug-visualize integration self-tests (line numbers matter: the tests
 // refer to visualize() calls by line).  Build with -DCRASH=0|1.
-#include "cxx_vistest.h"
+#include "cxx_debug_visualize.h"
 
 struct Pair { int a; int b; };
 struct Arr { int *data; int n; }; struct PairArr { Pair *data; int n; };

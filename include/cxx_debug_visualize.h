@@ -2,7 +2,7 @@
 
 // Helper for visualizer test programs.
 //
-// cxx-vistest sets a breakpoint on every line that consists of exactly
+// cxx-debug-visualize sets a breakpoint on every line that consists of exactly
 // `visualize(identifier);` and prints the visualization of that object each
 // time the line is executed.
 //
@@ -11,12 +11,12 @@
 // visualizer unit test file.
 
 #if defined(_MSC_VER)
-#define CXX_VISTEST_NOINLINE __declspec(noinline)
+#define CXX_DEBUG_VISUALIZE_NOINLINE __declspec(noinline)
 #else
-#define CXX_VISTEST_NOINLINE __attribute__((noinline))
+#define CXX_DEBUG_VISUALIZE_NOINLINE __attribute__((noinline))
 #endif
 
 template<typename T>
-CXX_VISTEST_NOINLINE void visualize(T const&)
+CXX_DEBUG_VISUALIZE_NOINLINE void visualize(T const&)
 {
 }

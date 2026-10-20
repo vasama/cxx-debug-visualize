@@ -1,4 +1,4 @@
-# End-to-end tests of cxx-vistest against the real debug adapter.
+# End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m selftest --adapter PATH`. Each test class is skipped when what it
 # needs is missing: the adapter (--adapter), gdb, lldb-dap, or a C++ compiler.
@@ -11,8 +11,8 @@ import subprocess
 import tempfile
 import unittest
 
-from cxx_vistest.adapter import find_lldb_dap
-from cxx_vistest.runner import Runner
+from cxx_debug_visualize.adapter import find_lldb_dap
+from cxx_debug_visualize.runner import Runner
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, "fixtures")
@@ -24,7 +24,7 @@ ADAPTER = None
 CXX = os.environ.get("CXX") or shutil.which("g++") or shutil.which("clang++")
 
 
-# Builds the fixture program and runs cxx-vistest on it; the test classes below say which
+# Builds the fixture program and runs cxx-debug-visualize on it; the test classes below say which
 # debug adapter to use.
 class FixtureTestCase(unittest.TestCase):
     # path of OpenDebugAD7, or None for the debugger's own DAP support (the default)
@@ -33,7 +33,7 @@ class FixtureTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.mkdtemp(prefix="cxx-vistest-")
+        cls.tmp = tempfile.mkdtemp(prefix="cxx-debug-visualize-")
         # variants of the fixture: without and with a crash after the last call
         cls.programs = {}
         for variant, crash in (("plain", 0), ("crash", 1)):
@@ -59,7 +59,7 @@ class FixtureTestCase(unittest.TestCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             ok = runner.run()
         errors = err.getvalue().splitlines()
-        # anything on stderr (adapter messages, cxx-vistest errors) means failure
+        # anything on stderr (adapter messages, cxx-debug-visualize errors) means failure
         self.assertEqual(ok, not errors, errors)
         return out.getvalue(), errors
 

@@ -1,9 +1,9 @@
 # Command line interface:
 #
-#     cxx-vistest --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
+#     cxx-debug-visualize --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
 #         | FileCheck test.cpp
 #
-#     cxx-vistest --adapter OpenDebugAD7 --gdb-printers my_printers.py test.cpp ./prog \
+#     cxx-debug-visualize --adapter OpenDebugAD7 --gdb-printers my_printers.py test.cpp ./prog \
 #         | FileCheck test.cpp
 
 import argparse
@@ -14,7 +14,7 @@ from .adapter import find_adapter
 from .runner import Runner
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="cxx-vistest",
+    parser = argparse.ArgumentParser(prog="cxx-debug-visualize",
                                      description="Unit tests for natvis files and gdb pretty "
                                                  "printers: visualizes the variable named at each "
                                                  "call to a function named `visualize`")
@@ -24,9 +24,9 @@ def main(argv: list[str] | None = None) -> int:
 
     adapter = parser.add_mutually_exclusive_group()
     adapter.add_argument("--adapter", metavar="PATH",
-                         default=os.environ.get("CXX_VISTEST_ADAPTER"),
+                         default=os.environ.get("CXX_DEBUG_VISUALIZE_ADAPTER"),
                          help="path to the debug adapter, e.g. a build of MIEngine (default: "
-                              "$CXX_VISTEST_ADAPTER)")
+                              "$CXX_DEBUG_VISUALIZE_ADAPTER)")
 
     adapter.add_argument("--vs-code-adapter", action="store_true",
                          help="use the debug adapter of the newest VS Code C/C++ extension "
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if ns.natvis and not use_adapter:
         print("error: --natvis requires a debug adapter; pass --adapter or --vs-code-adapter, or "
-              "set CXX_VISTEST_ADAPTER", file=sys.stderr)
+              "set CXX_DEBUG_VISUALIZE_ADAPTER", file=sys.stderr)
         return 2
     if ns.gdb_printers and ns.debugger != "gdb":
         print("error: --gdb-printers requires --debugger=gdb", file=sys.stderr)
