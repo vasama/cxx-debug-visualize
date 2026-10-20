@@ -12,6 +12,7 @@ import argparse
 import os
 import sys
 
+from .adapter import find_adapter
 from .runner import Runner
 
 
@@ -21,9 +22,10 @@ def main(argv=None):
                                      "printers: print the Variables tree at every "
                                      "check_visualizer() call, for FileCheck, using the same "
                                      "debug adapter VS Code uses (OpenDebugAD7/MIEngine).")
-    parser.add_argument("--adapter", required=True, metavar="PATH",
-                     help="path to OpenDebugAD7 (e.g. <cpptools extension>/debugAdapters/bin/"
-                     "OpenDebugAD7, or a build of MIEngine)")
+    parser.add_argument("--adapter", metavar="PATH",
+                        help="path to OpenDebugAD7, e.g. a build of MIEngine (default: the "
+                        "one of the newest VS Code C/C++ extension installed in "
+                        "~/.vscode*/extensions)")
     visualizer = parser.add_mutually_exclusive_group(required=True)
     visualizer.add_argument("--natvis", metavar="FILE", help="natvis file to test")
     visualizer.add_argument("--printers", metavar="FILE",
@@ -34,6 +36,24 @@ def main(argv=None):
     parser.add_argument("program", help="test program (run without arguments)")
 
     ns = parser.parse_args(argv)
+
+    # Find debug adapter if it was not specified by the user:
+    if ns.adapter is None:
+        ns.adapter = find_adapter()
+        if ns.adapter is None:
+            print("error: no OpenDebugAD7 found: install the VS Code C/C++ extension "
+                  "(ms-vscode.cpptools), or pass --adapter", file=sys.stderr)
+            return 2
+
+    if ns.trace:
+        print(f"adapter: {ns.adapter}", file=sys.stderr)
+
+    # Check that the specified debug adapter is executable:
+    if not os.access(ns.adapter, os.X_OK):
+        print(f"The debug adapter is not executable.", file=sys.stderr)
+        return 2
+
+    # Check that all specified paths refer to existing files:
     paths = [("debug adapter", ns.adapter), ("program", ns.program), ("source file", ns.source)]
     if ns.natvis:
         paths.append(("natvis file", ns.natvis))

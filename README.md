@@ -265,7 +265,7 @@ CHECK lines against.
 ## Running
 
 ```
-python3 -m test_visualizers --adapter PATH (--natvis FILE.natvis | --printers FILE.py) \
+python3 -m test_visualizers [--adapter PATH] (--natvis FILE.natvis | --printers FILE.py) \
     [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
@@ -274,7 +274,7 @@ breakpoints. Calls in other files of the program are not breakpoints.
 
 | Option | Meaning |
 |---|---|
-| `--adapter PATH` | **required**: OpenDebugAD7 to use (see below) |
+| `--adapter PATH` | OpenDebugAD7 to use; by default, the one of the newest installed VS Code C/C++ extension (see below) |
 | `--natvis FILE` | the natvis file under test |
 | `--printers FILE` | the gdb pretty-printer script (Python) under test; exactly one of `--natvis` and `--printers` is required |
 | `--trace` | dump DAP traffic to stderr |
@@ -327,14 +327,18 @@ cmake --build build && ctest --test-dir build -L visualizers
 
 ## Getting the debug adapter
 
-`test_visualizers` never searches for the adapter: `--adapter` must be the path of
-an `OpenDebugAD7` executable (or `OpenDebugAD7.dll`, run with `dotnet`).
+`--adapter` gives the path of an `OpenDebugAD7` executable (or
+`OpenDebugAD7.dll`, run with `dotnet`). Without it, `test_visualizers` uses the
+adapter of the newest VS Code C/C++ extension installed in your home directory:
+`~/.vscode`, `~/.vscode-insiders`, and `~/.vscode-server` or
+`~/.vscode-server-insiders` for remote development (e.g. Remote SSH), each
+under `extensions/ms-vscode.cpptools-<version>-<platform>/debugAdapters/bin/`.
+The extension makes the adapter executable only when VS Code first activates
+it, so a version that has not been activated yet (e.g. right after an update)
+is skipped. `--trace` shows which adapter is used.
 
-* **Developer machines**: use the adapter of your installed C/C++
-  extension, e.g.
-  `~/.vscode/extensions/ms-vscode.cpptools-<version>-linux-x64/debugAdapters/bin/OpenDebugAD7`
-  (`~/.vscode-server/...` for Remote SSH). You then test exactly the version
-  you debug with.
+* **Developer machines**: rely on the installed C/C++ extension. You then test
+  exactly the version you debug with.
 * **CI**: the extension's license only covers use with Microsoft
   products (VS Code, Visual Studio, …). Build OpenDebugAD7 from the
   MIT-licensed MIEngine sources instead:
