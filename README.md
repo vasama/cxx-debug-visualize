@@ -379,7 +379,9 @@ reached), how broken visualizers show in them (natvis evaluation errors, a
 dropped `Expand`, raising printers), and the errors cxx-vistest reports
 (malformed XML, a printer script that doesn't load, crashes). The
 tests of gdb's own DAP support check the printed trees and crashes; they need
-gdb 14 or later and g++/clang++, but no `--adapter`.
+gdb 14 or later and g++/clang++, but no `--adapter`. The lldb tests check the
+same for lldb formatters (`selftest/fixtures/good_formatters.py`); they need
+lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
 
 ## Limitations
 

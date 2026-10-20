@@ -26,6 +26,16 @@ class LaunchConfigTests(unittest.TestCase):
             f"source {os.path.abspath('my_printers.py')}",
         ])
 
+    def test_lldb_formatters(self):
+        cfg = DebugSession(None, "prog", debugger="lldb",
+                           lldb_formatters="my_formatters.py")._launch_config()
+        self.assertEqual(cfg["program"], os.path.abspath("prog"))
+        # isolated: lldb's built-in C++ formatters are disabled before the script is loaded
+        self.assertEqual(cfg["initCommands"], [
+            "type category disable -l c++",
+            f"command script import {os.path.abspath('my_formatters.py')}",
+        ])
+
     def test_exactly_one_visualizer(self):
         with self.assertRaises(AssertionError):
             DebugSession("adapter", "prog", debugger="gdb")
