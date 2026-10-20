@@ -991,7 +991,7 @@ int main(int argc, char** argv)
       visualize(thread);
     }
 
-    std::thread::id thread_id = std::this_thread::get_id();
+    std::thread::id thread_id;
     if (is_supported(msstl_natvis))
     {
       visualize(thread_id);

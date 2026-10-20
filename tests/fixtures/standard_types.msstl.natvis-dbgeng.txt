@@ -385,8 +385,8 @@ visualize(thread) at standard_types.cpp:991
   { id=0 } [std::thread]
     _Thr = {...} [_Thrd_t]
 visualize(thread_id) at standard_types.cpp:997
-  84500 [std::thread::id]
-    _Id = 84500 [unsigned int]
+  0 [std::thread::id]
+    _Id = 0 [unsigned int]
 visualize(tuple) at standard_types.cpp:1007
   1, 2.500000, "three" [std::tuple<int,double,std::basic_string<char,std::char_traits<char>,std::allocator<char> > >]
     [0] = 1 [int]
