@@ -409,14 +409,19 @@ is skipped. `--trace` shows which adapter is used.
   (`--vs-code-adapter`). You then test exactly the version you debug with.
 * **CI**: the extension's license only covers use with Microsoft
   products (VS Code, Visual Studio, …). Build OpenDebugAD7 from the
-  MIT-licensed MIEngine sources instead, with
-  [`scripts/build-miengine.sh`][build-miengine] from a checkout of the
-  repository:
+  MIT-licensed [MIEngine](https://github.com/microsoft/MIEngine) sources
+  instead, with the .NET SDK (8 or later):
 
   ```
-  scripts/build-miengine.sh .miengine        # needs git and the .NET 8 SDK
-  cxx-debug-visualize --adapter .miengine/OpenDebugAD7 ...   # needs the .NET 8 runtime
+  git clone --depth 1 https://github.com/microsoft/MIEngine.git
+  sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$PWD/miengine"
+  cxx-debug-visualize --adapter miengine/OpenDebugAD7 ...
   ```
+
+  The build is self-contained: it includes the .NET runtime, so running it
+  needs no .NET installation. Give `-o` an absolute path, since the script
+  changes to its own directory. The [GitHub Actions workflow][workflow] builds
+  it this way, from a pinned MIEngine commit, and caches the result.
 
   The source-built adapter produced the same results as the one in cpptools
   1.34.4 on the example and self-tests.
@@ -432,7 +437,7 @@ python3 -m selftest --adapter /path/to/OpenDebugAD7
 
 The tests of the `visualize` line scanner and of the launch
 configurations always run. The integration tests need `--adapter`, gdb and
-g++/clang++, and are skipped otherwise. They check the printed trees for
+g++/clang++. They check the printed trees for
 natvis files and pretty printers (including unexpanded children, nested
 flattened `[More...]` pages, the `map` display hint, calls in loops and calls never
 reached), how broken visualizers show in them (natvis evaluation errors, a
@@ -442,6 +447,14 @@ tests of gdb's own DAP support check the printed trees and crashes; they need
 gdb 14 or later and g++/clang++, but no `--adapter`. The lldb tests check the
 same for lldb formatters ([`selftest/fixtures/good_formatters.py`][selftest-formatters]); they need
 lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
+
+Tests whose requirements are missing are skipped, and any skipped test makes
+the run fail (exit status 1), listing what was skipped and why, so a passing
+run means every test ran.
+
+The [GitHub Actions workflow][workflow] runs the self-tests and the example's
+CTest tests on every released Python version that is not end-of-life, with
+OpenDebugAD7 built from the MIEngine sources, gdb and lldb 18.
 
 ## Limitations
 
@@ -473,8 +486,8 @@ freely, without keeping any notice.
 [example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/natvis/mylib.natvis
 [example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/printers/mylib_printers.py
 [example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/formatters/mylib_formatters.py
-[build-miengine]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/scripts/build-miengine.sh
 [selftest]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/selftest
 [selftest-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/selftest/fixtures/good_formatters.py
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
 [license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0.txt
+[workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml

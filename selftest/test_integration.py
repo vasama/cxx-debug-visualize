@@ -1,7 +1,7 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
-# Run through `python3 -m selftest --adapter PATH`. Each test class is skipped when what it
-# needs is missing: the adapter (--adapter), gdb, lldb-dap, or a C++ compiler.
+# Run through `python3 -m selftest --adapter PATH`. Each test class is skipped, which fails the
+# run, when what it needs is missing: the adapter (--adapter), gdb, lldb-dap, or a C++ compiler.
 
 import contextlib
 import io

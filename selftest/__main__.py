@@ -1,6 +1,7 @@
 # Run the self-tests: python3 -m selftest [--adapter PATH] [unittest options]
 #
-# Without --adapter only the tests that need no debugger run.
+# Tests whose requirements are missing (--adapter, gdb, lldb-dap, a C++ compiler) are skipped, and
+# any skipped test makes the run fail.
 
 import argparse
 import os
@@ -18,5 +19,11 @@ if ns.adapter:
     test_integration.ADAPTER = os.path.abspath(ns.adapter)
 
 here = os.path.dirname(os.path.abspath(__file__))
-unittest.main(module=None, argv=[sys.argv[0], "discover", "-s", here,
-                                 "-t", os.path.dirname(here)] + rest)
+program = unittest.main(module=None, argv=[sys.argv[0], "discover", "-s", here,
+                                           "-t", os.path.dirname(here)] + rest, exit=False)
+result = program.result
+if result.skipped:
+    print(f"error: {len(result.skipped)} skipped:", file=sys.stderr)
+    for test, reason in result.skipped:
+        print(f"  {test}: {reason}", file=sys.stderr)
+sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)

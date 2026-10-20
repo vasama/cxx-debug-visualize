@@ -1,0 +1,81 @@
+# Runs the self-tests and the example's CTest tests on every released Python version that is
+# not end-of-life, against OpenDebugAD7 (built from the MIEngine sources), gdb's own DAP support
+# and lldb-dap.
+
+name: test
+
+on:
+  push:
+  pull_request:
+
+env:
+  # The MIEngine commit OpenDebugAD7 is built from: main as of 2026-09-22. MIEngine's version
+  # tags stopped at v1.19.6 (2024), while the C/C++ extension ships builds of main.
+  MIENGINE_REF: fdd455222c3233daf55143b027870639e13f7108
+  # The .NET SDK that builds it (MIEngine targets .NET 8, which newer SDKs can build).
+  DOTNET_SDK: "10.0.x"
+
+jobs:
+  # Builds OpenDebugAD7 (self-contained) from the MIT-licensed MIEngine sources, only when the
+  # cache has no build of MIENGINE_REF with DOTNET_SDK yet.
+  adapter:
+    name: Build OpenDebugAD7
+    runs-on: ubuntu-24.04
+    steps:
+      - id: cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/miengine
+          key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.DOTNET_SDK }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: microsoft/MIEngine
+          ref: ${{ env.MIENGINE_REF }}
+          path: MIEngine
+          persist-credentials: false
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: 1
+          DOTNET_NOLOGO: 1
+        run: sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$RUNNER_TEMP/miengine"
+
+  test:
+    name: Python ${{ matrix.python }}
+    needs: adapter
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      # gdb 15 (with DAP support). lldb 18 comes with the image (with Clang 18), but only its
+      # versioned commands are on PATH, not lldb-dap's directory. lldb-dap's output differs
+      # between LLVM versions, so the expected lldb outputs must be lldb 18's.
+      - name: Install gdb and put lldb-dap on PATH
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdb
+          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+      # the adapter job has made sure the cache holds the build
+      - uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/miengine
+          key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.DOTNET_SDK }}
+          fail-on-cache-miss: true
+      # fails if any test is skipped, e.g. because of a missing tool
+      - name: Run self-tests
+        run: python -m selftest --adapter "$RUNNER_TEMP/miengine/OpenDebugAD7"
+      - name: Build and run examples
+        run: |
+          cmake -S example -B build -DCXX_DEBUG_VISUALIZE_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
+          cmake --build build
+          ctest --test-dir build -L visualizers --output-on-failure
