@@ -1,5 +1,5 @@
 # Builds and runs the self-tests (see tests/CMakeLists.txt) and the example project's tests
-# (see example/CMakeLists.txt) with CTest:
+# (see examples/CMakeLists.txt) with CTest:
 #
 #   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCXXDV_GDB=gdb -DCXXDV_LLDB_DAP=lldb-dap \
 #         -DCXXDV_VS_ADAPTER=/path/to/OpenDebugAD7
@@ -15,4 +15,4 @@ project(cxx-debug-visualize LANGUAGES CXX)
 enable_testing()
 
 add_subdirectory(tests)
-add_subdirectory(example)
+add_subdirectory(examples)

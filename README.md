@@ -275,7 +275,7 @@ visualize(hello) at test_strings.cpp:13
   change the output.
 * Calls in other functions print when that function runs, so their output
   appears in execution order, which may not be source order. See `greet()` in
-  [`example/tests/test_strings.cpp`][example-strings].
+  [`examples/tests/test_strings.cpp`][example-strings].
 
 When a test fails, the example's tests print a diff and write the actual output to
 `<kind>.<name>.actual.txt` in the build directory. To create or update an
@@ -286,15 +286,15 @@ expected file, check that output and copy it over the expected file.
 A test source can be checked against a natvis file, a pretty-printer script
 and an lldb formatter script for the same types, e.g. when a library ships
 all of them; each run has its own expected file. The example's printers
-([`example/visualizers/mylib_printers.py`][example-printers]) and formatters
-([`example/visualizers/mylib_formatters.py`][example-formatters]) mirror
-[`example/visualizers/mylib.natvis`][example-natvis]
+([`examples/visualizers/mylib_printers.py`][example-printers]) and formatters
+([`examples/visualizers/mylib_formatters.py`][example-formatters]) mirror
+[`examples/visualizers/mylib.natvis`][example-natvis]
 (same display strings and children, the members of `Point`, `[0]`, `[1]`, ...
 for the map), so its expected files are the same except where a debugger
 formats a value in its own way: gdb for `Optional<String*>`, and lldb-dap,
 which puts a space before summaries and shows a reference's or pointer's
 address before the summary of what it points to. See
-[`example/tests/`][example-tests] for complete tests.
+[`examples/tests/`][example-tests] for complete tests.
 
 ### Finding out what the debugger shows
 
@@ -367,7 +367,7 @@ output, e.g. piping it into FileCheck or comparing it with an expected file,
 takes a small script, since a CTest test is a single command.
 
 The [example project][example] does the latter:
-[`example/cmake/ExpectedOutputTests.cmake`][example-expected] defines
+[`examples/cmake/ExpectedOutputTests.cmake`][example-expected] defines
 `add_visualizer_test()`, which builds a test program and registers a CTest
 test (label `visualizers`) per visualizer and way of debugging. It runs
 cxx-debug-visualize from the repository, so needs no installation:
@@ -396,7 +396,7 @@ lines are breakpoints, and its expected files sit next to it
 `visualizers/mylib_formatters.py` against the same tests:
 
 ```
-cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug \
+cmake -S examples -B build -DCMAKE_BUILD_TYPE=Debug \
   -DCXXDV_GDB=gdb -DCXXDV_LLDB_DAP=lldb-dap -DCXXDV_VS_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build && ctest --test-dir build
 ```
@@ -528,15 +528,15 @@ include: it is under the MIT No Attribution License (MIT-0, see
 freely, without keeping any notice.
 
 [header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.hpp
-[example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example
-[example-tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example/tests
-[example-strings]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/tests/test_strings.cpp
-[example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib.natvis
-[example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib_printers.py
-[example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib_formatters.py
+[example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples
+[example-tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples/tests
+[example-strings]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/tests/test_strings.cpp
+[example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/visualizers/mylib.natvis
+[example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/visualizers/mylib_printers.py
+[example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/visualizers/mylib_formatters.py
 [tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/tests
 [tests-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/tests/fixtures/good_formatters.py
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
 [license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0.txt
 [workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml
-[example-expected]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/cmake/ExpectedOutputTests.cmake
+[example-expected]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/examples/cmake/ExpectedOutputTests.cmake
