@@ -30,13 +30,12 @@
 # review or to copy over the expected file, and a diff is printed.
 #
 # Cache variables, which select the tests registered:
-#   CXX_DEBUG_VISUALIZE_TEST_VS_CODE     test through the VS Code C/C++ debug adapter, OpenDebugAD7
-#                                        (default: ON); these tests also need
-#                                        CXX_DEBUG_VISUALIZE_TEST_GDB, as the adapter runs gdb
-#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, required with
-#                                        CXX_DEBUG_VISUALIZE_TEST_VS_CODE
-#   CXX_DEBUG_VISUALIZE_TEST_GDB         test with gdb (default: ON)
-#   CXX_DEBUG_VISUALIZE_TEST_LLDB        test with lldb (default: ON)
+#   CXXDV_TEST_VS_CODE     test through the VS Code C/C++ debug adapter, OpenDebugAD7
+#                          (default: ON); these tests also need CXXDV_TEST_GDB, as the
+#                          adapter runs gdb
+#   CXXDV_VS_CODE_ADAPTER  path to OpenDebugAD7, required with CXXDV_TEST_VS_CODE
+#   CXXDV_TEST_GDB         test with gdb (default: ON)
+#   CXXDV_TEST_LLDB        test with lldb (default: ON)
 # The tests of each enabled debugger and adapter fail if it is missing.
 #
 # The test programs need debug info and no optimizations, so that each `visualize(x);` line
@@ -51,15 +50,14 @@ set(CXX_DEBUG_VISUALIZE_COMMAND
     "${CMAKE_COMMAND}" -E env "PYTHONPATH=${CXX_DEBUG_VISUALIZE_ROOT}"
     "${Python3_EXECUTABLE}" -m cxx_debug_visualize)
 
-set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
-option(CXX_DEBUG_VISUALIZE_TEST_VS_CODE "Test through the VS Code C/C++ debug adapter" ON)
-option(CXX_DEBUG_VISUALIZE_TEST_GDB "Test with gdb" ON)
-option(CXX_DEBUG_VISUALIZE_TEST_LLDB "Test with lldb" ON)
-if(CXX_DEBUG_VISUALIZE_TEST_VS_CODE AND NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
-  message(FATAL_ERROR "set CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
-                      "-DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="
-                      "<cpptools>/debugAdapters/bin/OpenDebugAD7, or turn "
-                      "CXX_DEBUG_VISUALIZE_TEST_VS_CODE off")
+set(CXXDV_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
+option(CXXDV_TEST_VS_CODE "Test through the VS Code C/C++ debug adapter" ON)
+option(CXXDV_TEST_GDB "Test with gdb" ON)
+option(CXXDV_TEST_LLDB "Test with lldb" ON)
+if(CXXDV_TEST_VS_CODE AND NOT CXXDV_VS_CODE_ADAPTER)
+  message(FATAL_ERROR "set CXXDV_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
+                      "-DCXXDV_VS_CODE_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7, "
+                      "or turn CXXDV_TEST_VS_CODE off")
 endif()
 
 get_property(_visualizer_test_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -98,7 +96,7 @@ function(add_visualizer_test name)
 
   # OpenDebugAD7 runs gdb.
   set(vs_code OFF)
-  if(CXX_DEBUG_VISUALIZE_TEST_VS_CODE AND CXX_DEBUG_VISUALIZE_TEST_GDB)
+  if(CXXDV_TEST_VS_CODE AND CXXDV_TEST_GDB)
     set(vs_code ON)
   endif()
   if(TV_NATVIS AND vs_code)
@@ -109,11 +107,11 @@ function(add_visualizer_test name)
     _add_visualizer_run(gdb-adapter ${name} "${test_source}" vs-code
                         --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
-  if(TV_GDB_PRINTERS AND CXX_DEBUG_VISUALIZE_TEST_GDB)
+  if(TV_GDB_PRINTERS AND CXXDV_TEST_GDB)
     _add_visualizer_run(gdb-native ${name} "${test_source}" native
                         --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
-  if(TV_LLDB_FORMATTERS AND CXX_DEBUG_VISUALIZE_TEST_LLDB)
+  if(TV_LLDB_FORMATTERS AND CXXDV_TEST_LLDB)
     _add_visualizer_run(lldb-native ${name} "${test_source}" native
                         --lldb-formatters "${TV_LLDB_FORMATTERS}" --debugger lldb ${TV_ARGS})
   endif()
@@ -130,7 +128,7 @@ function(_add_visualizer_run kind name test_source adapter option file)
   set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
   set(run ${CXX_DEBUG_VISUALIZE_COMMAND} --adapter ${adapter})
   if(adapter STREQUAL "vs-code")
-    list(APPEND run --vs-code-adapter "${CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER}")
+    list(APPEND run --vs-code-adapter "${CXXDV_VS_CODE_ADAPTER}")
   endif()
   list(APPEND run ${option} "${file}" ${ARGN} "${test_source}")
 

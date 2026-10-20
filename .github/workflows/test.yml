@@ -87,6 +87,6 @@ jobs:
       - name: Build and run tests
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
-              -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
+              -DCXXDV_VS_CODE_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
           cmake --build build
           ctest --test-dir build --output-on-failure

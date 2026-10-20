@@ -396,7 +396,7 @@ tests `visualizers/mylib.natvis`, `visualizers/mylib_printers.py` and
 
 ```
 cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug \
-  -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
+  -DCXXDV_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build && ctest --test-dir build
 ```
 
@@ -405,15 +405,15 @@ both the example's tests and the self-tests (see "Self-tests"):
 
 | Option | Tests |
 |---|---|
-| `CXX_DEBUG_VISUALIZE_TEST_VS_CODE` | through OpenDebugAD7 (natvis, gdb-adapter), if `CXX_DEBUG_VISUALIZE_TEST_GDB` is also on, as OpenDebugAD7 runs gdb; needs `CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`, or configuration fails |
-| `CXX_DEBUG_VISUALIZE_TEST_GDB` | through gdb's own DAP support (gdb-native) |
-| `CXX_DEBUG_VISUALIZE_TEST_LLDB` | through lldb-dap (lldb-native) |
+| `CXXDV_TEST_VS_CODE` | through OpenDebugAD7 (natvis, gdb-adapter), if `CXXDV_TEST_GDB` is also on, as OpenDebugAD7 runs gdb; needs `CXXDV_VS_CODE_ADAPTER`, or configuration fails |
+| `CXXDV_TEST_GDB` | through gdb's own DAP support (gdb-native) |
+| `CXXDV_TEST_LLDB` | through lldb-dap (lldb-native) |
 
 The tests of an enabled debugger or adapter fail if it is missing, so a passing
 run means everything enabled was tested. To test without OpenDebugAD7, e.g.:
 
 ```
-cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug -DCXX_DEBUG_VISUALIZE_TEST_VS_CODE=OFF
+cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug -DCXXDV_TEST_VS_CODE=OFF
 ```
 
 The repository's root project builds and runs them too, along with the
@@ -462,7 +462,7 @@ together with the example project's tests; from a checkout:
 
 ```
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
-  -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
+  -DCXXDV_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
@@ -481,22 +481,21 @@ build re-runs that when a file in `selftest/` changes; each test runs with
 
 The tests of the `visualize` line scanner and of the launch configurations
 always run. The integration tests need the fixture programs, and gdb and
-`CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER` (`--vs-code-adapter`), and run with
-`CXX_DEBUG_VISUALIZE_TEST_VS_CODE` and `CXX_DEBUG_VISUALIZE_TEST_GDB`. They
-check the printed trees for natvis files and pretty printers (including
-unexpanded children, nested flattened `[More...]` pages, the `map` display hint,
-calls in loops and calls never reached), how bad visualizers show in them
-(natvis evaluation errors, a dropped `Expand`, raising printers), and the errors
-cxx-debug-visualize reports (malformed XML, a printer script that doesn't load,
-crashes). The tests of gdb's own DAP support check the same for pretty printers;
-they need gdb 14 or later, but no adapter, and run with
-`CXX_DEBUG_VISUALIZE_TEST_GDB`. There, a printer that raises fails the run with
-gdb's message, while a script that doesn't load passes silently. The lldb tests
-check the same for lldb formatters
+`CXXDV_VS_CODE_ADAPTER` (`--vs-code-adapter`), and run with `CXXDV_TEST_VS_CODE`
+and `CXXDV_TEST_GDB`. They check the printed trees for natvis files and pretty
+printers (including unexpanded children, nested flattened `[More...]` pages, the
+`map` display hint, calls in loops and calls never reached), how bad visualizers
+show in them (natvis evaluation errors, a dropped `Expand`, raising printers),
+and the errors cxx-debug-visualize reports (malformed XML, a printer script that
+doesn't load, crashes). The tests of gdb's own DAP support check the same for
+pretty printers; they need gdb 14 or later, but no adapter, and run with
+`CXXDV_TEST_GDB`. There, a printer that raises fails the run with gdb's message,
+while a script that doesn't load passes silently. The lldb tests check the same
+for lldb formatters
 ([`selftest/fixtures/good_formatters.py`][selftest-formatters] and its bad and
 malformed counterparts); they need lldb-dap (or lldb-vscode) on `PATH`, and run
-with `CXX_DEBUG_VISUALIZE_TEST_LLDB`. Both a formatter that raises and a script
-that doesn't load pass silently there, and only show in the output.
+with `CXXDV_TEST_LLDB`. Both a formatter that raises and a script that doesn't
+load pass silently there, and only show in the output.
 
 The integration tests of a debugger or adapter turned off (`python3 -m selftest
 --no-vs-code`, `--no-gdb`, `--no-lldb`) are skipped, and CTest reports them as

@@ -6,26 +6,24 @@
 # CMake configures, which a build redoes when a file in this directory changes.
 #
 # Cache variables, which select the self-tests run (the others are reported as skipped):
-#   CXX_DEBUG_VISUALIZE_TEST_VS_CODE     test through the VS Code C/C++ debug adapter, OpenDebugAD7
-#                                        (default: ON); these tests also need
-#                                        CXX_DEBUG_VISUALIZE_TEST_GDB, as the adapter runs gdb
-#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, required with
-#                                        CXX_DEBUG_VISUALIZE_TEST_VS_CODE
-#   CXX_DEBUG_VISUALIZE_TEST_GDB         test with gdb (default: ON)
-#   CXX_DEBUG_VISUALIZE_TEST_LLDB        test with lldb (default: ON)
+#   CXXDV_TEST_VS_CODE     test through the VS Code C/C++ debug adapter, OpenDebugAD7
+#                          (default: ON); these tests also need CXXDV_TEST_GDB, as the
+#                          adapter runs gdb
+#   CXXDV_VS_CODE_ADAPTER  path to OpenDebugAD7, required with CXXDV_TEST_VS_CODE
+#   CXXDV_TEST_GDB         test with gdb (default: ON)
+#   CXXDV_TEST_LLDB        test with lldb (default: ON)
 # The self-tests of each enabled debugger and adapter fail if it is missing.
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
-set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
-option(CXX_DEBUG_VISUALIZE_TEST_VS_CODE "Test through the VS Code C/C++ debug adapter" ON)
-option(CXX_DEBUG_VISUALIZE_TEST_GDB "Test with gdb" ON)
-option(CXX_DEBUG_VISUALIZE_TEST_LLDB "Test with lldb" ON)
-if(CXX_DEBUG_VISUALIZE_TEST_VS_CODE AND NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
-  message(FATAL_ERROR "set CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
-                      "-DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="
-                      "<cpptools>/debugAdapters/bin/OpenDebugAD7, or turn "
-                      "CXX_DEBUG_VISUALIZE_TEST_VS_CODE off")
+set(CXXDV_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
+option(CXXDV_TEST_VS_CODE "Test through the VS Code C/C++ debug adapter" ON)
+option(CXXDV_TEST_GDB "Test with gdb" ON)
+option(CXXDV_TEST_LLDB "Test with lldb" ON)
+if(CXXDV_TEST_VS_CODE AND NOT CXXDV_VS_CODE_ADAPTER)
+  message(FATAL_ERROR "set CXXDV_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
+                      "-DCXXDV_VS_CODE_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7, "
+                      "or turn CXXDV_TEST_VS_CODE off")
 endif()
 
 # The fixture program needs debug info and no optimizations: CMake's Debug configuration, whatever
@@ -44,17 +42,17 @@ add_executable(test_program fixtures/test_program.cpp)
 target_include_directories(test_program PRIVATE "${PROJECT_SOURCE_DIR}/include")
 
 set(selftest_args --program "$<TARGET_FILE:test_program>")
-if(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
-  list(APPEND selftest_args --vs-code-adapter "${CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER}")
+if(CXXDV_VS_CODE_ADAPTER)
+  list(APPEND selftest_args --vs-code-adapter "${CXXDV_VS_CODE_ADAPTER}")
 endif()
 # The integration tests of the debuggers and adapter not tested are skipped.
-if(NOT CXX_DEBUG_VISUALIZE_TEST_VS_CODE)
+if(NOT CXXDV_TEST_VS_CODE)
   list(APPEND selftest_args --no-vs-code)
 endif()
-if(NOT CXX_DEBUG_VISUALIZE_TEST_GDB)
+if(NOT CXXDV_TEST_GDB)
   list(APPEND selftest_args --no-gdb)
 endif()
-if(NOT CXX_DEBUG_VISUALIZE_TEST_LLDB)
+if(NOT CXXDV_TEST_LLDB)
   list(APPEND selftest_args --no-lldb)
 endif()
 
