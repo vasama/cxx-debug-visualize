@@ -123,8 +123,8 @@ endforeach()
 # by default for the standard library that the compiler uses (libstdc++, libc++ or MSVC's STL, told
 # apart by the macros its headers define). fixtures/standard_types.cpp, built as C++17, runs under
 # cxx-debug-visualize without a visualizer under test, and its output is compared with
-# fixtures/standard_types.<library>.<kind>.txt (by compare_output.py, as the example's tests
-# compare theirs), e.g. standard_types.libstdc++.gdb-native.txt. The tests, labelled "stdlib":
+# fixtures/standard_types.<library>-<kind>.txt (by compare_output.py, as the example's tests
+# compare theirs), e.g. standard_types.libstdc++-gdb-native.txt. The tests, labelled "stdlib":
 #   stdlib.gdb-native     libstdc++'s pretty printers, through gdb's own DAP support
 #   stdlib.gdb-miengine   libstdc++'s pretty printers, through OpenDebugAD7
 #   stdlib.lldb-native    lldb's formatters for the library, through lldb-dap
@@ -162,7 +162,7 @@ if(CXXDEBVIS_TEST_STDLIB)
   function(add_stdlib_test kind visualizer)
     add_test(NAME stdlib.${kind}
              COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/compare_output.py"
-                     "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/standard_types.${stdlib}.${kind}.txt"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/standard_types.${stdlib}-${kind}.txt"
                      "${CMAKE_CURRENT_BINARY_DIR}/stdlib.${kind}.actual.txt"
                      "${Python3_EXECUTABLE}" -m cxx_debug_visualize ${ARGN}
                      "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/standard_types.cpp"

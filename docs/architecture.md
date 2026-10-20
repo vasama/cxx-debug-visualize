@@ -141,8 +141,8 @@ execution.
 
 The standard library tests (`CXXDEBVIS_TEST_STDLIB`) run `fixtures/standard_types.cpp` without a
 visualizer under test, so that only the debuggers' default visualizers for the standard library are
-active. The output is compared ahainst `fixtures/standard_types.<library>.<kind>.txt`. CMake tells
-the library apart by the macros its headers define: `__GLIBCXX__` (libstdc++),
+active. The output is compared against `fixtures/standard_types.<library>-<debugger>-<adapter>.txt`.
+CMake tells the library apart by the macros its headers define: `__GLIBCXX__` (libstdc++),
 `_LIBCPP_VERSION` (libc++) or `_MSVC_STL_VERSION` (MSVC's STL). Only the pairings whose visualizers
 the debuggers load by default are tested: libstdc++ with GDB (natively and through `OpenDebugAD7`),
 any of the three with LLDB, and MSVC's STL with DbgEng.
