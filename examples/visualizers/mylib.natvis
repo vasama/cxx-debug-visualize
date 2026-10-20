@@ -99,7 +99,7 @@
             <Item>natvis_e->d</Item>
           </Elseif>
           <Else>
-            <Item Name="[{$i}] none" Condition="natvis_e->tag == 0">natvis_e->tag</Item>
+            <Item Name="[{natvis_i}] none" Condition="natvis_e->tag == 0">natvis_e->tag</Item>
           </Else>
           <Exec>++natvis_i, ++natvis_e</Exec>
         </Loop>
