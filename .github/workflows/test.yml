@@ -88,9 +88,11 @@ jobs:
         python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - id: python
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
+          update-environment: false
 
       - name: Install gdb
         run: |
@@ -107,6 +109,7 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DPython3_EXECUTABLE="${{ steps.python.outputs.python-path }}" \
             -DCXXDEBVIS_GDB=gdb \
             -DCXXDEBVIS_LLDB_DAP=lldb-dap-18 \
             -DCXXDEBVIS_MIENGINE="$RUNNER_TEMP/miengine/OpenDebugAD7"

@@ -232,15 +232,16 @@ class NativeDapTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        if (
-            subprocess.run(
-                [TOOLS["gdb"], "-nx", "-batch", "-ex", "python import gdb.dap"],
-                capture_output=True,
-                check=False,
-            ).returncode
-            != 0
-        ):
-            raise AssertionError("needs gdb 14 or later")
+        result = subprocess.run(
+            [TOOLS["gdb"], "-nx", "-batch", "-ex", "python import gdb.dap"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            # gdb's error, as the import may also fail in a gdb 14 or later
+            output = (result.stderr or result.stdout).strip()
+            raise AssertionError(f"needs gdb 14 or later: {output}")
 
     def test_good_printers(self):
         output, errors = self.run_visualizer(gdb_printers="good_printers.py")
