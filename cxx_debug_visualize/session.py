@@ -30,9 +30,11 @@ class DebugSession:
     # With `adapter` None, the debugger's native DAP support is used instead of OpenDebugAD7
     # (`gdb -i dap`, or lldb-dap). In this mode natvis is not supported. lldb is only supported
     # this way.
+    #
+    # `debugger_path` is the debugger to use instead of the one found on PATH.
     def __init__(self, adapter: str | None, program: str, *, debugger: str,
-                 natvis: str | None = None, gdb_printers: str | None = None,
-                 lldb_formatters: str | None = None,
+                 debugger_path: str | None = None, natvis: str | None = None,
+                 gdb_printers: str | None = None, lldb_formatters: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
         # The command line rejects all of these.
         assert [natvis, gdb_printers, lldb_formatters].count(None) == 2, \
@@ -46,6 +48,7 @@ class DebugSession:
 
         self._adapter = adapter
         self._debugger = debugger
+        self._debugger_path = debugger_path
         self._program = os.path.abspath(program)
         self._natvis = natvis and os.path.abspath(natvis)
         self._gdb_printers = gdb_printers and os.path.abspath(gdb_printers)
@@ -88,6 +91,9 @@ class DebugSession:
             "stopAtEntry": False,
             "logging": {"natvisDiagnostics": "warning", "moduleLoad": False},
         }
+
+        if self._debugger_path:
+            cfg["miDebuggerPath"] = self._debugger_path
 
         if self._natvis:
             cfg["visualizerFile"] = self._natvis
@@ -146,7 +152,7 @@ class DebugSession:
         if self._adapter is not None:
             argv = adapter_argv(self._adapter)
         elif self._debugger == "lldb":
-            lldb_dap = find_lldb_dap()
+            lldb_dap = self._debugger_path or find_lldb_dap()
             if lldb_dap is None:
                 raise DapError("lldb-dap (or lldb-vscode) not found on PATH")
             argv = [lldb_dap]
@@ -154,7 +160,7 @@ class DebugSession:
             # As with OpenDebugAD7, only the printers under test are active. The program is loaded
             # up front, so that breakpoints are bound as soon as they are set.
             argv = [
-                "gdb",
+                self._debugger_path or "gdb",
                 "-q",
                 "-nx",
                 "-i", "dap",

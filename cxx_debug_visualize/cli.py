@@ -13,14 +13,29 @@ import sys
 from .adapter import find_adapter
 from .runner import Runner
 
+# Deduces the type of debugger ("gdb" or "lldb"), from the executable path (e.g. gdb-multiarch,
+# lldb-dap, lldb-vscode-16), or None if deduction fails.
+def deduce_debugger_type(path: str) -> str | None:
+    name = os.path.basename(path).lower()
+    if "lldb" in name:
+        return "lldb"
+    if "gdb" in name:
+        return "gdb"
+    return None
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="cxx-debug-visualize",
                                      description="Unit tests for natvis files and gdb pretty "
                                                  "printers: visualizes the variable named at each "
                                                  "call to a function named `visualize`")
 
-    parser.add_argument("--debugger", choices=("gdb", "lldb"), default="gdb",
-                        help="debugger to use (default: gdb)")
+    parser.add_argument("--debugger", choices=("gdb", "lldb"),
+                        help="debugger to use (default: deduced from --debugger-path, otherwise "
+                             "gdb)")
+    parser.add_argument("--debugger-path", metavar="PATH",
+                        help="the gdb executable, or lldb DAP server (lldb-dap or lldb-vscode), to"
+                             "use instead of the one found on PATH; if --debugger is not "
+                             "specified, the type is deduced from the file name")
 
     adapter = parser.add_mutually_exclusive_group()
     adapter.add_argument("--adapter", metavar="PATH",
@@ -45,6 +60,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--trace", action="store_true", help="Print the DAP traffic to stderr")
 
     ns = parser.parse_args(argv)
+
+    # Without --debugger, the debugger type is deduced from --debugger-path:
+    debugger_path = ns.debugger_path and os.path.abspath(ns.debugger_path)
+    if ns.debugger is None:
+        ns.debugger = deduce_debugger_type(debugger_path) if debugger_path else "gdb"
+        if ns.debugger is None:
+            print(f"error: cannot deduce debugger type from its path; use --debugger to specify",
+                  file=sys.stderr)
+            return 2
 
     # Without a debug adapter, the debugger's native DAP support is used (GDB 14 and later, or
     # lldb-dap).
@@ -72,16 +96,14 @@ def main(argv: list[str] | None = None) -> int:
     if ns.trace:
         native = "gdb -i dap" if ns.debugger == "gdb" else "lldb-dap"
         print(f"adapter: {ns.adapter or native}", file=sys.stderr)
-
-    # Check that the specified debug adapter is executable:
-    if ns.adapter is not None and not os.access(ns.adapter, os.X_OK):
-        print("error: the specified debug adapter is not executable", file=sys.stderr)
-        return 2
+        print(f"debugger: {debugger_path or ns.debugger}", file=sys.stderr)
 
     # Check that all specified paths refer to existing files:
     paths = [("program", ns.program), ("source file", ns.source)]
     if ns.adapter is not None:
         paths.append(("debug adapter", ns.adapter))
+    if debugger_path is not None:
+        paths.append(("debugger", debugger_path))
     if ns.natvis:
         paths.append(("natvis file", ns.natvis))
     if ns.gdb_printers:
@@ -94,7 +116,16 @@ def main(argv: list[str] | None = None) -> int:
     if missing:
         return 2
 
-    runner = Runner(ns.adapter, ns.program, ns.source, debugger=ns.debugger, natvis=ns.natvis,
-                    gdb_printers=ns.gdb_printers, lldb_formatters=ns.lldb_formatters,
+    # Check that the specified debug adapter and debugger are executable:
+    if ns.adapter is not None and not os.access(ns.adapter, os.X_OK):
+        print("error: the specified debug adapter is not executable", file=sys.stderr)
+        return 2
+    if debugger_path is not None and not os.access(debugger_path, os.X_OK):
+        print("error: the specified debugger is not executable", file=sys.stderr)
+        return 2
+
+    runner = Runner(ns.adapter, ns.program, ns.source, debugger=ns.debugger,
+                    debugger_path=debugger_path, natvis=ns.natvis, gdb_printers=ns.gdb_printers,
+                    lldb_formatters=ns.lldb_formatters,
                     log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None)
     return 0 if runner.run() else 1

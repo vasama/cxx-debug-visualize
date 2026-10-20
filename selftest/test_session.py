@@ -26,6 +26,15 @@ class LaunchConfigTests(unittest.TestCase):
             f"source {os.path.abspath('my_printers.py')}",
         ])
 
+    def test_debugger_path(self):
+        cfg = DebugSession("adapter", "prog", debugger="gdb", debugger_path="/opt/gdb/bin/gdb",
+                           gdb_printers="my_printers.py")._launch_config()
+        self.assertEqual(cfg["miDebuggerPath"], "/opt/gdb/bin/gdb")
+        # without a path, OpenDebugAD7 uses the gdb on PATH
+        cfg = DebugSession("adapter", "prog", debugger="gdb",
+                           gdb_printers="my_printers.py")._launch_config()
+        self.assertNotIn("miDebuggerPath", cfg)
+
     def test_lldb_formatters(self):
         cfg = DebugSession(None, "prog", debugger="lldb",
                            lldb_formatters="my_formatters.py")._launch_config()

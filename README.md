@@ -264,7 +264,8 @@ file (replace the addresses with `0x?`, e.g. with
 ## Running
 
 ```
-python3 -m cxx_debug_visualize [--debugger gdb|lldb] [--adapter PATH | --vs-code-adapter] \
+python3 -m cxx_debug_visualize [--debugger gdb|lldb] [--debugger-path PATH] \
+    [--adapter PATH | --vs-code-adapter] \
     (--natvis FILE.natvis | --gdb-printers FILE.py | --lldb-formatters FILE.py) [options] \
     TEST.cpp PROGRAM
 ```
@@ -274,12 +275,14 @@ breakpoints. Calls in other files of the program are not breakpoints.
 
 Without a debug adapter (`--adapter`, `--vs-code-adapter` or
 `$CXX_DEBUG_VISUALIZE_ADAPTER`), cxx-debug-visualize uses the debugger's own DAP support,
-found on `PATH`: `gdb -i dap` (GDB 14 and later), or lldb-dap (called
-lldb-vscode before LLVM 18). natvis needs a debug adapter (OpenDebugAD7).
+found on `PATH` unless `--debugger-path` gives its path: `gdb -i dap` (GDB 14 and
+later), or lldb-dap (called lldb-vscode before LLVM 18). natvis needs a debug
+adapter (OpenDebugAD7).
 
 | Option | Meaning |
 |---|---|
-| `--debugger gdb\|lldb` | the debugger (default: `gdb`); `lldb` can't be used with a debug adapter |
+| `--debugger gdb\|lldb` | the debugger (default: deduced from `--debugger-path`, otherwise `gdb`); `lldb` can't be used with a debug adapter |
+| `--debugger-path PATH` | the debugger to run instead of the one found on `PATH`: the gdb executable, or lldb's DAP server (`lldb-dap`, `lldb-vscode`, e.g. `/usr/bin/lldb-vscode-16`). Without `--debugger`, the type is deduced from the file name: `lldb` in it means lldb, `gdb` means gdb. With OpenDebugAD7, a gdb path is passed as `miDebuggerPath` |
 | `--adapter PATH` | OpenDebugAD7 to use; by default, `$CXX_DEBUG_VISUALIZE_ADAPTER` (see below) |
 | `--vs-code-adapter` | use the OpenDebugAD7 of the newest installed VS Code C/C++ extension (see below) |
 | `--natvis FILE` | the natvis file under test; requires a debug adapter |
@@ -390,8 +393,9 @@ lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
 
 ## Limitations
 
-* The debugger is the `gdb` or lldb-dap found on `PATH`. lldb is only supported
-  through lldb-dap, so not with OpenDebugAD7 or natvis.
+* The debugger is the `gdb` or lldb-dap found on `PATH`, or given with
+  `--debugger-path`. lldb is only supported through lldb-dap, so not with
+  OpenDebugAD7 or natvis.
 * Windows' `cppvsdbg` / Visual Studio natvis is a different engine and is not
   tested by this tool.
 * Exceptions inside pretty printers pass silently (see above); only the
