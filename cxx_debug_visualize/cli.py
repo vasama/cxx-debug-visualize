@@ -1,10 +1,10 @@
 # Command line interface:
 #
-#     cxx-debug-visualize --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
-#         | FileCheck test.cpp
+#     cxx-debug-visualize test.cpp ./prog --gdb-printers my_printers.py
 #
-#     cxx-debug-visualize --adapter OpenDebugAD7 --gdb-printers my_printers.py test.cpp ./prog \
-#         | FileCheck test.cpp
+#     cxx-debug-visualize test.cpp ./prog --debugger lldb --lldb-formatters my_formatters.py
+#
+#     cxx-debug-visualize test.cpp ./prog --adapter OpenDebugAD7 --natvis my.natvis
 
 import argparse
 import os
@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="debugger to use (default: deduced from --debugger-path, otherwise "
                              "gdb)")
     parser.add_argument("--debugger-path", metavar="PATH",
-                        help="the gdb executable, or lldb DAP server (lldb-dap or lldb-vscode), to"
+                        help="the gdb executable, or lldb DAP server (lldb-dap or lldb-vscode), to "
                              "use instead of the one found on PATH; if --debugger is not "
                              "specified, the type is deduced from the file name")
 

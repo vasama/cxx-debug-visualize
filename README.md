@@ -1,11 +1,16 @@
-# cxx-debug-visualize — unit tests for natvis files and gdb pretty printers in VS Code
+# cxx-debug-visualize — unit tests for C++ debugger visualizers
 
-`cxx-debug-visualize` prints what VS Code's debugger shows for your C++ objects, so a
+`cxx-debug-visualize` prints what a debugger shows for your C++ objects, so a
 test can compare it with the expected output and check your visualizers:
-`.natvis` files, or gdb pretty printers written in Python. It uses
-the same debug adapter that VS Code's C/C++ extension uses (`cppdbg`), so a
-passing test means the object shows up that way in VS Code's Variables, Watch
-and hover views.
+`.natvis` files, gdb pretty printers and lldb formatters. It talks to the
+debugger through the Debug Adapter Protocol (DAP), as VS Code does, either:
+
+* through the debug adapter of VS Code's C/C++ extension (OpenDebugAD7, the
+  `cppdbg` debug type), so a passing test means the object shows up that way
+  in VS Code's Variables, Watch and hover views; natvis files are only
+  supported this way;
+* or through the debugger's own DAP support: `gdb -i dap` (GDB 14 and later)
+  or lldb-dap, as used by other editors and VS Code extensions.
 
 ```cpp
 mylib::Vector<int> v;
@@ -50,8 +55,18 @@ pipx install cxx-debug-visualize
 ```
 
 (or `pip install cxx-debug-visualize`) installs the `cxx-debug-visualize`
-command, which is all that is needed to run tests. It needs Python 3.10 or
-later and uses only the standard library.
+command. It needs Python 3.10 or later and uses only the standard library.
+Running tests also needs, depending on what you test:
+
+* a C++ compiler, to build the test programs with debug information;
+* for gdb pretty printers: gdb 14 or later (for its own DAP support), and/or
+  gdb with OpenDebugAD7 (see "Getting the debug adapter"), to test them as
+  VS Code's C/C++ extension shows them;
+* for lldb formatters: lldb-dap (called lldb-vscode before LLVM 18; some
+  distributions only install a versioned name such as `lldb-vscode-16`);
+* for natvis files: OpenDebugAD7 and gdb.
+
+gdb and lldb-dap are looked up on `PATH`, unless `--debugger-path` names them.
 
 Two optional extras are not part of the package; take them from the
 [repository](https://github.com/vasama/cxx-debug-visualize) if you want them:
@@ -61,9 +76,6 @@ Two optional extras are not part of the package; take them from the
   tests");
 * the CMake helper [`cmake/CxxDebugVisualize.cmake`][cmake], which builds test
   programs and registers CTest tests (see "CMake / CTest").
-
-[header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.h
-[cmake]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/cmake/CxxDebugVisualize.cmake
 
 ## How natvis support works in VS Code
 
@@ -265,7 +277,7 @@ visualize(hello) at test_strings.cpp:13
   change the output.
 * Calls in other functions print when that function runs, so their output
   appears in execution order, which may not be source order. See `greet()` in
-  `example/tests/test_strings.cpp`.
+  [`example/tests/test_strings.cpp`][example-strings].
 
 When a test fails, the helper prints a diff and writes the actual output to
 `<kind>.<name>.actual.txt` in the build directory. To create or update an
@@ -276,14 +288,15 @@ expected file, check that output and copy it over the expected file.
 A test source can be checked against a natvis file, a pretty-printer script
 and an lldb formatter script for the same types, e.g. when a library ships
 all of them; each run has its own expected file. The example's printers
-(`example/printers/mylib_printers.py`) and formatters
-(`example/formatters/mylib_formatters.py`) mirror `example/natvis/mylib.natvis`
+([`example/printers/mylib_printers.py`][example-printers]) and formatters
+([`example/formatters/mylib_formatters.py`][example-formatters]) mirror
+[`example/natvis/mylib.natvis`][example-natvis]
 (same display strings and children, the members of `Point`, `[0]`, `[1]`, ...
 for the map), so its expected files are the same except where a debugger
 formats a value in its own way: gdb for `Optional<String*>`, and lldb-dap,
 which puts a space before summaries and shows a reference's or pointer's
-address before the summary of what it points to. See `example/tests/` for
-complete tests.
+address before the summary of what it points to. See
+[`example/tests/`][example-tests] for complete tests.
 
 ### Finding out what the debugger shows
 
@@ -366,8 +379,8 @@ fails unless it succeeds and its output matches the expected file (see
 (`tests/test_containers.natvis.txt`, `tests/test_containers.gdb.txt`,
 `tests/test_containers.gdb-dap.txt`, `tests/test_containers.lldb-dap.txt`).
 With `NATVIS` or `GDB_PRINTERS`, `CXX_DEBUG_VISUALIZE_ADAPTER` must be set
-when configuring; configuration fails without it. See `example/` for a
-complete project, which tests `natvis/mylib.natvis`,
+when configuring; configuration fails without it. See [`example/`][example]
+for a complete project, which tests `natvis/mylib.natvis`,
 `printers/mylib_printers.py` and `formatters/mylib_formatters.py` against the
 same tests:
 
@@ -396,7 +409,9 @@ is skipped. `--trace` shows which adapter is used.
   (`--vs-code-adapter`). You then test exactly the version you debug with.
 * **CI**: the extension's license only covers use with Microsoft
   products (VS Code, Visual Studio, …). Build OpenDebugAD7 from the
-  MIT-licensed MIEngine sources instead:
+  MIT-licensed MIEngine sources instead, with
+  [`scripts/build-miengine.sh`][build-miengine] from a checkout of the
+  repository:
 
   ```
   scripts/build-miengine.sh .miengine        # needs git and the .NET 8 SDK
@@ -407,6 +422,9 @@ is skipped. `--trace` shows which adapter is used.
   1.34.4 on the example and self-tests.
 
 ## Self-tests
+
+The [self-tests][selftest] are part of the repository, not of the package. From
+a checkout:
 
 ```
 python3 -m selftest --adapter /path/to/OpenDebugAD7
@@ -422,7 +440,7 @@ dropped `Expand`, raising printers), and the errors cxx-debug-visualize reports
 (malformed XML, a printer script that doesn't load, crashes). The
 tests of gdb's own DAP support check the printed trees and crashes; they need
 gdb 14 or later and g++/clang++, but no `--adapter`. The lldb tests check the
-same for lldb formatters (`selftest/fixtures/good_formatters.py`); they need
+same for lldb formatters ([`selftest/fixtures/good_formatters.py`][selftest-formatters]); they need
 lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
 
 ## Limitations
@@ -440,9 +458,23 @@ lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
 cxx-debug-visualize is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
-version. See [LICENSE.md](LICENSE.md) for the full text.
+version. See [LICENSE.md][license] for the full text.
 
-The exception is `include/cxx_debug_visualize.h`, which test programs include:
-it is under the MIT No Attribution License (MIT-0, see
-[LICENSE-MIT-0.txt](LICENSE-MIT-0.txt)), so it can be used, copied and changed
+The exception is [`include/cxx_debug_visualize.h`][header], which test programs
+include: it is under the MIT No Attribution License (MIT-0, see
+[LICENSE-MIT-0.txt][license-mit-0]), so it can be used, copied and changed
 freely, without keeping any notice.
+
+[header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.h
+[cmake]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/cmake/CxxDebugVisualize.cmake
+[example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example
+[example-tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example/tests
+[example-strings]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/tests/test_strings.cpp
+[example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/natvis/mylib.natvis
+[example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/printers/mylib_printers.py
+[example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/formatters/mylib_formatters.py
+[build-miengine]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/scripts/build-miengine.sh
+[selftest]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/selftest
+[selftest-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/selftest/fixtures/good_formatters.py
+[license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
+[license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0.txt
