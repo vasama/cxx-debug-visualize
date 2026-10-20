@@ -23,8 +23,11 @@ def main(argv: list[str] | None = None) -> int:
     debugger.add_argument("--adapter", metavar="PATH",
                           default=os.environ.get("TEST_VISUALIZERS_ADAPTER"),
                           help="path to the debug adapter, e.gs. a build of MIEngine (default: "
-                               "$TEST_VISUALIZERS_ADAPTER if set, otherwise the newest VS Code "
-                               "C/C++ extension installed in ~/.vscode*/extensions)")
+                               "$TEST_VISUALIZERS_ADAPTER)")
+
+    debugger.add_argument("--vs-code-adapter", action="store_true",
+                          help="use the debug adapter of the newest VS Code C/C++ extension "
+                               "installed in ~/.vscode*/extensions")
 
     debugger.add_argument("--native-dap", action="store_true",
                           help="use gdb's native DAP support (GDB 14 and later) instead of a debug "
@@ -47,13 +50,15 @@ def main(argv: list[str] | None = None) -> int:
             print("error: --native-dap does not support --natvis", file=sys.stderr)
             return 2
         ns.adapter = None
-    elif ns.adapter is None:
-        # Find debug adapter if it was not specified by the user:
+    elif ns.vs_code_adapter:
         ns.adapter = find_adapter()
         if ns.adapter is None:
-            print("error: no OpenDebugAD7 found; set TEST_VISUALIZERS_ADAPTER, or pass --adapter",
-                  file=sys.stderr)
+            print("error: no VS Code C/C++ extension with an OpenDebugAD7 found", file=sys.stderr)
             return 2
+    elif ns.adapter is None:
+        print("error: no debug adapter; pass --adapter, --vs-code-adapter or --native-dap, or set "
+              "TEST_VISUALIZERS_ADAPTER", file=sys.stderr)
+        return 2
 
     if ns.trace:
         print(f"adapter: {ns.adapter or 'gdb -i dap'}", file=sys.stderr)

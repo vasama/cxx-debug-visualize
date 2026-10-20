@@ -265,8 +265,8 @@ CHECK lines against.
 ## Running
 
 ```
-python3 -m test_visualizers [--adapter PATH] (--natvis FILE.natvis | --printers FILE.py) \
-    [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
+python3 -m test_visualizers [--adapter PATH | --vs-code-adapter | --native-dap] \
+    (--natvis FILE.natvis | --printers FILE.py) [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
 `TEST.cpp` is the test source: its `check_visualizer(x);` lines get
@@ -274,7 +274,9 @@ breakpoints. Calls in other files of the program are not breakpoints.
 
 | Option | Meaning |
 |---|---|
-| `--adapter PATH` | OpenDebugAD7 to use; by default, `$TEST_VISUALIZERS_ADAPTER` if set, else the one of the newest installed VS Code C/C++ extension (see below) |
+| `--adapter PATH` | OpenDebugAD7 to use; by default, `$TEST_VISUALIZERS_ADAPTER` (see below) |
+| `--vs-code-adapter` | use the OpenDebugAD7 of the newest installed VS Code C/C++ extension (see below) |
+| `--native-dap` | use gdb's own DAP support (GDB 14 and later) instead of OpenDebugAD7; `--printers` only |
 | `--natvis FILE` | the natvis file under test |
 | `--printers FILE` | the gdb pretty-printer script (Python) under test; exactly one of `--natvis` and `--printers` is required |
 | `--trace` | dump DAP traffic to stderr |
@@ -329,8 +331,11 @@ cmake --build build && ctest --test-dir build -L visualizers
 
 `--adapter` gives the path of an `OpenDebugAD7` executable (or
 `OpenDebugAD7.dll`, run with `dotnet`). Without it, `test_visualizers` uses the
-`TEST_VISUALIZERS_ADAPTER` environment variable if it is set, and otherwise the
-adapter of the newest VS Code C/C++ extension installed in your home directory:
+`TEST_VISUALIZERS_ADAPTER` environment variable. One of the two is required
+unless `--vs-code-adapter` or `--native-dap` is given.
+
+`--vs-code-adapter` uses the adapter of the newest VS Code C/C++ extension
+installed in your home directory:
 `~/.vscode`, `~/.vscode-insiders`, and `~/.vscode-server` or
 `~/.vscode-server-insiders` for remote development (e.g. Remote SSH), each
 under `extensions/ms-vscode.cpptools-<version>-<platform>/debugAdapters/bin/`.
@@ -338,8 +343,8 @@ The extension makes the adapter executable only when VS Code first activates
 it, so a version that has not been activated yet (e.g. right after an update)
 is skipped. `--trace` shows which adapter is used.
 
-* **Developer machines**: rely on the installed C/C++ extension. You then test
-  exactly the version you debug with.
+* **Developer machines**: rely on the installed C/C++ extension
+  (`--vs-code-adapter`). You then test exactly the version you debug with.
 * **CI**: the extension's license only covers use with Microsoft
   products (VS Code, Visual Studio, …). Build OpenDebugAD7 from the
   MIT-licensed MIEngine sources instead:
