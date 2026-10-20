@@ -30,7 +30,6 @@ class DebugSession:
         self.printers = printers and os.path.abspath(printers)
         self.log = log
         self.client = None
-        self._children_cache = {}
         self._initial_breakpoint_states = {}
 
     # -- Lifecycle -----------------------------------------------------------
@@ -123,7 +122,6 @@ class DebugSession:
         return self.client.wait_event(("stopped", "terminated", "exited"))
 
     def resume(self, thread_id):
-        self._children_cache.clear()
         self.client.request("continue", {"threadId": thread_id})
 
     def close(self):
@@ -148,10 +146,6 @@ class DebugSession:
     def children(self, node):
         if not node.expandable:
             return []
-        if node.ref not in self._children_cache:
-            body = self.client.request("variables", {"variablesReference": node.ref})
-            self._children_cache[node.ref] = [
-                Node(v["name"], v.get("value", ""), v.get("type"), v.get("variablesReference", 0))
-                for v in body.get("variables", [])
-            ]
-        return self._children_cache[node.ref]
+        body = self.client.request("variables", {"variablesReference": node.ref})
+        return [Node(v["name"], v.get("value", ""), v.get("type"), v.get("variablesReference", 0))
+                for v in body.get("variables", [])]
