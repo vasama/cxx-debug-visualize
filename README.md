@@ -24,7 +24,7 @@ With a typo in the `<ArrayItems><Size>` of `mylib::Vector`'s natvis entry, the
 debugger silently drops the whole `<Expand>`, and FileCheck reports it:
 
 ```
-$ test_visualizers run --adapter $ADAPTER --natvis mylib.natvis test_vector.cpp ./test_vector \
+$ test_visualizers --adapter $ADAPTER --natvis mylib.natvis test_vector.cpp ./test_vector \
     | FileCheck --dump-input=never test_vector.cpp
 test_vector.cpp:11:17: error: CHECK-NEXT: expected string not found in input
  // CHECK-NEXT: [size] = 3 [std::size_t]
@@ -251,13 +251,13 @@ given prefix to be used in the file. See `example/tests/` for complete tests.
 
 ### Finding out what the debugger shows
 
-Run `test_visualizers run` without piping into FileCheck to see the output to write
+Run `test_visualizers` without piping into FileCheck to see the output to write
 CHECK lines against.
 
 ## Running
 
 ```
-python3 -m test_visualizers run --adapter PATH (--natvis FILE.natvis | --printers FILE.py) \
+python3 -m test_visualizers --adapter PATH (--natvis FILE.natvis | --printers FILE.py) \
     [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
@@ -333,7 +333,7 @@ an `OpenDebugAD7` executable (or `OpenDebugAD7.dll`, run with `dotnet`).
 
   ```
   scripts/build-miengine.sh .miengine        # needs git and the .NET 8 SDK
-  test_visualizers run --adapter .miengine/OpenDebugAD7 ...   # needs the .NET 8 runtime
+  test_visualizers --adapter .miengine/OpenDebugAD7 ...   # needs the .NET 8 runtime
   ```
 
   The source-built adapter produced the same results as the one in cpptools

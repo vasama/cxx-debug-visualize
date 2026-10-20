@@ -7,7 +7,7 @@
 #     [PRINTERS <printers.py>]           # gdb pretty-printer script under test
 #     [LINK_LIBRARIES <lib>...]
 #     [INCLUDE_DIRECTORIES <dir>...]
-#     [ARGS <test_visualizers run option>...]  # e.g. --trace
+#     [ARGS <test_visualizers option>...]  # e.g. --trace
 #   )
 #
 # Builds <name> once, without optimizations and with debug info, and registers
@@ -85,10 +85,10 @@ endfunction()
 
 # Register the CTest test "<kind>.<name>", which runs the program <name> with
 # the visualizer <option> <file> and FileCheck with <prefixes> (may be empty).
-# Further arguments are passed on to `test_visualizers run`.
+# Further arguments are passed on to test_visualizers.
 function(_test_visualizers_add_run kind name test_source option file prefixes)
   get_filename_component(file "${file}" ABSOLUTE)
-  set(run "${Python3_EXECUTABLE}" -m test_visualizers run
+  set(run "${Python3_EXECUTABLE}" -m test_visualizers
       --adapter "${TEST_VISUALIZERS_ADAPTER}" ${option} "${file}"
       ${ARGN} "${test_source}" "$<TARGET_FILE:${name}>")
   set(filecheck "${TEST_VISUALIZERS_FILECHECK}")

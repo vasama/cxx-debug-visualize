@@ -7,7 +7,7 @@
 # Requires git and the .NET 8 SDK (https://dotnet.microsoft.com/download, or
 # `curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0`).
 # Running the result needs the .NET 8 runtime; point test_visualizers at it with
-#   test_visualizers run --adapter OUTPUT_DIR/OpenDebugAD7 ...
+#   test_visualizers --adapter OUTPUT_DIR/OpenDebugAD7 ...
 set -eu
 
 out=$(realpath -m "${1:-.miengine}")
