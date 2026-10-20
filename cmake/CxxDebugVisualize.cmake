@@ -13,15 +13,15 @@
 #
 # Builds <name> once, without optimizations and with debug info, and registers
 # CTest tests labelled "visualizers", which run <name> under cxx-debug-visualize:
-#   natvis.<name>   NATVIS, through the VS Code C/C++ debug adapter (OpenDebugAD7)
-#   gdb.<name>      GDB_PRINTERS, through OpenDebugAD7
-#   gdb-dap.<name>  GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
-#   lldb-dap.<name> LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18),
-#                   which must be on PATH when the tests run
+#   natvis.<name>       NATVIS, through the VS Code C/C++ debug adapter (OpenDebugAD7)
+#   gdb-adapter.<name>  GDB_PRINTERS, through OpenDebugAD7
+#   gdb-native.<name>   GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
+#   lldb-native.<name>  LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18),
+#                       which must be on PATH when the tests run
 # Each compares the printed Variables trees with an expected output file next
 # to the test source, the first file in SOURCES: <test>.<kind>.txt, e.g.
-# <test>.natvis.txt, <test>.gdb.txt, <test>.gdb-dap.txt and <test>.lldb-dap.txt
-# for tests/<test>.cpp.
+# <test>.natvis.txt, <test>.gdb-adapter.txt, <test>.gdb-native.txt and
+# <test>.lldb-native.txt for tests/<test>.cpp.
 # cxx-debug-visualize breaks on the test source's visualize() lines.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the
@@ -33,7 +33,7 @@
 #
 # Cache variables:
 #   CXX_DEBUG_VISUALIZE_ADAPTER       path to OpenDebugAD7, passed as --adapter to the natvis and
-#                                     gdb tests (gdb-dap and lldb-dap tests use no adapter).
+#                                     gdb-adapter tests (the native tests use no adapter).
 #                                     Without it, those tests are registered disabled, which
 #                                     CTest reports as "Not Run (Disabled)".
 #   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP  make a missing CXX_DEBUG_VISUALIZE_ADAPTER an error instead
@@ -87,20 +87,20 @@ function(cxx_debug_visualize_add_test name)
                                  --natvis "${TV_NATVIS}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS)
-    _cxx_debug_visualize_add_run(gdb ${name} "${test_source}" "${adapter}"
+    _cxx_debug_visualize_add_run(gdb-adapter ${name} "${test_source}" "${adapter}"
                                  --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
-    _cxx_debug_visualize_add_run(gdb-dap ${name} "${test_source}" ""
+    _cxx_debug_visualize_add_run(gdb-native ${name} "${test_source}" ""
                                  --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
   if(TV_LLDB_FORMATTERS)
-    _cxx_debug_visualize_add_run(lldb-dap ${name} "${test_source}" ""
+    _cxx_debug_visualize_add_run(lldb-native ${name} "${test_source}" ""
                                  --lldb-formatters "${TV_LLDB_FORMATTERS}" --debugger lldb
                                  ${TV_ARGS})
   endif()
 
-  # The natvis and gdb tests need OpenDebugAD7; without it, they never run.
+  # The natvis and gdb-adapter tests need OpenDebugAD7; without it, they never run.
   if(NOT adapter)
-    foreach(kind IN ITEMS natvis gdb)
+    foreach(kind IN ITEMS natvis gdb-adapter)
       if(TEST ${kind}.${name})
         set_tests_properties(${kind}.${name} PROPERTIES DISABLED TRUE)
       endif()

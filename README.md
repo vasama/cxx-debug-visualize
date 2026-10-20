@@ -254,12 +254,12 @@ visualize(v) at test_containers.cpp:34
 A test's expected output is a text file holding exactly what cxx-debug-visualize
 prints, one per visualizer and debug adapter: the CMake helper below compares
 the output of `tests/test_containers.cpp` with
-`tests/test_containers.natvis.txt`, `tests/test_containers.gdb.txt` (pretty
-printers through OpenDebugAD7), `tests/test_containers.gdb-dap.txt` (pretty
-printers through gdb's own DAP support) and `tests/test_containers.lldb-dap.txt`
-(lldb formatters through lldb-dap). Before comparing, it replaces every
-hexadecimal number (`0x...`) with `0x?`, because addresses differ between
-machines; the expected files contain `0x?` in their place:
+`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-adapter.txt`
+(pretty printers through OpenDebugAD7), `tests/test_containers.gdb-native.txt`
+(pretty printers through gdb's own DAP support) and
+`tests/test_containers.lldb-native.txt` (lldb formatters through lldb-dap).
+Before comparing, it replaces every hexadecimal number (`0x...`) with `0x?`,
+because addresses differ between machines; the expected files contain `0x?` in their place:
 
 ```
 visualize(hello) at test_strings.cpp:13
@@ -369,17 +369,17 @@ cxx_debug_visualize_add_test(test_containers
 
 This builds the program once, with `-O0 -g`, and registers CTest tests (label
 `visualizers`): `natvis.test_containers` for the natvis file, and for the
-pretty printers both `gdb.test_containers` (through OpenDebugAD7, as in VS
-Code) and `gdb-dap.test_containers` (through gdb's own DAP support, which needs
-GDB 14 or later; `$CXX_DEBUG_VISUALIZE_ADAPTER` is ignored there), and
-`lldb-dap.test_containers` for the lldb formatters (through lldb-dap, which
+pretty printers both `gdb-adapter.test_containers` (through OpenDebugAD7, as in
+VS Code) and `gdb-native.test_containers` (through gdb's own DAP support, which
+needs GDB 14 or later; `$CXX_DEBUG_VISUALIZE_ADAPTER` is ignored there), and
+`lldb-native.test_containers` for the lldb formatters (through lldb-dap, which
 must be on `PATH` when the tests run). Each test runs cxx-debug-visualize and
 fails unless it succeeds and its output matches the expected file (see
 "Expected output" above). The first file in `SOURCES` is the test source: its
 `visualize` lines are breakpoints, and its expected files sit next to it
-(`tests/test_containers.natvis.txt`, `tests/test_containers.gdb.txt`,
-`tests/test_containers.gdb-dap.txt`, `tests/test_containers.lldb-dap.txt`).
-The natvis and gdb tests need `CXX_DEBUG_VISUALIZE_ADAPTER`; without it, they
+(`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-adapter.txt`,
+`tests/test_containers.gdb-native.txt`, `tests/test_containers.lldb-native.txt`).
+The natvis and gdb-adapter tests need `CXX_DEBUG_VISUALIZE_ADAPTER`; without it, they
 are registered disabled (CTest reports them as "Not Run (Disabled)"), or, with
 `-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON`, configuration fails. See [`example/`][example]
 for a complete project, which tests `visualizers/mylib.natvis`,
