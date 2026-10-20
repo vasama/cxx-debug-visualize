@@ -15,6 +15,23 @@
 // with those printers, a map's end iterator, which they show as an element read from the memory
 // around the map, which differs between runs.
 //
+// With STL.natvis, as the Debugging Tools for Windows ship it and DbgEng applies it, the objects
+// whose visualizers do not work are not visualized either:
+// * those that the Debugging Tools' copy, being older than MSVC's STL, shows wrongly: move
+//   iterators (a member since renamed), system_clock::time_point (no visualizer yet) and a
+//   vector's end iterator (shown as the memory past the vector);
+// * those that STL.natvis shows wrongly: the end iterators of lists, unordered containers,
+//   vector<bool> and reverse iterators (shown as the memory around them), string views of
+//   char16_t and char32_t (shown as their first character), and Boyer-Moore searchers (shown as
+//   an address);
+// * those whose visualizers use what DbgEng does not support: views (shared_ptr, weak_ptr and the
+//   unordered containers), function calls (exceptions, error_code and error_category), a custom
+//   visualizer (exception_ptr) and the dynamic type of an object (function);
+// * those that DbgEng fails to visualize: deque iterators, and any, of which it leaves out the
+//   items named like intrinsics of its visualizer.
+// Those that no other visualizers support are left out altogether: move iterators, a reverse
+// iterator's end, Boyer-Moore searchers, exceptions, exception_ptr and error_category.
+//
 // Usage: standard_types LIBRARY VISUALIZER
 //
 // LIBRARY is the standard library implementation (libstdc++, libc++ or msstl), and VISUALIZER the
@@ -32,7 +49,6 @@
 #include <chrono>
 #include <complex>
 #include <deque>
-#include <exception>
 #include <filesystem>
 #include <forward_list>
 #include <functional>
@@ -49,7 +65,6 @@
 #include <set>
 #include <sstream>
 #include <stack>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -171,13 +186,13 @@ int main(int argc, char** argv)
 
   {
     std::any any = 42;
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(any);
     }
 
     std::any empty_any;
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(empty_any);
     }
@@ -229,7 +244,7 @@ int main(int argc, char** argv)
     }
 
     std::chrono::system_clock::time_point time_point{std::chrono::seconds{1'000'000'000}};
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(time_point);
     }
@@ -255,31 +270,15 @@ int main(int argc, char** argv)
     }
 
     std::deque<int>::iterator deque_iterator = deque.begin() + 1;
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(deque_iterator);
     }
 
     std::deque<int>::iterator deque_end = deque.end();
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(deque_end);
-    }
-  }
-
-  // -- <exception> / <stdexcept> ------------------------------------------------------------------
-
-  {
-    std::runtime_error exception("failed");
-    if (is_supported(msstl_natvis))
-    {
-      visualize(exception);
-    }
-
-    std::exception_ptr exception_ptr = std::make_exception_ptr(exception);
-    if (is_supported(msstl_natvis))
-    {
-      visualize(exception_ptr);
     }
   }
 
@@ -458,7 +457,7 @@ int main(int argc, char** argv)
 
   {
     std::function<int(int)> function = [](int value) { return value * 2; };
-    if (is_supported(libcxx_lldb | msstl_natvis))
+    if (is_supported(libcxx_lldb))
     {
       visualize(function);
     }
@@ -471,18 +470,6 @@ int main(int argc, char** argv)
     if (is_supported(msstl_natvis))
     {
       visualize(default_searcher);
-    }
-
-    std::boyer_moore_searcher boyer_moore_searcher(pattern.begin(), pattern.end());
-    if (is_supported(msstl_natvis))
-    {
-      visualize(boyer_moore_searcher);
-    }
-
-    std::boyer_moore_horspool_searcher horspool_searcher(pattern.begin(), pattern.end());
-    if (is_supported(msstl_natvis))
-    {
-      visualize(horspool_searcher);
     }
   }
 
@@ -539,24 +526,6 @@ int main(int argc, char** argv)
       visualize(reverse_iterator);
     }
 
-    std::reverse_iterator<std::vector<int>::iterator> reverse_end = vector.rend();
-    if (is_supported(msstl_natvis))
-    {
-      visualize(reverse_end);
-    }
-
-    std::move_iterator<std::vector<int>::iterator> move_iterator(vector.begin());
-    if (is_supported(msstl_natvis))
-    {
-      visualize(move_iterator);
-    }
-
-    std::move_iterator<std::vector<int>::iterator> move_end(vector.end());
-    if (is_supported(msstl_natvis))
-    {
-      visualize(move_end);
-    }
-
     std::back_insert_iterator<std::vector<int>> back_insert_iterator(vector);
     if (is_supported(msstl_natvis))
     {
@@ -596,7 +565,7 @@ int main(int argc, char** argv)
     }
 
     std::list<int>::iterator list_end = list.end();
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(list_end);
     }
@@ -650,13 +619,13 @@ int main(int argc, char** argv)
 
   {
     std::shared_ptr<int> shared_ptr = std::make_shared<int>(42);
-    if (is_supported(all_pairings))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
     {
       visualize(shared_ptr);
     }
 
     std::weak_ptr<int> weak_ptr = shared_ptr;
-    if (is_supported(all_pairings))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
     {
       visualize(weak_ptr);
     }
@@ -983,7 +952,7 @@ int main(int argc, char** argv)
 
   {
     std::u16string_view u16string_view = u"hello";
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb))
     {
       visualize(u16string_view);
     }
@@ -991,7 +960,7 @@ int main(int argc, char** argv)
 
   {
     std::u32string_view u32string_view = U"hello";
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb))
     {
       visualize(u32string_view);
     }
@@ -1001,7 +970,7 @@ int main(int argc, char** argv)
 
   {
     std::error_code error_code = std::make_error_code(std::errc::invalid_argument);
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(error_code);
     }
@@ -1010,12 +979,6 @@ int main(int argc, char** argv)
     if (is_supported(libstdcxx_gdb))
     {
       visualize(error_condition);
-    }
-
-    std::error_category const& error_category = std::generic_category();
-    if (is_supported(msstl_natvis))
-    {
-      visualize(error_category);
     }
   }
 
@@ -1059,7 +1022,7 @@ int main(int argc, char** argv)
 
   {
     std::unordered_map<int, std::string> unordered_map{{1, "one"}, {2, "two"}};
-    if (is_supported(all_pairings))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
     {
       visualize(unordered_map);
     }
@@ -1071,7 +1034,7 @@ int main(int argc, char** argv)
     }
 
     std::unordered_map<int, std::string>::iterator unordered_map_end = unordered_map.end();
-    if (is_supported(libcxx_gdb | libcxx_lldb | msstl_natvis))
+    if (is_supported(libcxx_gdb | libcxx_lldb))
     {
       visualize(unordered_map_end);
     }
@@ -1079,7 +1042,7 @@ int main(int argc, char** argv)
 
   {
     std::unordered_multimap<int, std::string> unordered_multimap{{1, "one"}, {1, "uno"}};
-    if (is_supported(all_pairings))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
     {
       visualize(unordered_multimap);
     }
@@ -1089,7 +1052,7 @@ int main(int argc, char** argv)
 
   {
     std::unordered_set<int> unordered_set{1, 2, 3};
-    if (is_supported(all_pairings))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
     {
       visualize(unordered_set);
     }
@@ -1097,7 +1060,7 @@ int main(int argc, char** argv)
 
   {
     std::unordered_multiset<int> unordered_multiset{1, 2, 2};
-    if (is_supported(all_pairings))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
     {
       visualize(unordered_multiset);
     }
@@ -1161,7 +1124,7 @@ int main(int argc, char** argv)
     }
 
     std::vector<int>::iterator vector_end = vector.end();
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb))
     {
       visualize(vector_end);
     }
@@ -1181,7 +1144,7 @@ int main(int argc, char** argv)
     }
 
     std::vector<bool>::iterator bool_end = bool_vector.end();
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(libstdcxx_gdb))
     {
       visualize(bool_end);
     }

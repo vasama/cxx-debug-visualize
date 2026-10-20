@@ -7,15 +7,13 @@
 #include <cstdlib>
 #include <format>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <stdexcept>
 #include <string_view>
 
 #include <dbghelp.h>
 #include <oleauto.h>
-
-// TODO:Debugging
-#include <iostream>
 
 using Microsoft::WRL::ComPtr;
 
@@ -219,19 +217,22 @@ static std::string to_chars(T const& value)
     }
 }
 
+// A character code, followed by the character if it is printable, as other debuggers show it: e.g.
+// 104 'h', or with the prefix L, 104 L'h'.
+static std::string format_character(long long const code, std::string_view const prefix = "")
+{
+  std::string text = to_chars(code);
+  if (code >= 0x20 && code < 0x7f)
+  {
+    char const c = static_cast<char>(code);
+    text += std::format(" {}'{}{}'", prefix, c == '\'' || c == '\\' ? "\\" : "", c);
+  }
+  return text;
+}
+
 // A number, as a debugger shows it: pointers in hexadecimal, and characters also as such.
 static std::string format(VARIANT const& v, bool const pointer)
 {
-  auto const format_character = [&](int code)
-  {
-    std::string text = to_chars(code);
-
-    if (code >= 0x20 && code < 0x7f)
-      text = std::format("{} '{}'", text, static_cast<char>(code));
-
-    return text;
-  };
-
   if (pointer && v.vt == VT_UI4)
     return std::format("0x{:08x}", v.ulVal);
 
@@ -271,6 +272,75 @@ static std::string format(VARIANT const& v, bool const pointer)
   default:
     return "";
   }
+}
+
+// A character as format_character shows it, if the object is one (of a character type).
+static std::optional<std::string> character_display(IModelObject* const object)
+{
+  ModelObjectKind kind;
+  if (FAILED(object->GetKind(&kind)) || kind != ObjectIntrinsic)
+    return std::nullopt;
+
+  ComPtr<IDebugHostType> type;
+  if (FAILED(object->GetTypeInfo(&type)) || !type)
+    return std::nullopt;
+
+  IntrinsicKind intrinsic_kind;
+  VARTYPE carrier;
+  if (FAILED(type->GetIntrinsicType(&intrinsic_kind, &carrier)))
+    return std::nullopt;
+
+  std::string_view prefix;
+  switch (intrinsic_kind)
+  {
+  case IntrinsicChar:
+    break;
+  case IntrinsicWChar:
+    prefix = "L";
+    break;
+  case IntrinsicChar16:
+    prefix = "u";
+    break;
+  case IntrinsicChar32:
+    prefix = "U";
+    break;
+  default:
+    return std::nullopt;
+  }
+
+  variant value;
+  if (FAILED(object->GetIntrinsicValue(value.get())) ||
+      FAILED(VariantChangeType(value.get(), value.get(), 0, VT_I8)))
+    return std::nullopt;
+
+  return format_character(value->llVal, prefix);
+}
+
+// Whether the type, or one of its bases, has a static data member of this name (constant or not).
+static bool is_static_field(IDebugHostType* const type, wchar_t const* const name)
+{
+  ComPtr<IDebugHostSymbolEnumerator> fields;
+  ComPtr<IDebugHostSymbol> symbol;
+  if (SUCCEEDED(type->EnumerateChildren(SymbolField, name, &fields)) &&
+      fields->GetNext(&symbol) == S_OK)
+  {
+    ComPtr<IDebugHostField> field;
+    LocationKind location;
+    return SUCCEEDED(symbol.As(&field)) && SUCCEEDED(field->GetLocationKind(&location)) &&
+           location != LocationMember;
+  }
+
+  ComPtr<IDebugHostSymbolEnumerator> bases;
+  if (SUCCEEDED(type->EnumerateChildren(SymbolBaseClass, nullptr, &bases)))
+  {
+    while (bases->GetNext(&symbol) == S_OK)
+    {
+      ComPtr<IDebugHostType> base;
+      if (SUCCEEDED(symbol->GetType(&base)) && base && is_static_field(base.Get(), name))
+        return true;
+    }
+  }
+  return false;
 }
 
 // Whether a key is shown: methods are not, nor keys without a value.
@@ -337,6 +407,10 @@ std::string debugger::execute(std::wstring const& command)
 
 std::string debugger::display(IModelObject* const object)
 {
+  // DbgEng displays a character only as its code.
+  if (std::optional<std::string> text = character_display(object))
+    return std::move(*text);
+
   // Natvis DisplayStrings, and errors, are displayed this way.
   ComPtr<IStringDisplayableConcept> displayable;
 
@@ -455,6 +529,10 @@ std::vector<value> debugger::children(IModelObject* object)
 
   if (!expanded && result.empty())
   {
+    // Static data members are not part of the object, so they are left out.
+    ComPtr<IDebugHostType> type;
+    bool const typed = SUCCEEDED(object->GetTypeInfo(&type)) && type;
+
     ComPtr<IRawEnumerator> fields;
     if (SUCCEEDED(object->EnumerateRawValues(SymbolField, RawSearchNone, &fields)))
     {
@@ -468,7 +546,8 @@ std::vector<value> debugger::children(IModelObject* object)
         if (hr == E_BOUNDS || (FAILED(hr) && !field))
           break;
 
-        result.push_back(make_value(narrow(name.str()), field.Get()));
+        if (!typed || !is_static_field(type.Get(), name.get()))
+          result.push_back(make_value(narrow(name.str()), field.Get()));
       }
     }
   }
