@@ -12,7 +12,7 @@
 #   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP  fail if any self-test is skipped, e.g. because a tool is
 #                                     missing (default: OFF)
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.15)
 project(cxx-debug-visualize LANGUAGES CXX)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
