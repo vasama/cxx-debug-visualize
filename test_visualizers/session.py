@@ -24,13 +24,14 @@ class DebugSession:
         if (natvis is None) == (printers is None):
             raise ValueError("exactly one of natvis or printers is required")
 
-        self.adapter = adapter
-        self.program = os.path.abspath(program)
-        self.natvis = natvis and os.path.abspath(natvis)
-        self.printers = printers and os.path.abspath(printers)
-        self.log = log
-        self.client = None
+        self._adapter = adapter
+        self._program = os.path.abspath(program)
+        self._natvis = natvis and os.path.abspath(natvis)
+        self._printers = printers and os.path.abspath(printers)
+        self._log = log
         self._initial_breakpoint_states = {}
+
+        self.client = None
 
     # -- Lifecycle -----------------------------------------------------------
 
@@ -39,29 +40,29 @@ class DebugSession:
             "type": "cppdbg",
             "request": "launch",
             "name": "test_visualizers",
-            "program": self.program,
-            "cwd": os.path.dirname(self.program),
+            "program": self._program,
+            "cwd": os.path.dirname(self._program),
             "MIMode": "gdb",
             "externalConsole": False,
             "stopAtEntry": False,
             "logging": {"natvisDiagnostics": "warning", "moduleLoad": False},
         }
 
-        if self.natvis:
-            cfg["visualizerFile"] = self.natvis
+        if self._natvis:
+            cfg["visualizerFile"] = self._natvis
 
             # MIEngine follows VS Code's default of hiding display strings, and moves the visualized
             # children under a "[Visualized View]" node. This is not desirable for testing purposes.
             cfg["showDisplayString"] = True
 
-        if self.printers:
+        if self._printers:
             # Only the printers under test are active. gdb is insutrcted to read no init files
             # (-nx) and auto-loading of printers (e.g. libstdc++'s) is disabled.
             cfg["miDebuggerArgs"] = "-nx"
             cfg["setupCommands"] = [
                 {"text": "-enable-pretty-printing"},
                 {"text": "set auto-load python-scripts off"},
-                {"text": f"source {self.printers}"},
+                {"text": f"source {self._printers}"},
             ]
 
         return cfg
@@ -70,7 +71,7 @@ class DebugSession:
     #
     # Returns {source path: [resolved breakpoint dicts]} in request order.
     def start(self, breakpoints):
-        self.client = DapClient(adapter_argv(self.adapter), log=self.log)
+        self.client = DapClient(adapter_argv(self._adapter), log=self._log)
         self.client.request("initialize", {
             "clientID": "vscode",
             "clientName": "test_visualizers",
@@ -87,7 +88,7 @@ class DebugSession:
         self.client.wait_event("initialized", request_seq=launch_seq)
         resolved = {}
         for source, lines in breakpoints.items():
-            resolved[source] = self.set_breakpoints(source, lines)
+            resolved[source] = self._set_breakpoints(source, lines)
         self.client.request("configurationDone")
         self.client.wait_response(launch_seq)
         return resolved
@@ -96,7 +97,7 @@ class DebugSession:
     #
     # The reply only echoes the requested lines, so "line" is cleared to keep it from being mistaken
     # for where a breakpoint really landed.
-    def set_breakpoints(self, source, lines):
+    def _set_breakpoints(self, source, lines):
         body = self.client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
             "breakpoints": [{"line": line} for line in lines],
@@ -109,7 +110,7 @@ class DebugSession:
 
         return [bp["id"] for bp in breakpoints]
 
-    # Latest state of a breakpoint returned by set_breakpoints.
+    # Latest state of a breakpoint returned by _set_breakpoints.
     #
     # That is the last "breakpoint" event describing the specified breakpoing. If no event has been
     # received, the initial reply to `setBreakpoints` is returned.

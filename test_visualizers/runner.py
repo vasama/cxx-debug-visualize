@@ -48,22 +48,22 @@ def discover_test_lines(path):
 class Runner:
     # The visualizer under test is a natvis file or a gdb pretty-printer script.
     def __init__(self, adapter, program, source, *, natvis=None, printers=None, log=None):
-        self.adapter = adapter
-        self.program = program
-        self.source = os.path.abspath(source)
-        self.visualizer = {"natvis": natvis, "printers": printers}
-        self.log = log
-        self.failed = False
+        self._adapter = adapter
+        self._program = program
+        self._source = os.path.abspath(source)
+        self._visualizer = {"natvis": natvis, "printers": printers}
+        self._log = log
+        self._failed = False
 
     # Report an error found by test_visualizers itself.
     def _error(self, message):
         print(f"error: {message}", file=sys.stderr)
-        self.failed = True
+        self._failed = True
 
     # Pass on an error reported by the adapter.
     def _report(self, text):
         sys.stderr.write(text if text.endswith("\n") else text + "\n")
-        self.failed = True
+        self._failed = True
 
     # Print `label = value [type]`, or `value [type]` without a label.
     def _write_node(self, node, indent, label=None):
@@ -91,7 +91,7 @@ class Runner:
     def _verify_breakpoints(self, session, invocations):
         for invocation in invocations:
             def _bp_error(message):
-                self._error(f"{self.source}:{invocation.line}: {message}")
+                self._error(f"{self._source}:{invocation.line}: {message}")
 
             bp = session.get_breakpoint(invocation.breakpoint_id)
             if not bp.get("verified"):
@@ -115,19 +115,19 @@ class Runner:
     # Start a debug session, wait for the debuggee to stop at a breakpoint, and print the relevant
     # visualization to stdout. Finally, close the debug adapter.
     def run(self):
-        self.failed = False
-        invocations = discover_test_lines(self.source)
+        self._failed = False
+        invocations = discover_test_lines(self._source)
 
         if not invocations:
             return True
 
-        session = DebugSession(self.adapter, self.program, **self.visualizer, log=self.log)
+        session = DebugSession(self._adapter, self._program, **self._visualizer, log=self._log)
         try:
             breakpoint_ids = session.start({
-                self.source: [invocation.line for invocation in invocations]
+                self._source: [invocation.line for invocation in invocations]
             })
 
-            for invocation, breakpoint_id in zip(invocations, breakpoint_ids[self.source]):
+            for invocation, breakpoint_id in zip(invocations, breakpoint_ids[self._source]):
                 invocation.breakpoint_id = breakpoint_id
 
             if not self._verify_breakpoints(session, invocations):
@@ -142,7 +142,7 @@ class Runner:
                 body = event["body"]
                 thread_id = body["threadId"]
                 frame = session.top_frame(thread_id)
-                source = frame.get("source", {}).get("path", self.program)
+                source = frame.get("source", {}).get("path", self._program)
 
                 if body["reason"] == "breakpoint" and frame["line"] in breakpoints_by_line:
                     invocation = breakpoints_by_line[frame["line"]]
@@ -172,4 +172,4 @@ class Runner:
                 stderr = session.client.stderr_output()
                 if stderr:
                     self._report(stderr)
-        return not self.failed
+        return not self._failed
