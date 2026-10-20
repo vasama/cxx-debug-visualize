@@ -9,7 +9,8 @@ as defined by the provided visualization script (Natvis, GDB pretty printer, or 
 ([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)).
 * GDB pretty printers can be tested either via the Visual Studio adapter, or using GDB's native
   DAP support (GDB 14 or later), although the output between the two adapters may vary.
-* LLDB formatters can be tested using LLDB's DAP server.
+* LLDB formatters can be tested using LLDB's DAP server (`lldb-dap`, or `lldb-vscode` prior to LLVM
+  18).
 
 ## Quick Example
 
@@ -34,9 +35,19 @@ visualize(v) at test_containers.cpp:34
     [2] = 30 [int]
 ```
 
-The method of testing expectations is left up to the user. E.g. by comparing the output against a
+> **NOTE:** Only full lines containing exactly `visualize(identifier);` and no other non-whitespace
+> content are matched. Any other line is silently ignored.
+
+An applicable definition of the `visualize` function can be found in the [header][header], but using
+it is not necessary. The user is free to bring their own definition, as long as each invocation
+generates executable code where the debugger is able to place a breakpoint. Note that building with
+debug information enabled is required for the placement of a breakpoint in the appropriate location.
+
+The method of testing expectations is left up to the user, e.g. by comparing the output against a
 file containing expected output, using LLVM `FileCheck` (standalone Python implementation
-[here](https://pypi.org/project/filecheck/)), or some other means of parsing.
+[here](https://pypi.org/project/filecheck/)), or some other means of parsing. Note in the case that
+the output contains addresses, which may be expected to vary from one execution to the next, it is
+up to the user to deal with them in the way of their choosing.
 
 See [`examples/`][examples] for a full example testing all supported types of visualizers.
 
@@ -51,7 +62,7 @@ pipx install cxx-debug-visualize
 ```
 
 Python 3.10 or later is required, but otherwise only the standard library is used. Usage requires
-`gdb` or `lldb-dap` and optionally `OpenDebugAD7` for testing Natvis visualizers (only via GDB).
+`gdb` or `lldb-dap` and optionally `OpenDebugAD7` (for testing Natvis visualizers, only via GDB).
 
 ## Usage
 
@@ -64,8 +75,8 @@ cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
 * `test.cpp` is the test source file. It is searched for any occurrences of `visualize(x);` and
   breakpoints are placed on each matching line. A visualization of the specified object is printed
   at each breakpoint.
-* Exactly one visualizer script must be specified using `--natvis`, `--gdb-printer`, or
-  `lldb-formatter`.
+* Exactly one visualizer script must be specified using `--natvis`, `--gdb-printers`, or
+  `--lldb-formatters`.
 * The debugger executable to use may be specified using `--debugger-path`.
 * The type of debugger to use may be specified using `--debugger` (`gdb` or `lldb`), but in most
   cases it can be selected automatically.
