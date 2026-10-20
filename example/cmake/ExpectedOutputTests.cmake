@@ -11,9 +11,8 @@
 #     [ARGS <option>...]                 # cxx-debug-visualize options, e.g. --trace
 #   )
 #
-# Builds the program <name> without optimizations and with debug info, so that each
-# `visualize(x);` line compiles to code of its own, and with the repository's include/ directory,
-# for cxx_debug_visualize.hpp. Registers CTest tests labelled
+# Builds the program <name> with the repository's include/ directory, for cxx_debug_visualize.hpp,
+# and registers CTest tests labelled
 # "visualizers", which run <name> under cxx-debug-visualize:
 #   natvis.<name>       NATVIS, through the VS Code C/C++ debug adapter (OpenDebugAD7)
 #   gdb-adapter.<name>  GDB_PRINTERS, through OpenDebugAD7
@@ -37,6 +36,11 @@
 #                                        disabled, which CTest reports as "Not Run (Disabled)".
 #   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP     make a missing CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER an
 #                                        error instead (default: OFF)
+#
+# The test programs need debug info and no optimizations, so that each `visualize(x);` line
+# compiles to code of its own: CMake's Debug configuration, whatever the compiler. A
+# single-configuration generator must build it (CMAKE_BUILD_TYPE); with a multi-configuration one,
+# the tests exist only in it.
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
@@ -47,6 +51,13 @@ set(CXX_DEBUG_VISUALIZE_COMMAND
 
 set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
 option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail instead of skipping tests that cannot run" OFF)
+
+get_property(_visualizer_test_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _visualizer_test_build_type)
+if(NOT _visualizer_test_multi_config AND NOT _visualizer_test_build_type STREQUAL "DEBUG")
+  message(FATAL_ERROR "the visualizer tests need a Debug build: configure with "
+                      "-DCMAKE_BUILD_TYPE=Debug")
+endif()
 
 # Prints a unified diff of an expected file (possibly missing) and the actual output.
 set(_VISUALIZER_TEST_DIFF "import difflib, os, sys
@@ -77,9 +88,6 @@ function(add_visualizer_test name)
                              ${TV_INCLUDE_DIRECTORIES})
   if(TV_LINK_LIBRARIES)
     target_link_libraries(${name} PRIVATE ${TV_LINK_LIBRARIES})
-  endif()
-  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(${name} PRIVATE -O0 -g)
   endif()
 
   list(GET TV_SOURCES 0 test_source)
@@ -123,9 +131,10 @@ function(_add_visualizer_run kind name test_source adapter option file)
   if(adapter STREQUAL "vs-code")
     list(APPEND run --vs-code-adapter "${CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER}")
   endif()
-  list(APPEND run ${option} "${file}" ${ARGN} "${test_source}" "$<TARGET_FILE:${name}>")
+  list(APPEND run ${option} "${file}" ${ARGN} "${test_source}")
 
-  # A CTest test is a single command, so the comparison runs from a generated script.
+  # A CTest test is a single command, so the comparison runs from a generated script. The program
+  # is passed to it as `program`, as its path depends on the configuration.
   set(run_quoted "")
   foreach(arg IN LISTS run)
     string(APPEND run_quoted " \"${arg}\"")
@@ -133,7 +142,7 @@ function(_add_visualizer_run kind name test_source adapter option file)
   set(script "${CMAKE_CURRENT_BINARY_DIR}/${kind}-${name}.cmake")
   file(GENERATE OUTPUT "${script}" CONTENT
 "execute_process(
-  COMMAND${run_quoted}
+  COMMAND${run_quoted} \"\${program}\"
   OUTPUT_VARIABLE output
   RESULT_VARIABLE result)
 string(REGEX REPLACE \"0x[0-9a-fA-F]+\" \"0x?\" output \"\${output}\")
@@ -158,7 +167,12 @@ if(NOT result EQUAL 0)
 endif()
 ")
 
-  add_test(NAME ${kind}.${name} COMMAND "${CMAKE_COMMAND}" -P "${script}")
+  set(debug_only "")
+  if(_visualizer_test_multi_config)
+    set(debug_only CONFIGURATIONS Debug)
+  endif()
+  add_test(NAME ${kind}.${name} COMMAND "${CMAKE_COMMAND}" "-Dprogram=$<TARGET_FILE:${name}>" -P "${script}"
+           ${debug_only})
   set_tests_properties(${kind}.${name} PROPERTIES LABELS visualizers)
   # Report a missing visualizer file as "not run" instead of running the test.
   set_property(TEST ${kind}.${name} APPEND PROPERTY REQUIRED_FILES "${file}")

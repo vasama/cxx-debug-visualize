@@ -16,12 +16,20 @@ find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
 option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail if any self-test is skipped" OFF)
 
-# The fixture program, without optimizations and with debug info.
+# The fixture program needs debug info and no optimizations: CMake's Debug configuration, whatever
+# the compiler. A single-configuration generator must build it (CMAKE_BUILD_TYPE); with a
+# multi-configuration one, the self-tests exist only in it.
+get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type)
+if(NOT multi_config AND NOT build_type STREQUAL "DEBUG")
+  message(FATAL_ERROR "the self-tests need a Debug build: configure with -DCMAKE_BUILD_TYPE=Debug")
+endif()
+if(multi_config)
+  set(debug_only CONFIGURATIONS Debug)
+endif()
+
 add_executable(test_program fixtures/test_program.cpp)
 target_include_directories(test_program PRIVATE "${PROJECT_SOURCE_DIR}/include")
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(test_program PRIVATE -O0 -g)
-endif()
 
 set(selftest_args --program "$<TARGET_FILE:test_program>")
 if(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
@@ -51,7 +59,7 @@ foreach(test IN LISTS selftests)
   endif()
   add_test(NAME "${test}"
            COMMAND "${Python3_EXECUTABLE}" -m selftest ${selftest_args} --test "${test}"
-           WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+           WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" ${debug_only})
   set_tests_properties("${test}" PROPERTIES LABELS selftest)
   # unittest reports a skipped test as "OK (skipped=1)".
   if(NOT CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP)

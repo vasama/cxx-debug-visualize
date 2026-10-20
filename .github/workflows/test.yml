@@ -87,7 +87,7 @@ jobs:
       # missing tool
       - name: Build and run tests
         run: |
-          cmake -S . -B build \
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
               -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7" \
               -DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON
           cmake --build build

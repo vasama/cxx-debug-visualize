@@ -194,8 +194,9 @@ is a small DAP client, and `runner.py` holds the test logic.
 
 ## Writing tests
 
-A test is an ordinary C++ program compiled with `-g -O0`. Each line holding
-just `visualize(x);` prints the tree of `x` when it runs. A line holding
+A test is an ordinary C++ program compiled with debug info and without
+optimizations (e.g. `-g -O0`, or CMake's `Debug` configuration). Each line
+holding just `visualize(x);` prints the tree of `x` when it runs. A line holding
 anything else as well (another statement, even a trailing comment) is not a
 breakpoint.
 
@@ -211,7 +212,7 @@ inside `if (false)` or an `#if 0` block, or when `visualize` is a macro that
 expands to nothing or to code-free expressions such as `(void)(x)`, gdb moves
 its breakpoint to the next line with code, and cxx-debug-visualize fails with
 `breakpoint landed on line N instead` rather than stopping somewhere else. A
-function call, as above, always compiles to code at `-O0`.
+function call, as above, always compiles to code without optimizations.
 
 ### Output format
 
@@ -347,14 +348,13 @@ behind.
 
 ### CMake / CTest
 
-Build test programs without optimizations and with debug info, so that each
-`visualize(x);` line compiles to code of its own, and run cxx-debug-visualize
-as a test:
+Build test programs in the `Debug` configuration (e.g.
+`-DCMAKE_BUILD_TYPE=Debug`), which means debug info and no optimizations with
+any compiler, and run cxx-debug-visualize as a test:
 
 ```cmake
 add_executable(test_vector tests/test_vector.cpp)
 target_link_libraries(test_vector PRIVATE mylib)
-target_compile_options(test_vector PRIVATE -O0 -g)
 
 add_test(NAME natvis.test_vector
          COMMAND cxx-debug-visualize --natvis ${CMAKE_CURRENT_SOURCE_DIR}/mylib.natvis
@@ -398,7 +398,8 @@ tests `visualizers/mylib.natvis`, `visualizers/mylib_printers.py` and
 `visualizers/mylib_formatters.py` against the same tests:
 
 ```
-cmake -S example -B build -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
+cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build && ctest --test-dir build
 ```
 
@@ -447,7 +448,8 @@ root `CMakeLists.txt` builds their fixture program and runs them with CTest,
 together with the example project's tests; from a checkout:
 
 ```
-cmake -S . -B build -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
