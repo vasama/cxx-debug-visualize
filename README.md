@@ -1,6 +1,6 @@
-# test_visualizers — unit tests for natvis files and gdb pretty printers in VS Code
+# cxx-vistest — unit tests for natvis files and gdb pretty printers in VS Code
 
-`test_visualizers` prints what VS Code's debugger shows for your C++ objects, so
+`cxx-vistest` prints what VS Code's debugger shows for your C++ objects, so
 [FileCheck](https://llvm.org/docs/CommandGuide/FileCheck.html) can check your
 visualizers: `.natvis` files, or gdb pretty printers written in Python. It uses
 the same debug adapter that VS Code's C/C++ extension uses (`cppdbg`), so a
@@ -24,7 +24,7 @@ With a typo in the `<ArrayItems><Size>` of `mylib::Vector`'s natvis entry, the
 debugger silently drops the whole `<Expand>`, and FileCheck reports it:
 
 ```
-$ test_visualizers --adapter $ADAPTER --natvis mylib.natvis test_vector.cpp ./test_vector \
+$ cxx-vistest --adapter $ADAPTER --natvis mylib.natvis test_vector.cpp ./test_vector \
     | FileCheck --dump-input=never test_vector.cpp
 test_vector.cpp:11:17: error: CHECK-NEXT: expected string not found in input
  // CHECK-NEXT: [size] = 3 [std::size_t]
@@ -61,7 +61,7 @@ These findings come from reading and running cpptools 1.34.4 and MIEngine `main`
   its type has an `<Expand>`, the visualization sits one level down, in a
   `[Visualized View]` child (where display strings are shown). Types with only
   a `DisplayString` show no visualization at the top level at all. The same
-  applies in the Variables pane, Watch and hover. `test_visualizers` always turns
+  applies in the Variables pane, Watch and hover. `cxx-vistest` always turns
   the setting on, so tests see the visualization directly. Tell users of your
   natvis file to set `"showDisplayString": true`.
 * `visualizerFile` is documented as not compatible with gdb pretty printers,
@@ -76,8 +76,8 @@ Found by probing cpptools 1.34.4 with gdb 15 and confirmed in the MIEngine sourc
 | `DisplayString`, `Condition`, format specifiers `,x` `,b` `,o` | work |
 | `,s8` on `char*` / `,na` | the address is still shown before the string (`0x5555… "text"`) |
 | `Item`, `ArrayItems`, `IndexListItems`, `LinkedListItems`, `TreeItems`, `ExpandedItem`, `Intrinsic` | work |
-| More than 50 children | paged: children 50 and up sit under a `[More...]` node (test_visualizers flattens the pages into the list) |
-| `Expand` present | a `[Raw View]` child is added, unless `HideRawView="true"` (test_visualizers leaves it out of its output) |
+| More than 50 children | paged: children 50 and up sit under a `[More...]` node (cxx-vistest flattens the pages into the list) |
+| `Expand` present | a `[Raw View]` child is added, unless `HideRawView="true"` (cxx-vistest leaves it out of its output) |
 | `Synthetic`, `CustomListItems` | parsed, but **silently ignored** (no children) |
 | `TreeItems` `ValueNode Name="[{Key}]"` | name ignored; children are `[0]`, `[1]`, … |
 | `{p,[n]s8}` string length | `[n]` ignored; the whole C string is shown, prefixed by its address |
@@ -87,7 +87,7 @@ Found by probing cpptools 1.34.4 with gdb 15 and confirmed in the MIEngine sourc
 | Malformed XML | `[Natvis] [Error] ... while reading file` on the debug console; the file is ignored |
 
 Most mistakes fail silently. That is why natvis files need tests, and why
-`test_visualizers` also looks for the symptoms it can detect itself.
+`cxx-vistest` also looks for the symptoms it can detect itself.
 
 ## How gdb pretty printers work in VS Code
 
@@ -103,7 +103,7 @@ Found by running cpptools 1.34.4 with gdb 15:
 * They don't mix with natvis (`visualizerFile` is documented as not
   compatible with them), so a launch uses one or the other.
 * gdb also loads printers from its init files (`~/.gdbinit`) and auto-loads
-  installed ones, e.g. libstdc++'s for `std::` types. `test_visualizers`
+  installed ones, e.g. libstdc++'s for `std::` types. `cxx-vistest`
   switches both off (`-nx`, `set auto-load python-scripts off`), so only the
   printers under test are active, and results don't depend on the machine.
 
@@ -119,7 +119,7 @@ Found by running cpptools 1.34.4 with gdb 15:
 | exception in `to_string()` / `children()` | **no diagnostic**; the value is empty, or the children are missing |
 | error while loading the script (e.g. a syntax error) | the launch fails: `Unable to start debugging. ... Error occurred in Python: ...` |
 
-## How test_visualizers works
+## How cxx-vistest works
 
 1. It scans the test source for lines that consist of exactly
    `check_visualizer(identifier);`, and sets a breakpoint on each.
@@ -141,7 +141,7 @@ Found by running cpptools 1.34.4 with gdb 15:
      malformed XML; warnings too), and anything the adapter writes to its own
      stderr apart from its `waiting for v8 protocol on stdin/stdout` banner
      (e.g. a crash report), shown at the end;
-   * test_visualizers's own errors, prefixed with `error: `, such as an unexpected
+   * cxx-vistest's own errors, prefixed with `error: `, such as an unexpected
      stop (e.g. a segfault), the adapter going away, or a breakpoint that
      landed on a different line than its `check_visualizer` call (see below).
      A breakpoint that is not set on its own line stops the run at once,
@@ -152,20 +152,20 @@ Found by running cpptools 1.34.4 with gdb 15:
 
 FileCheck then compares stdout with the `CHECK` lines in the test source.
 
-The implementation is pure Python standard library (3.10+): `test_visualizers/dap.py`
+The implementation is pure Python standard library (3.10+): `cxx_vistest/dap.py`
 is a small DAP client, and `runner.py` holds the test logic.
 
 ## Writing tests
 
 A test is an ordinary C++ program compiled with `-g -O0`.
-`include/test_visualizers.h` provides `check_visualizer(object)`, a no-op call that
+`include/cxx_vistest.h` provides `check_visualizer(object)`, a no-op call that
 keeps its argument alive. Each line holding just `check_visualizer(x);` prints
 the tree of `x` when it runs. A line holding anything else as well (another
 statement, even a trailing comment) is not a breakpoint.
 
 Each `check_visualizer` line must compile to code of its own. If it doesn't,
 e.g. inside `if (false)` or an `#if 0` block, gdb moves its breakpoint to the
-next line with code, and test_visualizers fails with `breakpoint landed on line N
+next line with code, and cxx-vistest fails with `breakpoint landed on line N
 instead` rather than stopping somewhere else.
 
 ### Output format
@@ -216,7 +216,7 @@ check_visualizer(hello);
 * Use `CHECK-NEXT` to fix the structure, and plain `CHECK` to skip lines, such
   as the elements of a long array.
 * Match addresses with a regex: `{{0x[0-9a-f]+}}`.
-* test_visualizers doesn't flag evaluation errors or unreached calls itself. A failed
+* cxx-vistest doesn't flag evaluation errors or unreached calls itself. A failed
   natvis expression shows as `-var-create: unable to create variable object` in
   place of the value, a pretty printer that raises leaves the value empty or
   the children missing, and an unreached call prints nothing, so give every
@@ -259,13 +259,13 @@ complete tests.
 
 ### Finding out what the debugger shows
 
-Run `test_visualizers` without piping into FileCheck to see the output to write
+Run `cxx-vistest` without piping into FileCheck to see the output to write
 CHECK lines against.
 
 ## Running
 
 ```
-python3 -m test_visualizers [--adapter PATH | --vs-code-adapter | --native-dap] \
+python3 -m cxx_vistest [--adapter PATH | --vs-code-adapter | --native-dap] \
     (--natvis FILE.natvis | --printers FILE.py) [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
@@ -274,7 +274,7 @@ breakpoints. Calls in other files of the program are not breakpoints.
 
 | Option | Meaning |
 |---|---|
-| `--adapter PATH` | OpenDebugAD7 to use; by default, `$TEST_VISUALIZERS_ADAPTER` (see below) |
+| `--adapter PATH` | OpenDebugAD7 to use; by default, `$CXX_VISTEST_ADAPTER` (see below) |
 | `--vs-code-adapter` | use the OpenDebugAD7 of the newest installed VS Code C/C++ extension (see below) |
 | `--native-dap` | use gdb's own DAP support (GDB 14 and later) instead of OpenDebugAD7; `--printers` only |
 | `--natvis FILE` | the natvis file under test |
@@ -282,27 +282,27 @@ breakpoints. Calls in other files of the program are not breakpoints.
 | `--trace` | dump DAP traffic to stderr |
 
 Use `set -o pipefail` (or check both exit codes) when piping by hand, so an
-error from test_visualizers isn't hidden by a passing FileCheck. `pip install .`
-installs a `test_visualizers` command.
+error from cxx-vistest isn't hidden by a passing FileCheck. `pip install .`
+installs a `cxx-vistest` command.
 
-There is no timeout: test_visualizers waits as long as the program runs; stop it
-with Ctrl+C. test_visualizers doesn't handle signals itself. When it exits, the
+There is no timeout: cxx-vistest waits as long as the program runs; stop it
+with Ctrl+C. cxx-vistest doesn't handle signals itself. When it exits, the
 debug adapter's input closes, and the adapter is expected to shut down, taking
 gdb and the program with it. Current OpenDebugAD7 releases don't do this:
 they keep running (with gdb and the program) when their input closes. The
 issue is drafted in `mi-engine-issue/`, with a reproduction. Until it is fixed,
 Ctrl+C in a terminal still cleans up (the adapter receives the SIGINT too),
-but killing test_visualizers alone, e.g. with SIGTERM, leaves those processes
+but killing cxx-vistest alone, e.g. with SIGTERM, leaves those processes
 behind.
 
 ### CMake / CTest
 
 ```cmake
-list(APPEND CMAKE_MODULE_PATH path/to/test_visualizers/cmake)
-include(TestVisualizers)
+list(APPEND CMAKE_MODULE_PATH path/to/cxx-vistest/cmake)
+include(CxxVistest)
 enable_testing()
 
-test_visualizers_add_test(test_containers
+cxx_vistest_add_test(test_containers
   SOURCES tests/test_containers.cpp
   NATVIS natvis/mylib.natvis                  # at least one of NATVIS and PRINTERS
   PRINTERS printers/mylib_printers.py
@@ -311,7 +311,7 @@ test_visualizers_add_test(test_containers
 
 This builds the program once, with `-O0 -g`, and registers a CTest test per
 visualizer: `natvis.test_containers` and `gdb.test_containers` (label
-`visualizers`). Each test pipes test_visualizers's output into FileCheck and
+`visualizers`). Each test pipes cxx-vistest's output into FileCheck and
 fails unless both succeed. The first file in `SOURCES` is the test source: its
 `check_visualizer` lines are breakpoints and it holds the CHECK lines. With
 both visualizers, FileCheck runs with the `NATVIS` and `GDB` prefixes described
@@ -322,16 +322,16 @@ against the same tests:
 
 ```
 cmake -S example -B build \
-    -DTEST_VISUALIZERS_ADAPTER=/path/to/OpenDebugAD7 \
-    -DTEST_VISUALIZERS_FILECHECK=/usr/lib/llvm-18/bin/FileCheck
+    -DCXX_VISTEST_ADAPTER=/path/to/OpenDebugAD7 \
+    -DCXX_VISTEST_FILECHECK=/usr/lib/llvm-18/bin/FileCheck
 cmake --build build && ctest --test-dir build -L visualizers
 ```
 
 ## Getting the debug adapter
 
 `--adapter` gives the path of an `OpenDebugAD7` executable (or
-`OpenDebugAD7.dll`, run with `dotnet`). Without it, `test_visualizers` uses the
-`TEST_VISUALIZERS_ADAPTER` environment variable. One of the two is required
+`OpenDebugAD7.dll`, run with `dotnet`). Without it, `cxx-vistest` uses the
+`CXX_VISTEST_ADAPTER` environment variable. One of the two is required
 unless `--vs-code-adapter` or `--native-dap` is given.
 
 `--vs-code-adapter` uses the adapter of the newest VS Code C/C++ extension
@@ -351,7 +351,7 @@ is skipped. `--trace` shows which adapter is used.
 
   ```
   scripts/build-miengine.sh .miengine        # needs git and the .NET 8 SDK
-  test_visualizers --adapter .miengine/OpenDebugAD7 ...   # needs the .NET 8 runtime
+  cxx-vistest --adapter .miengine/OpenDebugAD7 ...   # needs the .NET 8 runtime
   ```
 
   The source-built adapter produced the same results as the one in cpptools
@@ -369,7 +369,7 @@ g++/clang++, and are skipped otherwise. They check the printed trees for
 natvis files and pretty printers (including unexpanded children, nested
 flattened `[More...]` pages, the `map` display hint, calls in loops and calls never
 reached), how broken visualizers show in them (natvis evaluation errors, a
-dropped `Expand`, raising printers), and the errors test_visualizers reports
+dropped `Expand`, raising printers), and the errors cxx-vistest reports
 (malformed XML, a printer script that doesn't load, crashes). The
 `--native-dap` tests check the printed trees and crashes with gdb's own DAP
 support; they need gdb 14 or later and g++/clang++, but no `--adapter`.

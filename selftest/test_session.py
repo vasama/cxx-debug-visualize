@@ -3,7 +3,7 @@
 import os
 import unittest
 
-from test_visualizers.session import DebugSession
+from cxx_vistest.session import DebugSession
 
 
 class LaunchConfigTests(unittest.TestCase):

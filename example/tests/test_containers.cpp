@@ -1,7 +1,7 @@
 #include "mylib/containers.h"
-#include "test_visualizers.h"
+#include "cxx_vistest.h"
 
-// Checked with FileCheck against the output of `test_visualizers`: every
+// Checked with FileCheck against the output of `cxx-vistest`: every
 // `check_visualizer(x);` line prints x and the children its visualizer
 // produces, headed by "check_visualizer(x) at <file>:<line>".
 //
@@ -80,7 +80,7 @@ int main() {
   // CHECK-NEXT:     [2] = 300 [int]
 
   // natvis pages elements past the first 50 under a "[More...]" node, which
-  // test_visualizers flattens into the list.
+  // cxx-vistest flattens into the list.
   mylib::Vector<int> big;
   for (int i = 0; i < 60; ++i)
     big.push_back(i);

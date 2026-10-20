@@ -6,13 +6,13 @@ import tempfile
 import unittest
 from unittest import mock
 
-from test_visualizers.adapter import _EXECUTABLE, find_adapter
+from cxx_vistest.adapter import _EXECUTABLE, find_adapter
 
 
 class FindAdapterTests(unittest.TestCase):
     # find_adapter() searches the home directory, i.e. $HOME
     def setUp(self):
-        self.home = tempfile.mkdtemp(prefix="test_visualizers-home-")
+        self.home = tempfile.mkdtemp(prefix="cxx-vistest-home-")
         home = mock.patch.dict(os.environ, {"HOME": self.home})
         home.start()
         self.addCleanup(home.stop)

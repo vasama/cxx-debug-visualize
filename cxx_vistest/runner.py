@@ -13,7 +13,7 @@
 #
 # Errors the adapter reports (failed requests, unverified breakpoints, natvis diagnostics, or
 # anything else it writes to its stderr besides its startup banner) are printed to stderr verbatim.
-# test_visualizers's own errors (e.g. an unexpected stop) are prefixed with "error: ". Either one
+# cxx-vistest's own errors (e.g. an unexpected stop) are prefixed with "error: ". Either one
 # fails the run.
 
 import os
@@ -55,7 +55,7 @@ class Runner:
         self._log = log
         self._failed = False
 
-    # Report an error found by test_visualizers itself.
+    # Report an error found by cxx-vistest itself.
     def _error(self, message: str) -> None:
         print(f"error: {message}", file=sys.stderr)
         self._failed = True

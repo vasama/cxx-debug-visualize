@@ -1,9 +1,9 @@
 # Command line interface:
 #
-#     test_visualizers --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
+#     cxx-vistest --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
 #         | FileCheck test.cpp
 #
-#     test_visualizers --adapter OpenDebugAD7 --printers my_printers.py test.cpp ./prog \
+#     cxx-vistest --adapter OpenDebugAD7 --printers my_printers.py test.cpp ./prog \
 #         | FileCheck test.cpp
 
 import argparse
@@ -14,16 +14,16 @@ from .adapter import find_adapter
 from .runner import Runner
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="test_visualizers",
+    parser = argparse.ArgumentParser(prog="cxx-vistest",
                                      description="Unit tests for natvis files and gdb pretty "
                                                  "printers: visualizes the variable named at each"
                                                  "call to a function named `check_visualizers`")
 
     debugger = parser.add_mutually_exclusive_group()
     debugger.add_argument("--adapter", metavar="PATH",
-                          default=os.environ.get("TEST_VISUALIZERS_ADAPTER"),
+                          default=os.environ.get("CXX_VISTEST_ADAPTER"),
                           help="path to the debug adapter, e.gs. a build of MIEngine (default: "
-                               "$TEST_VISUALIZERS_ADAPTER)")
+                               "$CXX_VISTEST_ADAPTER)")
 
     debugger.add_argument("--vs-code-adapter", action="store_true",
                           help="use the debug adapter of the newest VS Code C/C++ extension "
@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     elif ns.adapter is None:
         print("error: no debug adapter; pass --adapter, --vs-code-adapter or --native-dap, or set "
-              "TEST_VISUALIZERS_ADAPTER", file=sys.stderr)
+              "CXX_VISTEST_ADAPTER", file=sys.stderr)
         return 2
 
     if ns.trace:

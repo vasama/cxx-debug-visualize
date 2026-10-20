@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "test_visualizers"
+name = "cxx-vistest"
 version = "0.1.0"
 description = "Unit tests for natvis files and gdb pretty printers, run through VS Code's C/C++ debug adapter"
 readme = "README.md"
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-test_visualizers = "test_visualizers.cli:main"
+cxx-vistest = "cxx_vistest.cli:main"
 
 [tool.setuptools]
-packages = ["test_visualizers"]
+packages = ["cxx_vistest"]
