@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Command line interface.
 #
 #     test_visualizers --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
