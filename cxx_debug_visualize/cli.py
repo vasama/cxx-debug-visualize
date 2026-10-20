@@ -55,7 +55,9 @@ def main(argv: list[str] | None = None) -> int:
                             help="lldb formatter script (Python) to test")
 
     parser.add_argument("source", help="C++ visualization test source")
-    parser.add_argument("program", help="Unit test program (executed without arguments)")
+    parser.add_argument("program", help="Unit test program")
+    parser.add_argument("program_args", nargs="*", metavar="ARG",
+                        help="arguments passed to the program; use -- to escape options")
 
     parser.add_argument("--trace", action="store_true", help="Print the DAP traffic to stderr")
 
@@ -124,7 +126,8 @@ def main(argv: list[str] | None = None) -> int:
         print("error: the specified debugger is not executable", file=sys.stderr)
         return 2
 
-    runner = Runner(ns.adapter, ns.program, ns.source, debugger=ns.debugger,
+    runner = Runner(ns.adapter, ns.source, ns.program, ns.program_args,
+                    debugger=ns.debugger,
                     debugger_path=debugger_path, natvis=ns.natvis, gdb_printers=ns.gdb_printers,
                     lldb_formatters=ns.lldb_formatters,
                     log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None)

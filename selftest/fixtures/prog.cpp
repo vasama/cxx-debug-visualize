@@ -1,5 +1,5 @@
 // Fixture for the cxx-debug-visualize integration self-tests (line numbers matter: the tests
-// refer to visualize() calls by line).  Build with -DCRASH=0|1.
+// refer to visualize() calls by line).  Crashes at the end if given any argument.
 #include "cxx_debug_visualize.h"
 
 struct Pair { int a; int b; };
@@ -10,7 +10,7 @@ static void crash() {
   *p = 1;
 }
 
-int main() {
+int main(int argc, char **) {
   Pair pr{1, 2};
   int storage[3] = {7, 8, 9};
   Arr arr{storage, 3};
@@ -30,7 +30,7 @@ int main() {
   Arr big{many, 120};
   visualize(big);
   // every visualize call above is reached before the optional crash
-  if (CRASH)
+  if (argc > 1)
     crash();
   return 0;
 }

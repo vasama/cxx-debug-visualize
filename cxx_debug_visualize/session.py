@@ -32,8 +32,8 @@ class DebugSession:
     # this way.
     #
     # `debugger_path` is the debugger to use instead of the one found on PATH.
-    def __init__(self, adapter: str | None, program: str, *, debugger: str,
-                 debugger_path: str | None = None, natvis: str | None = None,
+    def __init__(self, adapter: str | None, program: str, program_args: list[str], *,
+                 debugger: str, debugger_path: str | None = None, natvis: str | None = None,
                  gdb_printers: str | None = None, lldb_formatters: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
         # The command line rejects all of these.
@@ -50,6 +50,7 @@ class DebugSession:
         self._debugger = debugger
         self._debugger_path = debugger_path
         self._program = os.path.abspath(program)
+        self._program_args = program_args
         self._natvis = natvis and os.path.abspath(natvis)
         self._gdb_printers = gdb_printers and os.path.abspath(gdb_printers)
         self._lldb_formatters = lldb_formatters and os.path.abspath(lldb_formatters)
@@ -69,10 +70,10 @@ class DebugSession:
     def _launch_config(self) -> dict[str, Any]:
         if self._debugger == "lldb":
             # Only the formatters under test are active. lldb-dap is instructed to read no init
-            # files reads no init files, and any built-in C++ formatters (e.g. for libstdc++) are
-            # disabled.
+            # files and to disable any built-in C++ formatters (e.g. for libstdc++).
             return {
                 "program": self._program,
+                "args": self._program_args,
                 "cwd": os.path.dirname(self._program),
                 "initCommands": [
                     "type category disable -l c++",
@@ -85,6 +86,7 @@ class DebugSession:
             "request": "launch",
             "name": "cxx-debug-visualize",
             "program": self._program,
+            "args": self._program_args,
             "cwd": os.path.dirname(self._program),
             "MIMode": "gdb",
             "externalConsole": False,
@@ -199,7 +201,8 @@ class DebugSession:
             for source, lines in breakpoints.items():
                 resolved[source] = self._set_breakpoints(source, lines)
             self._client.request("configurationDone")
-            self._client.request("launch", {"cwd": os.path.dirname(self._program)})
+            self._client.request("launch", {"cwd": os.path.dirname(self._program),
+                                            "args": self._program_args})
             return resolved
         else:
             launch_seq = self._client.request_async("launch", self._launch_config())

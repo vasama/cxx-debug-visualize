@@ -1,6 +1,9 @@
-# Run the self-tests: python3 -m selftest [--adapter PATH] [--fail-on-skip] [unittest options]
+# Run the self-tests:
 #
-# Tests whose requirements are missing (--adapter, gdb, lldb-dap, a C++ compiler) are skipped. With
+#   python3 -m selftest [--program PATH] [--adapter PATH] [--fail-on-skip] [unittest options]
+#
+# The root CMakeLists.txt builds the fixture program and runs this as a CTest test. Tests whose
+# requirements are missing (the fixture program, --adapter, gdb, lldb-dap) are skipped. With
 # --fail-on-skip, any skipped test makes the run fail.
 
 import argparse
@@ -11,11 +14,17 @@ import unittest
 from . import test_integration
 
 parser = argparse.ArgumentParser(prog="python3 -m selftest")
+parser.add_argument("--program", metavar="PATH",
+                    help="the built fixture program selftest/fixtures/prog.cpp")
 parser.add_argument("--adapter", metavar="PATH", help="path to OpenDebugAD7")
 parser.add_argument("--fail-on-skip", action="store_true",
                     help="fail if any test is skipped, e.g. because a tool is missing")
 
 ns, rest = parser.parse_known_args()
+if ns.program:
+    if not os.path.isfile(ns.program):
+        parser.error(f"fixture program not found: {ns.program}")
+    test_integration.PROGRAM = os.path.abspath(ns.program)
 if ns.adapter:
     if not os.path.isfile(ns.adapter):
         parser.error(f"debug adapter not found: {ns.adapter}")

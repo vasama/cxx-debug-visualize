@@ -310,7 +310,7 @@ file (replace the addresses with `0x?`, e.g. with
 python3 -m cxx_debug_visualize [--debugger gdb|lldb] [--debugger-path PATH] \
     [--adapter PATH | --vs-code-adapter] \
     (--natvis FILE.natvis | --gdb-printers FILE.py | --lldb-formatters FILE.py) [options] \
-    TEST.cpp PROGRAM
+    TEST.cpp PROGRAM [--] [ARG...]
 ```
 
 `TEST.cpp` is the test source: its `visualize(x);` lines get
@@ -332,6 +332,7 @@ adapter (OpenDebugAD7).
 | `--gdb-printers FILE` | the gdb pretty-printer script (Python) under test; requires `--debugger gdb` |
 | `--lldb-formatters FILE` | the lldb formatter script (Python, loaded with `command script import`) under test; requires `--debugger lldb`. Exactly one of `--natvis`, `--gdb-printers` and `--lldb-formatters` is required |
 | `--trace` | dump DAP traffic to stderr |
+| `ARG...` | arguments after `PROGRAM` are passed to it; put `--` before them if any starts with `-` |
 
 The output goes to stdout. A test passes if cxx-debug-visualize exits with status 0
 and its output matches the expected output (see above). The installed package
@@ -428,29 +429,38 @@ is skipped. `--trace` shows which adapter is used.
 
 ## Self-tests
 
-The [self-tests][selftest] are part of the repository, not of the package. From
-a checkout:
+The [self-tests][selftest] are part of the repository, not of the package. The
+root `CMakeLists.txt` builds their fixture program and runs them with CTest;
+from a checkout:
 
 ```
-python3 -m selftest --adapter /path/to/OpenDebugAD7
+cmake -S . -B build -DCXX_DEBUG_VISUALIZE_ADAPTER=/path/to/OpenDebugAD7
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-The tests of the `visualize` line scanner and of the launch
-configurations always run. The integration tests need `--adapter`, gdb and
-g++/clang++. They check the printed trees for
+CMake builds `selftest/fixtures/prog.cpp` and passes the program to the
+self-tests (`python3 -m selftest --program PATH …`), which compile nothing
+themselves. The program crashes after its last `visualize()` call when given
+an argument, which the crash tests pass to it.
+
+The tests of the `visualize` line scanner and of the launch configurations
+always run. The integration tests need the fixture programs, and gdb and
+`CXX_DEBUG_VISUALIZE_ADAPTER` (`--adapter`). They check the printed trees for
 natvis files and pretty printers (including unexpanded children, nested
-flattened `[More...]` pages, the `map` display hint, calls in loops and calls never
-reached), how broken visualizers show in them (natvis evaluation errors, a
-dropped `Expand`, raising printers), and the errors cxx-debug-visualize reports
-(malformed XML, a printer script that doesn't load, crashes). The
-tests of gdb's own DAP support check the printed trees and crashes; they need
-gdb 14 or later and g++/clang++, but no `--adapter`. The lldb tests check the
-same for lldb formatters ([`selftest/fixtures/good_formatters.py`][selftest-formatters]); they need
-lldb-dap (or lldb-vscode) on `PATH` and g++/clang++.
+flattened `[More...]` pages, the `map` display hint, calls in loops and calls
+never reached), how broken visualizers show in them (natvis evaluation errors,
+a dropped `Expand`, raising printers), and the errors cxx-debug-visualize
+reports (malformed XML, a printer script that doesn't load, crashes). The tests
+of gdb's own DAP support check the printed trees and crashes; they need gdb 14
+or later, but no adapter. The lldb tests check the same for lldb formatters
+([`selftest/fixtures/good_formatters.py`][selftest-formatters]); they need
+lldb-dap (or lldb-vscode) on `PATH`.
 
-Tests whose requirements are missing are skipped. With `--fail-on-skip`, any
-skipped test makes the run fail (exit status 1), listing what was skipped and
-why, so a passing run means every test ran; the GitHub workflow uses it.
+Tests whose requirements are missing are skipped. With
+`-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON` (`--fail-on-skip`), any skipped test
+makes the run fail, listing what was skipped and why, so a passing run means
+every test ran; the GitHub workflow uses it.
 
 The [GitHub Actions workflow][workflow] runs the self-tests and the example's
 CTest tests on every released Python version that is not end-of-life, with

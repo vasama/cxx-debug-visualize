@@ -1,15 +1,14 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
-# Run through `python3 -m selftest --adapter PATH`. Each test class is skipped when what it needs
-# is missing: the adapter (--adapter), gdb, lldb-dap, or a C++ compiler. With --fail-on-skip, that
-# fails the run.
+# Run through `python3 -m selftest` (e.g. by CTest), which passes the built fixture program
+# prog.cpp (--program) and the adapter (--adapter). Each test class is skipped when what it needs
+# is missing: the program, the adapter, gdb, or lldb-dap. With --fail-on-skip, that fails the run.
 
 import contextlib
 import io
 import os
 import shutil
 import subprocess
-import tempfile
 import unittest
 
 from cxx_debug_visualize.adapter import find_lldb_dap
@@ -20,13 +19,14 @@ FIXTURES = os.path.join(HERE, "fixtures")
 SOURCE = os.path.join(FIXTURES, "prog.cpp")
 
 
-# Path of OpenDebugAD7, set from the command line by selftest/__main__.py.
+# Set from the command line by selftest/__main__.py: the paths of OpenDebugAD7 and of the built
+# fixture program.
 ADAPTER = None
-CXX = os.environ.get("CXX") or shutil.which("g++") or shutil.which("clang++")
+PROGRAM = None
 
 
-# Builds the fixture program and runs cxx-debug-visualize on it; the test classes below say which
-# debug adapter to use.
+# Runs cxx-debug-visualize on the fixture program; the test classes below say which debug adapter
+# to use.
 class FixtureTestCase(unittest.TestCase):
     # path of OpenDebugAD7, or None for the debugger's own DAP support (the default)
     adapter = None
@@ -34,26 +34,17 @@ class FixtureTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.mkdtemp(prefix="cxx-debug-visualize-")
-        # variants of the fixture: without and with a crash after the last call
-        cls.programs = {}
-        for variant, crash in (("plain", 0), ("crash", 1)):
-            program = os.path.join(cls.tmp, f"prog_{variant}")
-            subprocess.check_call([CXX, "-g", "-O0", f"-DCRASH={crash}",
-                                   "-I", os.path.join(HERE, "..", "include"),
-                                   "-o", program, SOURCE])
-            cls.programs[variant] = program
-
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.tmp, ignore_errors=True)
+        if not PROGRAM:
+            raise unittest.SkipTest("needs the fixture program (--program)")
 
     # Run the fixture with a natvis file, a pretty-printer script or an lldb formatter script
-    # from fixtures/; return (stdout, stderr lines).
-    def run_visualizer(self, variant="plain", *, natvis=None, gdb_printers=None,
+    # from fixtures/, and the command line arguments `program_args` (any make it crash at the
+    # end); return (stdout, stderr lines).
+    def run_visualizer(self, *program_args, natvis=None, gdb_printers=None,
                        lldb_formatters=None):
         fixture = lambda name: name and os.path.join(FIXTURES, name)
-        runner = Runner(self.adapter, self.programs[variant], SOURCE, debugger=self.debugger,
+        runner = Runner(self.adapter, SOURCE, PROGRAM, list(program_args),
+                        debugger=self.debugger,
                         natvis=fixture(natvis), gdb_printers=fixture(gdb_printers),
                         lldb_formatters=fixture(lldb_formatters))
         out, err = io.StringIO(), io.StringIO()
@@ -68,8 +59,8 @@ class FixtureTestCase(unittest.TestCase):
 class IntegrationTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
-        if not (ADAPTER and CXX and shutil.which("gdb")):
-            raise unittest.SkipTest("needs --adapter, gdb and a C++ compiler")
+        if not (ADAPTER and shutil.which("gdb")):
+            raise unittest.SkipTest("needs --adapter and gdb")
         cls.adapter = ADAPTER
         super().setUpClass()
 
@@ -184,10 +175,10 @@ class IntegrationTests(FixtureTestCase):
 class NativeDapTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
-        if not (CXX and shutil.which("gdb")) or subprocess.run(
+        if not shutil.which("gdb") or subprocess.run(
                 ["gdb", "-nx", "-batch", "-ex", "python import gdb.dap"],
                 capture_output=True).returncode != 0:
-            raise unittest.SkipTest("needs gdb 14 or later and a C++ compiler")
+            raise unittest.SkipTest("needs gdb 14 or later")
         super().setUpClass()
 
     def test_good_printers(self):
@@ -235,8 +226,8 @@ class LldbTests(FixtureTestCase):
 
     @classmethod
     def setUpClass(cls):
-        if not (CXX and find_lldb_dap()):
-            raise unittest.SkipTest("needs lldb-dap (or lldb-vscode) on PATH and a C++ compiler")
+        if not find_lldb_dap():
+            raise unittest.SkipTest("needs lldb-dap (or lldb-vscode) on PATH")
         super().setUpClass()
 
     def test_good_formatters(self):

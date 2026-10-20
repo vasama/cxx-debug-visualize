@@ -45,8 +45,8 @@ def discover_test_lines(path: str) -> list[TestInvocation]:
 class Runner:
     # The visualizer under test is a natvis file, a gdb pretty-printer script or an lldb formatter
     # script. With `adapter` None, the debugger's native DAP support is used (see DebugSession).
-    def __init__(self, adapter: str | None, program: str, source: str, *, debugger: str,
-                 debugger_path: str | None = None, natvis: str | None = None,
+    def __init__(self, adapter: str | None, source: str, program: str, program_args: list[str], *,
+                 debugger: str, debugger_path: str | None = None, natvis: str | None = None,
                  gdb_printers: str | None = None, lldb_formatters: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
         self._adapter = adapter
@@ -54,6 +54,7 @@ class Runner:
         self._source = os.path.abspath(source)
         self._debugger = debugger
         self._debugger_path = debugger_path
+        self._program_args = program_args
         self._visualizer: dict[str, str | None] = {"natvis": natvis, "gdb_printers": gdb_printers,
                                                    "lldb_formatters": lldb_formatters}
         self._log = log
@@ -126,8 +127,9 @@ class Runner:
         if not invocations:
             return True
 
-        session = DebugSession(self._adapter, self._program, debugger=self._debugger,
-                               debugger_path=self._debugger_path, **self._visualizer, log=self._log)
+        session = DebugSession(self._adapter, self._program, self._program_args,
+                               debugger=self._debugger, debugger_path=self._debugger_path,
+                               **self._visualizer, log=self._log)
         try:
             breakpoint_ids = session.start({
                 self._source: [invocation.line for invocation in invocations]
