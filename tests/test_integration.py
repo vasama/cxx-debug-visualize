@@ -1,7 +1,7 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m tests` (e.g. by CTest), which passes the built fixture program
-# test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --vs-adapter).
+# test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --miengine).
 # A test class is skipped, and left out of --list, unless every executable it uses was given, and
 # fails without the fixture program.
 
@@ -22,7 +22,7 @@ SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 # Set from the command line by tests/__main__.py: the path of the built fixture program, and
 # the full paths of the executables to test with, by option name (None if not given).
 PROGRAM = None
-TOOLS = {"gdb": None, "lldb-dap": None, "vs-adapter": None}
+TOOLS = {"gdb": None, "lldb-dap": None, "miengine": None}
 
 
 # Runs cxx-debug-visualize on the fixture program; the test classes below say which debug adapter
@@ -72,12 +72,12 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class IntegrationTests(FixtureTestCase):
-    tools = ("vs-adapter", "gdb")
+    tools = ("miengine", "gdb")
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.adapter = TOOLS["vs-adapter"]
+        cls.adapter = TOOLS["miengine"]
 
     def test_good_natvis(self):
         output, errors = self.run_visualizer(natvis="good.natvis")

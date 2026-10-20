@@ -10,7 +10,7 @@ import argparse
 import os
 import sys
 
-from .adapter import find_adapter
+from .adapter import find_miengine
 from .runner import Runner
 
 
@@ -43,15 +43,15 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.add_argument(
         "--adapter",
-        choices=("native", "vs"),
-        help="the debugger's native DAP support, or the Visual Studio debug adapter (OpenDebugAD7) "
-        "(default: vs if either --natvis or --vs-adapter is specified, otherwise native)",
+        choices=("native", "miengine"),
+        help="the debugger's native DAP support, or the MIEngine debug adapter (OpenDebugAD7) "
+        "(default: miengine if either --natvis or --miengine is specified, otherwise native)",
     )
     parser.add_argument(
-        "--vs-adapter",
+        "--miengine",
         metavar="PATH",
-        help="Visual Studio debug adapter path (e.g. a build of MIEngine) (default: "
-        "$CXX_DEBUG_VISUALIZE_VS_ADAPTER, otherwise the user's home directory is searched for an "
+        help="MIEngine debug adapter (OpenDebugAD7) path (e.g. a build of MIEngine) (default: "
+        "$CXX_DEBUG_VISUALIZE_MIENGINE, otherwise the user's home directory is searched for an "
         "installed VS Code C/C++ extension)",
     )
 
@@ -98,25 +98,26 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 2
 
-    # If --adapter was not specified explicitly, deduce it as "vs" if --natvis or --vs-adapter were
-    # specified, and as "native" otherwise.
+    # If --adapter was not specified explicitly, deduce it as:
+    #   * "miengine" if either --natvis or --miengine was specified, or
+    #   * "native" otherwise.
     if ns.adapter is None:
-        if ns.natvis or ns.vs_adapter:
-            ns.adapter = "vs"
+        if ns.natvis or ns.miengine:
+            ns.adapter = "miengine"
         else:
             ns.adapter = "native"
 
-    if ns.adapter == "vs" and ns.debugger == "lldb":
+    if ns.adapter == "miengine" and ns.debugger == "lldb":
         print(
-            "error: using lldb via the Visual Studio debug adapter is not currently supported",
+            "error: using lldb via the MIEngine debug adapter is not currently supported",
             file=sys.stderr,
         )
         return 2
-    if ns.adapter == "native" and ns.vs_adapter is not None:
-        print("error: --vs-adapter requires --adapter vs", file=sys.stderr)
+    if ns.adapter == "native" and ns.miengine is not None:
+        print("error: --miengine requires --adapter miengine", file=sys.stderr)
         return 2
-    if ns.natvis and ns.adapter != "vs":
-        print("error: --natvis requires --adapter vs", file=sys.stderr)
+    if ns.natvis and ns.adapter != "miengine":
+        print("error: --natvis requires --adapter miengine", file=sys.stderr)
         return 2
     if ns.gdb_printers and ns.debugger != "gdb":
         print("error: --gdb-printers requires --debugger=gdb", file=sys.stderr)
@@ -125,17 +126,17 @@ def main(argv: list[str] | None = None) -> int:
         print("error: --lldb-formatters requires --debugger=lldb", file=sys.stderr)
         return 2
 
-    # The Visual Studio debug adapter: --vs-adapter, $CXX_DEBUG_VISUALIZE_VS_ADAPTER, or a debug
-    # adapter found in an installed VS Code C/C++ extension. None for native DAP support.
+    # The MIEngine debug adapter: --miengine, $CXX_DEBUG_VISUALIZE_MIENGINE, or the debug adapter
+    # found in an installed VS Code C/C++ extension. None for native DAP support.
     adapter_path = None
-    if ns.adapter == "vs":
+    if ns.adapter == "miengine":
         adapter_path = (
-            ns.vs_adapter or os.environ.get("CXX_DEBUG_VISUALIZE_VS_ADAPTER") or find_adapter()
+            ns.miengine or os.environ.get("CXX_DEBUG_VISUALIZE_MIENGINE") or find_miengine()
         )
         if adapter_path is None:
             print(
-                "error: Visual Studio debug adapter not found; pass --vs-adapter, set "
-                "CXX_DEBUG_VISUALIZE_VS_ADAPTER, or install VS Code's C/C++ extension",
+                "error: MIEngine debug adapter not found; pass --miengine, set "
+                "CXX_DEBUG_VISUALIZE_MIENGINE, or install VS Code's C/C++ extension",
                 file=sys.stderr,
             )
             return 2

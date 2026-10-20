@@ -17,9 +17,9 @@ session.py    debug session: adapter process, launch configuration, DAP request 
 dap.py        DAP client: message framing, requests, responses and events over stdin/stdout
   │
 debug adapter (separate process)
-  ├─ OpenDebugAD7 (MIEngine) ── gdb            --adapter vs      natvis, gdb pretty printers
-  ├─ gdb -i dap                                --adapter native  gdb pretty printers
-  └─ lldb-dap (lldb-vscode)                    --adapter native  lldb formatters
+  ├─ OpenDebugAD7 (MIEngine) ── gdb            --adapter miengine  natvis, gdb pretty printers
+  ├─ gdb -i dap                                --adapter native    gdb pretty printers
+  └─ lldb-dap (lldb-vscode)                    --adapter native    lldb formatters
 ```
 
 Each layer only uses the one below it. Everything runs on a single thread: waiting for a response
@@ -41,12 +41,12 @@ options. Inconsistent combinations of options are rejected with exit code `2`.
   means `gdb`, `--lldb-formatters` means `lldb`). Natvis is technically debugger-independent, so
   with `--natvis` the type is deduced from the name of `--debugger-path`, defaulting to `gdb`.
   However, Natvis with LLDB has not yet been tested and is for now unsupported.
-* **Adapter** (`vs` or `native`): `--adapter`, otherwise `vs` for `--natvis` or when
-  `--vs-adapter` is given, and `native` otherwise. Natvis requires `vs`, and LLDB requires
+* **Adapter** (`miengine` or `native`): `--adapter`, otherwise `miengine` for `--natvis` or when
+  `--miengine` is given, and `native` otherwise. Natvis requires `miengine`, and LLDB requires
   `native`.
-* **OpenDebugAD7** (only required with `--adapter=vs`): `--vs-adapter`, then
-  `$CXX_DEBUG_VISUALIZE_VS_ADAPTER`, then the newest VS Code C/C++ extension found by
-  `adapter.find_adapter()`.
+* **OpenDebugAD7** (only required with `--adapter=miengine`): `--miengine`, then
+  `$CXX_DEBUG_VISUALIZE_MIENGINE`, then the newest VS Code C/C++ extension found by
+  `adapter.find_miengine()`.
 * All specified paths must be valid. The debugger and adapter (if any) must be executable.
 
 Finally it executes the program using `Runner` and returns 0 on success and 1 otherwise. If the
@@ -117,7 +117,7 @@ need nothing but Python. The integration tests run the fixture program under eac
 bad and malformed visualizers, and check both the printed trees and the errors reported.
 
 `python3 -m tests` takes the fixture program (`--program`) and the executables to test with
-(`--gdb`, `--lldb-dap`, `--vs-adapter`). An integration test class runs only when the executables
+(`--gdb`, `--lldb-dap`, `--miengine`). An integration test class runs only when the executables
 it needs are given, and is otherwise skipped and left out of `--list`. The self-tests never compile
 anything. CMake is used to build the fixture program and CTest to drive the test execution.
 
@@ -127,7 +127,7 @@ anything. CMake is used to build the fixture program and CTest to drive the test
 * `CXXDEBVIS_GDB`: GDB executable name or absolute path. Enables GDB pretty printer tests.
 * `CXXDEBVIS_LLDB_DAP`: LLDB DAP server executable name or absolute path. Enables LLDB formatter
   tests.
-* `CXXDEBVIS_VS_ADAPTER`: `OpenDebugAD7` executable name or absolute path. Enables Natvis tests (GDB
+* `CXXDEBVIS_MIENGINE`: `OpenDebugAD7` executable name or absolute path. Enables Natvis tests (GDB
   is also required).
 
 At least one debugger tool (GDB or LLDB) must be specified. Only the `Debug` configuration is

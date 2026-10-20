@@ -18,7 +18,7 @@ _EXECUTABLE = "OpenDebugAD7.exe" if sys.platform == "win32" else "OpenDebugAD7"
 #
 # The .vsix does not preserve permissions. The extension makes its binaries executable when it is
 # first activated, so versions VS Code has not yet activated (e.g. after an update) are skipped.
-def find_adapter() -> str | None:
+def find_miengine() -> str | None:
     candidates: list[str] = []
     for directory in _EXTENSION_DIRS:
         extensions = os.path.join(os.path.expanduser("~"), directory, "extensions")

@@ -1,12 +1,12 @@
 # Run the self-tests:
 #
-#   python3 -m tests [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH]
+#   python3 -m tests [--program PATH] [--gdb PATH] [--lldb-dap PATH] [--miengine PATH]
 #                       [--test ID]... [unittest options]
-#   python3 -m tests [--gdb PATH] [--lldb-dap PATH] [--vs-adapter PATH] --list
+#   python3 -m tests [--gdb PATH] [--lldb-dap PATH] [--miengine PATH] --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
 # CTest test, which runs it with --test. The integration tests run with the executables given with
-# --gdb, --lldb-dap and --vs-adapter; those that need one not given are skipped, and left out of
+# --gdb, --lldb-dap and --miengine; those that need one not given are skipped, and left out of
 # --list. Without the fixture program (--program), the integration tests fail.
 
 import argparse
@@ -25,9 +25,9 @@ parser.add_argument(
     "--lldb-dap", metavar="PATH", help="lldb-dap (or lldb-vscode), to run the lldb tests with"
 )
 parser.add_argument(
-    "--vs-adapter",
+    "--miengine",
     metavar="PATH",
-    help="OpenDebugAD7, the Visual Studio debug adapter, to run tests through (with --gdb)",
+    help="OpenDebugAD7, MIEngine's debug adapter, to run tests through (with --gdb)",
 )
 parser.add_argument(
     "--list",

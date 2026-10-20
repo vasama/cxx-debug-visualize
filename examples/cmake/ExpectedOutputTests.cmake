@@ -14,13 +14,13 @@
 # Builds the program <name> with the repository's include/ directory, for cxx_debug_visualize.hpp,
 # and registers CTest tests labelled
 # "visualizers", which run <name> under cxx-debug-visualize:
-#   natvis-miengine.<name>  NATVIS, through the Visual Studio debug adapter (OpenDebugAD7)
-#   gdb-vs.<name>           GDB_PRINTERS, through OpenDebugAD7
+#   natvis-miengine.<name>  NATVIS, through MIEngine's debug adapter (OpenDebugAD7)
+#   gdb-miengine.<name>     GDB_PRINTERS, through OpenDebugAD7
 #   gdb-native.<name>       GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
 #   lldb-native.<name>      LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18)
 # Each compares the printed Variables trees with an expected output file next to the test
 # source, the first file in SOURCES: <test>.<kind>.txt, e.g. <test>.natvis-miengine.txt,
-# <test>.gdb-vs.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
+# <test>.gdb-miengine.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the output is
 # replaced by "0x?" before comparing; expected files contain "0x?" in their place.  Line endings
@@ -31,11 +31,11 @@
 # the expected file, and a diff is printed.
 #
 # Cache variables, the executables to test with, which select the tests registered:
-#   CXXDEBVIS_GDB         gdb, for the tests with gdb, natively (GDB 14 and later) and through
-#                         OpenDebugAD7
-#   CXXDEBVIS_LLDB_DAP    lldb-dap (or lldb-vscode), for the tests with lldb
-#   CXXDEBVIS_VS_ADAPTER  OpenDebugAD7, the Visual Studio debug adapter, for the tests through
-#                         it; needs CXXDEBVIS_GDB, as the adapter runs gdb
+#   CXXDEBVIS_GDB       gdb, for the tests with gdb, natively (GDB 14 and later) and through
+#                       OpenDebugAD7
+#   CXXDEBVIS_LLDB_DAP  lldb-dap (or lldb-vscode), for the tests with lldb
+#   CXXDEBVIS_MIENGINE  OpenDebugAD7, MIEngine's debug adapter, for the tests through it; needs
+#                       CXXDEBVIS_GDB, as the adapter runs gdb
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
 # registered. At least one of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP must be set.
 #
@@ -53,11 +53,11 @@ set(CXX_DEBUG_VISUALIZE_COMMAND
 
 set(CXXDEBVIS_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
 set(CXXDEBVIS_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
-set(CXXDEBVIS_VS_ADAPTER ""
+set(CXXDEBVIS_MIENGINE ""
     CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
 
 # The full path of each executable given, as <variable>_PATH; empty if not given.
-foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_VS_ADAPTER)
+foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_MIENGINE)
   set(cxxdebvis_value "${${cxxdebvis_var}}")
   set(${cxxdebvis_var}_PATH "")
   if(cxxdebvis_value STREQUAL "")
@@ -84,8 +84,8 @@ if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH)
   message(FATAL_ERROR "set CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP or both to the debuggers to test "
                       "with, e.g. -DCXXDEBVIS_GDB=gdb -DCXXDEBVIS_LLDB_DAP=lldb-dap")
 endif()
-if(CXXDEBVIS_VS_ADAPTER_PATH AND NOT CXXDEBVIS_GDB_PATH)
-  message(FATAL_ERROR "CXXDEBVIS_VS_ADAPTER needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
+if(CXXDEBVIS_MIENGINE_PATH AND NOT CXXDEBVIS_GDB_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_MIENGINE needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
 endif()
 
 get_property(_visualizer_test_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -123,12 +123,12 @@ function(add_visualizer_test name)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
   set(gdb --debugger gdb --debugger-path "${CXXDEBVIS_GDB_PATH}")
-  if(TV_NATVIS AND CXXDEBVIS_VS_ADAPTER_PATH)
-    _add_visualizer_run(natvis-miengine ${name} "${test_source}" vs
+  if(TV_NATVIS AND CXXDEBVIS_MIENGINE_PATH)
+    _add_visualizer_run(natvis-miengine ${name} "${test_source}" miengine
                         --natvis "${TV_NATVIS}" ${gdb} ${TV_ARGS})
   endif()
-  if(TV_GDB_PRINTERS AND CXXDEBVIS_VS_ADAPTER_PATH)
-    _add_visualizer_run(gdb-vs ${name} "${test_source}" vs
+  if(TV_GDB_PRINTERS AND CXXDEBVIS_MIENGINE_PATH)
+    _add_visualizer_run(gdb-miengine ${name} "${test_source}" miengine
                         --gdb-printers "${TV_GDB_PRINTERS}" ${gdb} ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS AND CXXDEBVIS_GDB_PATH)
@@ -143,7 +143,7 @@ function(add_visualizer_test name)
 endfunction()
 
 # Register the CTest test "<kind>.<name>", which runs the program <name> with --adapter <adapter>
-# (native or vs) and the visualizer <option> <file>, and compares the output with
+# (native or miengine) and the visualizer <option> <file>, and compares the output with
 # <test source>.<kind>.txt.  Further arguments are passed on to cxx-debug-visualize.
 function(_add_visualizer_run kind name test_source adapter option file)
   get_filename_component(file "${file}" ABSOLUTE)
@@ -152,8 +152,8 @@ function(_add_visualizer_run kind name test_source adapter option file)
   set(expected "${test_dir}/${test_name}.${kind}.txt")
   set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
   set(run ${CXX_DEBUG_VISUALIZE_COMMAND} --adapter ${adapter})
-  if(adapter STREQUAL "vs")
-    list(APPEND run --vs-adapter "${CXXDEBVIS_VS_ADAPTER_PATH}")
+  if(adapter STREQUAL "miengine")
+    list(APPEND run --miengine "${CXXDEBVIS_MIENGINE_PATH}")
   endif()
   list(APPEND run ${option} "${file}" ${ARGN} "${test_source}")
 

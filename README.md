@@ -80,9 +80,9 @@ cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
 * The debugger executable to use may be specified using `--debugger-path`.
 * The type of debugger to use may be specified using `--debugger` (`gdb` or `lldb`), but in most
   cases it can be selected automatically.
-* The type of debug adapter to use may be specified using `--adapter` (`native` or `vs`), but in
-  most cases it can be selected automatically. Only the `vs` adapter supports Natvis.
-* `--vs-adapter` (or `$CXX_DEBUG_VISUALIZE_VS_ADAPTER`) may be used to specify the `OpenDebugAD7`
+* The type of debug adapter to use may be specified using `--adapter` (`native` or `miengine`), but
+  in most cases it can be selected automatically. Only the `miengine` adapter supports Natvis.
+* `--miengine` (or `$CXX_DEBUG_VISUALIZE_MIENGINE`) may be used to specify the `OpenDebugAD7`
   executable path. If neither is specified, the user's home directory is searched for an installed
   VS Code C/C++ extension.
 * Unparsed arguments are passed to the test program. Use `--` to escape options.
@@ -98,7 +98,7 @@ cmake -B build . \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCXXDEBVIS_GDB=gdb \
   -DCXXDEBVIS_LLDB_DAP=lldb-dap-18 \
-  -DCXXDEBVIS_VS_ADAPTER=/path/to/OpenDebugAD7
+  -DCXXDEBVIS_MIENGINE=/path/to/OpenDebugAD7
 
 cmake --build build
 ctest --test-dir build
@@ -110,7 +110,7 @@ Use `--trace` to print all DAP traffic to stderr.
 
 * **Developer machines**: it is possible to rely on the debug adapter installed via the VS Code
   C/C++ extension. Otherwise, a specific executable (or .NET `.dll`) may be specified using
-  `--vs-adapter`. For remote development (e.g. via SSH), the installed VS Code server extensions are
+  `--miengine`. For remote development (e.g. via SSH), the installed VS Code server extensions are
   also searched.
 * **CI**: Build `OpenDebugAD7` from the MIT-licensed
   [MIEngine](https://github.com/microsoft/MIEngine) source (with .NET 8 or later):
@@ -118,7 +118,7 @@ Use `--trace` to print all DAP traffic to stderr.
   ```
   git clone --depth 1 https://github.com/microsoft/MIEngine.git
   sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$PWD/miengine"
-  cxx-debug-visualize --vs-adapter miengine/OpenDebugAD7 ...
+  cxx-debug-visualize --miengine miengine/OpenDebugAD7 ...
   ```
 
   The build is self-contained: it includes the .NET runtime, so running it needs no .NET
@@ -127,7 +127,7 @@ Use `--trace` to print all DAP traffic to stderr.
 
 ## Limitations
 
-* `lldb` with the Visual Studio debug adapter is currently unsupported (VS Code on macOS).
+* `lldb` with the MIEngine debug adapter is currently unsupported (VS Code on macOS).
 * `cppvsdbg` uses a different engine and is currently unsupported (Visual Studio Natvis).
 * `cxx-debug-visualize` has thus far only been tested on Linux.
 

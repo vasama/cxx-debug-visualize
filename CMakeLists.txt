@@ -3,11 +3,11 @@
 #
 #   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
 #         -DCXXDEBVIS_GDB=gdb -DCXXDEBVIS_LLDB_DAP=lldb-dap \
-#         -DCXXDEBVIS_VS_ADAPTER=/path/to/OpenDebugAD7
+#         -DCXXDEBVIS_MIENGINE=/path/to/OpenDebugAD7
 #   cmake --build build
 #   ctest --test-dir build --output-on-failure
 #
-# CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_VS_ADAPTER give the executables to test with
+# CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_MIENGINE give the executables to test with
 # (absolute paths, or names looked up on PATH), and so select the tests; at least one of the
 # debuggers is needed.
 

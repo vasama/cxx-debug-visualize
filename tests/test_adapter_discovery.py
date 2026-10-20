@@ -6,11 +6,11 @@ import tempfile
 import unittest
 from unittest import mock
 
-from cxx_debug_visualize.adapter import _EXECUTABLE, find_adapter
+from cxx_debug_visualize.adapter import _EXECUTABLE, find_miengine
 
 
 class FindAdapterTests(unittest.TestCase):
-    # `find_adapter` searches the home directory, i.e. $HOME.
+    # `find_miengine` searches the home directory, i.e. $HOME.
     def setUp(self):
         self.home = tempfile.mkdtemp(prefix="cxx-debug-visualize-home-")
         home = mock.patch.dict(os.environ, {"HOME": self.home})
@@ -33,23 +33,23 @@ class FindAdapterTests(unittest.TestCase):
         return path
 
     def test_none_installed(self):
-        self.assertIsNone(find_adapter())
+        self.assertIsNone(find_miengine())
 
     def test_newest_version_wins(self):
         self.install(".vscode", "ms-vscode.cpptools-1.9.0-linux-x64")
         newest = self.install(".vscode-server", "ms-vscode.cpptools-1.34.10-linux-x64")
         self.install(".vscode", "ms-vscode.cpptools-1.34.4-linux-x64")
-        self.assertEqual(find_adapter(), newest)
+        self.assertEqual(find_miengine(), newest)
 
     def test_ignores_other_extensions_and_incomplete_installs(self):
         self.install(".vscode", "ms-vscode.cpptools-extension-pack-1.3.0")
         self.install(".vscode", "ms-vscode.cpptools-2.0.0-linux-x64", with_adapter=False)
-        self.assertIsNone(find_adapter())
+        self.assertIsNone(find_miengine())
         wanted = self.install(".vscode-insiders", "ms-vscode.cpptools-1.20.0-linux-x64")
-        self.assertEqual(find_adapter(), wanted)
+        self.assertEqual(find_miengine(), wanted)
 
     @unittest.skipIf(os.name == "nt", "no execute permission on Windows")
     def test_skips_non_executable(self):
         wanted = self.install(".vscode", "ms-vscode.cpptools-1.20.0-linux-x64")
         self.install(".vscode", "ms-vscode.cpptools-1.21.0-linux-x64", executable=False)
-        self.assertEqual(find_adapter(), wanted)
+        self.assertEqual(find_miengine(), wanted)

@@ -6,11 +6,11 @@
 # CMake configures, which a build redoes when a file in this directory changes.
 #
 # Cache variables, the executables to test with, which select the self-tests registered:
-#   CXXDEBVIS_GDB         gdb, for the tests with gdb, natively (GDB 14 and later) and through
-#                         OpenDebugAD7
-#   CXXDEBVIS_LLDB_DAP    lldb-dap (or lldb-vscode), for the tests with lldb
-#   CXXDEBVIS_VS_ADAPTER  OpenDebugAD7, the Visual Studio debug adapter, for the tests through
-#                         it; needs CXXDEBVIS_GDB, as the adapter runs gdb
+#   CXXDEBVIS_GDB       gdb, for the tests with gdb, natively (GDB 14 and later) and through
+#                       OpenDebugAD7
+#   CXXDEBVIS_LLDB_DAP  lldb-dap (or lldb-vscode), for the tests with lldb
+#   CXXDEBVIS_MIENGINE  OpenDebugAD7, MIEngine's debug adapter, for the tests through it; needs
+#                       CXXDEBVIS_GDB, as the adapter runs gdb
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
 # registered. At least one of CXXDEBVIS_GDB and CXXDEBVIS_LLDB_DAP must be set.
 
@@ -18,11 +18,11 @@ find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
 set(CXXDEBVIS_GDB "" CACHE STRING "gdb: an absolute path, or a name looked up on PATH")
 set(CXXDEBVIS_LLDB_DAP "" CACHE STRING "lldb-dap: an absolute path, or a name looked up on PATH")
-set(CXXDEBVIS_VS_ADAPTER ""
+set(CXXDEBVIS_MIENGINE ""
     CACHE STRING "OpenDebugAD7: an absolute path, or a name looked up on PATH")
 
 # The full path of each executable given, as <variable>_PATH; empty if not given.
-foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_VS_ADAPTER)
+foreach(cxxdebvis_var IN ITEMS CXXDEBVIS_GDB CXXDEBVIS_LLDB_DAP CXXDEBVIS_MIENGINE)
   set(cxxdebvis_value "${${cxxdebvis_var}}")
   set(${cxxdebvis_var}_PATH "")
   if(cxxdebvis_value STREQUAL "")
@@ -49,8 +49,8 @@ if(NOT CXXDEBVIS_GDB_PATH AND NOT CXXDEBVIS_LLDB_DAP_PATH)
   message(FATAL_ERROR "set CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP or both to the debuggers to test "
                       "with, e.g. -DCXXDEBVIS_GDB=gdb -DCXXDEBVIS_LLDB_DAP=lldb-dap")
 endif()
-if(CXXDEBVIS_VS_ADAPTER_PATH AND NOT CXXDEBVIS_GDB_PATH)
-  message(FATAL_ERROR "CXXDEBVIS_VS_ADAPTER needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
+if(CXXDEBVIS_MIENGINE_PATH AND NOT CXXDEBVIS_GDB_PATH)
+  message(FATAL_ERROR "CXXDEBVIS_MIENGINE needs CXXDEBVIS_GDB, as OpenDebugAD7 runs gdb")
 endif()
 
 # The fixture program needs debug info and no optimizations: CMake's Debug configuration, whatever
@@ -76,8 +76,8 @@ endif()
 if(CXXDEBVIS_LLDB_DAP_PATH)
   list(APPEND selftest_tools --lldb-dap "${CXXDEBVIS_LLDB_DAP_PATH}")
 endif()
-if(CXXDEBVIS_VS_ADAPTER_PATH)
-  list(APPEND selftest_tools --vs-adapter "${CXXDEBVIS_VS_ADAPTER_PATH}")
+if(CXXDEBVIS_MIENGINE_PATH)
+  list(APPEND selftest_tools --miengine "${CXXDEBVIS_MIENGINE_PATH}")
 endif()
 set(selftest_args --program "$<TARGET_FILE:test_program>" ${selftest_tools})
 
