@@ -1,4 +1,4 @@
-# End-to-end tests of natvistest against the real debug adapter.
+# End-to-end tests of test_visualizers against the real debug adapter.
 #
 # Run through `python3 -m selftest --adapter PATH`; skipped when no adapter is
 # given, or when gdb or a C++ compiler is missing.
@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import unittest
 
-from natvistest.runner import Runner
+from test_visualizers.runner import Runner
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, "fixtures")
@@ -28,7 +28,7 @@ class IntegrationTests(unittest.TestCase):
     def setUpClass(cls):
         if not (ADAPTER and CXX and shutil.which("gdb")):
             raise unittest.SkipTest("needs --adapter, gdb and a C++ compiler")
-        cls.tmp = tempfile.mkdtemp(prefix="natvistest-")
+        cls.tmp = tempfile.mkdtemp(prefix="test_visualizers-")
         # variants of the fixture: without and with a crash after the last call
         cls.programs = {}
         for variant, crash in (("plain", 0), ("crash", 1)):
@@ -49,7 +49,7 @@ class IntegrationTests(unittest.TestCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             ok = runner.run()
         errors = err.getvalue().splitlines()
-        # anything on stderr (adapter messages, natvistest errors) means failure
+        # anything on stderr (adapter messages, test_visualizers errors) means failure
         self.assertEqual(ok, not errors, errors)
         return out.getvalue(), errors
 

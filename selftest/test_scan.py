@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from natvistest.runner import find_calls
+from test_visualizers.runner import find_calls
 
 
 class FindCallsTests(unittest.TestCase):

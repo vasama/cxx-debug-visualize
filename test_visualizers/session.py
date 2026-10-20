@@ -39,7 +39,7 @@ class DebugSession:
         cfg = {
             "type": "cppdbg",
             "request": "launch",
-            "name": "natvistest",
+            "name": "test_visualizers",
             "program": self.program,
             "cwd": self.cwd,
             # without miDebuggerPath, the adapter runs the gdb found on PATH
@@ -61,7 +61,7 @@ class DebugSession:
         self.client = DapClient(adapter_argv(self.adapter), log=self.log)
         self.client.request("initialize", {
             "clientID": "vscode",
-            "clientName": "natvistest",
+            "clientName": "test_visualizers",
             "adapterID": "cppdbg",
             "pathFormat": "path",
             "linesStartAt1": True,

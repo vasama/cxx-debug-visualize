@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "natvistest"
+name = "test_visualizers"
 version = "0.1.0"
 description = "Unit tests for natvis files, run through VS Code's C/C++ debug adapter"
 readme = "README.md"
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-natvistest = "natvistest.cli:main"
+test_visualizers = "test_visualizers.cli:main"
 
 [tool.setuptools]
-packages = ["natvistest"]
+packages = ["test_visualizers"]

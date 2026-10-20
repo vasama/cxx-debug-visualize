@@ -1,6 +1,6 @@
-// Fixture for the natvistest integration self-tests (line numbers matter: the tests
+// Fixture for the test_visualizers integration self-tests (line numbers matter: the tests
 // refer to check_visualizer() calls by line).  Build with -DCRASH=0|1.
-#include "natvistest.h"
+#include "test_visualizers.h"
 
 struct Pair { int a; int b; };
 struct Arr { int *data; int n; }; struct PairArr { Pair *data; int n; };

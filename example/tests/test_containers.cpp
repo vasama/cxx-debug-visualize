@@ -1,7 +1,7 @@
 #include "mylib/containers.h"
-#include "natvistest.h"
+#include "test_visualizers.h"
 
-// Checked with FileCheck against the output of `natvistest run`: every
+// Checked with FileCheck against the output of `test_visualizers run`: every
 // `check_visualizer(x);` line prints x and the children its visualizer
 // produces, headed by "check_visualizer(x) at <file>:<line>".
 

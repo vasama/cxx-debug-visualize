@@ -1,6 +1,6 @@
 # Command line interface.
 #
-#     natvistest run --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
+#     test_visualizers run --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
 #         | FileCheck test.cpp
 
 import argparse
@@ -11,7 +11,7 @@ from .runner import Runner
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="natvistest",
+    parser = argparse.ArgumentParser(prog="test_visualizers",
                                      description="Unit tests for natvis files, run through the "
                                      "same debug adapter VS Code uses (OpenDebugAD7/MIEngine).")
     sub = parser.add_subparsers(dest="command", required=True)

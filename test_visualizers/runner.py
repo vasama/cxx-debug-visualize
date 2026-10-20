@@ -13,7 +13,7 @@
 #
 # Errors the adapter reports (failed requests, unverified breakpoints, natvis
 # diagnostics, anything it writes to its stderr besides its startup banner) are
-# printed to stderr verbatim; natvistest's own errors (e.g. an unexpected stop)
+# printed to stderr verbatim; test_visualizers's own errors (e.g. an unexpected stop)
 # are prefixed with "error: ". Either fails the run. Everything else, including
 # evaluation errors and calls that are never reached, shows up as output that
 # differs from what the CHECK lines expect.
@@ -59,7 +59,7 @@ class Runner:
         self.log = log
         self.failed = False
 
-    # Report an error found by natvistest itself.
+    # Report an error found by test_visualizers itself.
     def _error(self, message):
         self.failed = True
         print(f"error: {message}", file=sys.stderr)
