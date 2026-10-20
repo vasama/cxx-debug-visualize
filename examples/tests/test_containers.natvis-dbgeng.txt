@@ -1,39 +1,39 @@
-visualize(p) at test_containers.cpp:17
+visualize(p) at test_containers.cpp
   (3, -4) [mylib::point]
     x = 3 [int]
     y = -4 [int]
-visualize(empty) at test_containers.cpp:23
+visualize(empty) at test_containers.cpp
   { size=0 } [mylib::vector<int>]
     [size] = 0 [unsigned int]
     [capacity] = 0 [unsigned int]
-visualize(v) at test_containers.cpp:31
+visualize(v) at test_containers.cpp
   { size=3 } [mylib::vector<int>]
     [size] = 3 [unsigned int]
     [capacity] = 4 [unsigned int]
     [0] = 10 [int]
     [1] = 20 [int]
     [2] = 30 [int]
-visualize(points) at test_containers.cpp:38
+visualize(points) at test_containers.cpp
   { size=1 } [mylib::vector<mylib::point>]
     [size] = 1 [unsigned int]
     [capacity] = 4 [unsigned int]
     [0] = (1, 2) [mylib::point]
-visualize(list) at test_containers.cpp:47
+visualize(list) at test_containers.cpp
   { size=3 } [mylib::list<int>]
     [0] = 1 [int]
     [1] = 2 [int]
     [2] = 3 [int]
-visualize(none) at test_containers.cpp:53
+visualize(none) at test_containers.cpp
   empty [mylib::optional<int>]
-visualize(some) at test_containers.cpp:59
+visualize(some) at test_containers.cpp
   42 [mylib::optional<int>]
     [value] = 42 [int]
-visualize(map) at test_containers.cpp:68
+visualize(map) at test_containers.cpp
   { size=3 } [mylib::int_map<int>]
     [10] = 100 [int]
     [20] = 200 [int]
     [30] = 300 [int]
-visualize(big) at test_containers.cpp:76
+visualize(big) at test_containers.cpp
   { size=60 } [mylib::vector<int>]
     [size] = 60 [unsigned int]
     [capacity] = 64 [unsigned int]

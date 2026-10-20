@@ -62,6 +62,7 @@ class Runner:
         gdb_printers: str | None = None,
         lldb_formatters: str | None = None,
         default_visualizers: bool = True,
+        print_line_numbers: bool = False,
         log: Callable[[str], None] | None = None,
     ) -> None:
         self._adapter = adapter
@@ -77,6 +78,7 @@ class Runner:
             "lldb_formatters": lldb_formatters,
         }
         self._default_visualizers = default_visualizers
+        self._print_line_numbers = print_line_numbers
         self._log = log
         self._failed = False
 
@@ -186,9 +188,14 @@ class Runner:
 
                 if body["reason"] == "breakpoint" and frame["line"] in breakpoints_by_line:
                     invocation = breakpoints_by_line[frame["line"]]
+
+                    line_string = ""
+                    if self._print_line_numbers:
+                        line_string = f":{invocation.line}"
+
                     print(
                         f"visualize({invocation.identifier}) at "
-                        f"{os.path.basename(source)}:{invocation.line}"
+                        f"{os.path.basename(source)}{line_string}"
                     )
                     node = session.evaluate(invocation.identifier, frame["id"])
                     self._write_node(node, 1)

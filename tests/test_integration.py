@@ -96,38 +96,38 @@ class IntegrationTests(FixtureTestCase):
             output,
             "\n".join(
                 [
-                    "visualize(pr) at test_program.cpp:44",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
-                    "visualize(arr) at test_program.cpp:51",
+                    "visualize(arr) at test_program.cpp",
                     "  {...} [int_array]",
                     "    [0] = 7 [int]",
                     "    [1] = 8 [int]",
                     "    [2] = 9 [int]",
                     # every hit of the call in the loop is printed
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <0,2> [pair]",
                     "    a = 0 [int]",
                     "    b = 2 [int]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
                     # children that are visualized objects are not expanded
-                    "visualize(pa) at test_program.cpp:74",
+                    "visualize(pa) at test_program.cpp",
                     "  {...} [pair_array]",
                     "    [0] = <3,4> [pair]",
                     "    [1] = <5,6> [pair]",
                     # [More...] pages, which continue the list, are flattened into it
-                    "visualize(big) at test_program.cpp:83",
+                    "visualize(big) at test_program.cpp",
                     "  {...} [int_array]",
                 ]
                 + [f"    [{i}] = {i} [int]" for i in range(120)]
                 + [
                     # a call in another function, on a reference, which MIEngine expands to the
                     # referee's members
-                    "visualize(ref) at test_program.cpp:32",
+                    "visualize(ref) at test_program.cpp",
                     "  <1,2> [const pair &]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
@@ -172,30 +172,30 @@ class IntegrationTests(FixtureTestCase):
             "\n".join(
                 [
                     # a printer without children() shows no children
-                    "visualize(pr) at test_program.cpp:44",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
-                    "visualize(arr) at test_program.cpp:51",
+                    "visualize(arr) at test_program.cpp",
                     "  n=3 [int_array]",
                     "    [0] = 7 [int]",
                     "    [1] = 8 [int]",
                     "    [2] = 9 [int]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <0,2> [pair]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
                     # the "map" display hint names each value by its key
-                    "visualize(pa) at test_program.cpp:74",
+                    "visualize(pa) at test_program.cpp",
                     "  pairs=2 [pair_array]",
                     "    [3] = 4 [int]",
                     "    [5] = 6 [int]",
                     # no [More...] paging
-                    "visualize(big) at test_program.cpp:83",
+                    "visualize(big) at test_program.cpp",
                     "  n=120 [int_array]",
                 ]
                 + [f"    [{i}] = {i} [int]" for i in range(120)]
                 + [
                     # a call in another function, on a reference
-                    "visualize(ref) at test_program.cpp:32",
+                    "visualize(ref) at test_program.cpp",
                     "  <1,2> [const pair &]",
                     "",
                 ]
@@ -207,9 +207,9 @@ class IntegrationTests(FixtureTestCase):
         output, errors = self.run_visualizer(gdb_printers="bad_printers.py")
         # exceptions in printers pass silently: the value stays empty and the
         # children are missing, for the expected output to catch
-        self.assertIn("visualize(pr) at test_program.cpp:44\n   [pair]\n", output)
+        self.assertIn("visualize(pr) at test_program.cpp\n   [pair]\n", output)
         self.assertIn(
-            "visualize(arr) at test_program.cpp:51\n  n=3 [int_array]\nvisualize(pr)", output
+            "visualize(arr) at test_program.cpp\n  n=3 [int_array]\nvisualize(pr)", output
         )
         self.assertEqual(errors, [])
 
@@ -248,31 +248,31 @@ class NativeDapTests(FixtureTestCase):
             output,
             "\n".join(
                 [
-                    "visualize(pr) at test_program.cpp:44",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
-                    "visualize(arr) at test_program.cpp:51",
+                    "visualize(arr) at test_program.cpp",
                     "  n=3 [int_array]",
                     "    [0] = 7 [int]",
                     "    [1] = 8 [int]",
                     "    [2] = 9 [int]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <0,2> [pair]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
                     # unlike OpenDebugAD7, gdb shows the "map" display hint's keys and values as children
-                    "visualize(pa) at test_program.cpp:74",
+                    "visualize(pa) at test_program.cpp",
                     "  pairs=2 [pair_array]",
                     "    key0 = 3 [int]",
                     "    value0 = 4 [int]",
                     "    key1 = 5 [int]",
                     "    value1 = 6 [int]",
-                    "visualize(big) at test_program.cpp:83",
+                    "visualize(big) at test_program.cpp",
                     "  n=120 [int_array]",
                 ]
                 + [f"    [{i}] = {i} [int]" for i in range(120)]
                 + [
                     # a call in another function, on a reference
-                    "visualize(ref) at test_program.cpp:32",
+                    "visualize(ref) at test_program.cpp",
                     "  <1,2> [const pair &]",
                     "",
                 ]
@@ -284,7 +284,7 @@ class NativeDapTests(FixtureTestCase):
         # unlike through OpenDebugAD7, a printer that raises makes gdb fail the evaluation: the
         # run stops there, with gdb's message
         output, errors = self.run_visualizer(gdb_printers="bad_printers.py")
-        self.assertEqual(output, "visualize(pr) at test_program.cpp:44\n")
+        self.assertEqual(output, "visualize(pr) at test_program.cpp\n")
         self.assertEqual(errors, ["There is no member named c."])
 
     def test_malformed_printers(self):
@@ -292,7 +292,7 @@ class NativeDapTests(FixtureTestCase):
         # without printers, for the expected output to catch
         output, errors = self.run_visualizer(gdb_printers="malformed_printers.py")
         self.assertIn(
-            "visualize(pr) at test_program.cpp:44\n   [pair]\n    a = 1 [int]\n    b = 2 [int]\n",
+            "visualize(pr) at test_program.cpp\n   [pair]\n    a = 1 [int]\n    b = 2 [int]\n",
             output,
         )
         self.assertEqual(errors, [])
@@ -319,37 +319,37 @@ class LldbTests(FixtureTestCase):
                 [
                     # lldb-dap shows a summary after an empty value and a space, and a summary does not
                     # hide the members
-                    "visualize(pr) at test_program.cpp:44",
+                    "visualize(pr) at test_program.cpp",
                     "   <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
-                    "visualize(arr) at test_program.cpp:51",
+                    "visualize(arr) at test_program.cpp",
                     "   n=3 [int_array]",
                     "    [0] = 7 [int]",
                     "    [1] = 8 [int]",
                     "    [2] = 9 [int]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "   <0,2> [pair]",
                     "    a = 0 [int]",
                     "    b = 2 [int]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "   <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
                     # synthetic children named by key, like the gdb "map" display hint in OpenDebugAD7
-                    "visualize(pa) at test_program.cpp:74",
+                    "visualize(pa) at test_program.cpp",
                     "   pairs=2 [pair_array]",
                     "    [3] = 4 [int]",
                     "    [5] = 6 [int]",
                     # no paging
-                    "visualize(big) at test_program.cpp:83",
+                    "visualize(big) at test_program.cpp",
                     "   n=120 [int_array]",
                 ]
                 + [f"    [{i}] = {i} [int]" for i in range(120)]
                 + [
                     # a call in another function, on a reference, whose address lldb-dap shows
                     # before the summary
-                    "visualize(ref) at test_program.cpp:32",
+                    "visualize(ref) at test_program.cpp",
                     "  0x? <1,2> [const pair &]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
@@ -365,11 +365,11 @@ class LldbTests(FixtureTestCase):
         output, errors = self.run_visualizer(lldb_formatters="bad_formatters.py")
         self.assertRegex(
             output,
-            r"visualize\(pr\) at test_program.cpp:44\n"
+            r"visualize\(pr\) at test_program.cpp\n"
             r"  pair @ 0x[0-9a-f]+ \[pair\]\n    a = 1 \[int\]\n",
         )
         self.assertIn(
-            "visualize(arr) at test_program.cpp:51\n   n=3 [int_array]\nvisualize(pr)", output
+            "visualize(arr) at test_program.cpp\n   n=3 [int_array]\nvisualize(pr)", output
         )
         self.assertEqual(errors, [])
 
@@ -379,7 +379,7 @@ class LldbTests(FixtureTestCase):
         output, errors = self.run_visualizer(lldb_formatters="malformed_formatters.py")
         self.assertRegex(
             output,
-            r"visualize\(arr\) at test_program.cpp:51\n"
+            r"visualize\(arr\) at test_program.cpp\n"
             r"  int_array @ 0x[0-9a-f]+ \[int_array\]\n    data = ",
         )
         self.assertEqual(errors, [])
@@ -411,35 +411,35 @@ class DbgengTests(FixtureTestCase):
             output,
             "\n".join(
                 [
-                    "visualize(pr) at test_program.cpp:44",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
-                    "visualize(arr) at test_program.cpp:51",
+                    "visualize(arr) at test_program.cpp",
                     "  {...} [int_array]",
                     "    [0] = 7 [int]",
                     "    [1] = 8 [int]",
                     "    [2] = 9 [int]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <0,2> [pair]",
                     "    a = 0 [int]",
                     "    b = 2 [int]",
-                    "visualize(pr) at test_program.cpp:60",
+                    "visualize(pr) at test_program.cpp",
                     "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
-                    "visualize(pa) at test_program.cpp:74",
+                    "visualize(pa) at test_program.cpp",
                     "  {...} [pair_array]",
                     "    [0] = <3,4> [pair]",
                     "    [1] = <5,6> [pair]",
-                    "visualize(big) at test_program.cpp:83",
+                    "visualize(big) at test_program.cpp",
                     "  {...} [int_array]",
                 ]
                 + [f"    [{i}] = {i} [int]" for i in range(120)]
                 + [
                     # a call in another function, on a reference, which the adapter shows as the
                     # object it refers to
-                    "visualize(ref) at test_program.cpp:32",
+                    "visualize(ref) at test_program.cpp",
                     "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",

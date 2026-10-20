@@ -94,6 +94,12 @@ def main(argv: list[str] | None = None) -> int:
         help="arguments passed to the test program; use -- to escape options",
     )
 
+    parser.add_argument(
+        "--print-line-numbers",
+        action="store_true",
+        help="Print line numbers for each visualization",
+    )
+
     parser.add_argument("--trace", action="store_true", help="Print the DAP traffic to stderr")
 
     ns = parser.parse_intermixed_args(argv)
@@ -240,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         gdb_printers=ns.gdb_printers,
         lldb_formatters=ns.lldb_formatters,
         default_visualizers=not ns.no_default_visualizers,
+        print_line_numbers=ns.print_line_numbers,
         log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None,
     )
 
