@@ -2,8 +2,8 @@
 // refer to visualize() calls by line).  Crashes at the end if given any argument.
 #include "cxx_debug_visualize.hpp"
 
-struct Pair { int a; int b; };
-struct Arr { int *data; int n; }; struct PairArr { Pair *data; int n; };
+struct pair { int a; int b; };
+struct int_array { int *data; int n; }; struct pair_array { pair *data; int n; };
 
 static void crash() {
   volatile int *p = nullptr;
@@ -11,9 +11,9 @@ static void crash() {
 }
 
 int main(int argc, char **) {
-  Pair pr{1, 2};
+  pair pr{1, 2};
   int storage[3] = {7, 8, 9};
-  Arr arr{storage, 3};
+  int_array arr{storage, 3};
   visualize(pr);
   visualize(arr);
   for (int i = 0; i < 2; ++i) {
@@ -21,13 +21,13 @@ int main(int argc, char **) {
     visualize(pr);
   }
   visualize(pr); // not a breakpoint: the line holds more than the call
-  Pair pairs[2] = {{3, 4}, {5, 6}};
-  PairArr pa{pairs, 2};
+  pair pairs[2] = {{3, 4}, {5, 6}};
+  pair_array pa{pairs, 2};
   visualize(pa);
   int many[120];
   for (int i = 0; i < 120; ++i)
     many[i] = i;
-  Arr big{many, 120};
+  int_array big{many, 120};
   visualize(big);
   // every visualize call above is reached before the optional crash
   if (argc > 1)

@@ -1,40 +1,40 @@
 visualize(p) at test_containers.cpp:14
-   (3, -4) [mylib::Point]
+   (3, -4) [mylib::point]
     x = 3 [int]
     y = -4 [int]
 visualize(empty) at test_containers.cpp:33
-   { size=0 } [mylib::Vector<int>]
+   { size=0 } [mylib::vector<int>]
     [size] = 0 [std::size_t]
     [capacity] = 0 [std::size_t]
 visualize(v) at test_containers.cpp:34
-   { size=3 } [mylib::Vector<int>]
+   { size=3 } [mylib::vector<int>]
     [size] = 3 [std::size_t]
     [capacity] = 4 [std::size_t]
     [0] = 10 [int]
     [1] = 20 [int]
     [2] = 30 [int]
 visualize(points) at test_containers.cpp:35
-   { size=1 } [mylib::Vector<mylib::Point>]
+   { size=1 } [mylib::vector<mylib::point>]
     [size] = 1 [std::size_t]
     [capacity] = 4 [std::size_t]
-    [0] =  (1, 2) [mylib::Point]
+    [0] =  (1, 2) [mylib::point]
 visualize(list) at test_containers.cpp:36
-   { size=3 } [mylib::List<int>]
+   { size=3 } [mylib::list<int>]
     [0] = 1 [int]
     [1] = 2 [int]
     [2] = 3 [int]
 visualize(none) at test_containers.cpp:37
-   empty [mylib::Optional<int>]
+   empty [mylib::optional<int>]
 visualize(some) at test_containers.cpp:38
-   42 [mylib::Optional<int>]
+   42 [mylib::optional<int>]
     [value] = 42 [int]
 visualize(map) at test_containers.cpp:42
-   { size=3 } [mylib::IntMap<int>]
+   { size=3 } [mylib::int_map<int>]
     [0] = 100 [int]
     [1] = 200 [int]
     [2] = 300 [int]
 visualize(big) at test_containers.cpp:49
-   { size=60 } [mylib::Vector<int>]
+   { size=60 } [mylib::vector<int>]
     [size] = 60 [std::size_t]
     [capacity] = 64 [std::size_t]
     [0] = 0 [int]

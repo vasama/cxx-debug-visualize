@@ -5,7 +5,7 @@
 
 def pair_summary(valobj, internal_dict):
     a = int(valobj.GetChildMemberWithName("a").GetValue())
-    c = int(valobj.GetChildMemberWithName("c").GetValue())  # Pair has no member c
+    c = int(valobj.GetChildMemberWithName("c").GetValue())  # pair has no member c
     return f"<{a},{c}>"
 
 
@@ -19,7 +19,7 @@ class ArrProvider:
         self.valobj = valobj
 
     def num_children(self):
-        return int(self.valobj.GetChildMemberWithName("count").GetValue())  # Arr has no count
+        return int(self.valobj.GetChildMemberWithName("count").GetValue())  # int_array has no count
 
     def get_child_at_index(self, index):
         data = self.valobj.GetChildMemberWithName("data")
@@ -28,6 +28,6 @@ class ArrProvider:
 
 
 def __lldb_init_module(debugger, internal_dict):
-    debugger.HandleCommand(f"type summary add -F {__name__}.pair_summary Pair")
-    debugger.HandleCommand(f"type summary add -F {__name__}.arr_summary Arr")
-    debugger.HandleCommand(f"type synthetic add -l {__name__}.ArrProvider Arr")
+    debugger.HandleCommand(f"type summary add -F {__name__}.pair_summary pair")
+    debugger.HandleCommand(f"type summary add -F {__name__}.arr_summary int_array")
+    debugger.HandleCommand(f"type synthetic add -l {__name__}.ArrProvider int_array")

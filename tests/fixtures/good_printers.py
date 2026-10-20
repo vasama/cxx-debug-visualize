@@ -44,7 +44,7 @@ class PairArrPrinter:
 
 
 printers = gdb.printing.RegexpCollectionPrettyPrinter("fixture")
-printers.add_printer("Pair", "^Pair$", PairPrinter)
-printers.add_printer("Arr", "^Arr$", ArrPrinter)
-printers.add_printer("PairArr", "^PairArr$", PairArrPrinter)
+printers.add_printer("pair", "^pair$", PairPrinter)
+printers.add_printer("int_array", "^int_array$", ArrPrinter)
+printers.add_printer("pair_array", "^pair_array$", PairArrPrinter)
 gdb.printing.register_pretty_printer(None, printers)

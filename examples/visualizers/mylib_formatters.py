@@ -29,9 +29,9 @@ def point_summary(valobj, internal_dict):
     return f"({x}, {y})"
 
 
-# the char *, as `0x... "text"`, like natvis's {Data,s8}
+# the char *, as `0x... "text"`, like natvis's {data_,s8}
 def string_summary(valobj, internal_dict):
-    data = _member(valobj, "Data")
+    data = _member(valobj, "data_")
     return f"{data.GetValue()} {data.GetSummary()}"
 
 
@@ -43,7 +43,7 @@ class StringProvider:
         return 1
 
     def get_child_at_index(self, index):
-        return _renamed("[size]", _member(self.valobj, "Length"))
+        return _renamed("[size]", _member(self.valobj, "length_"))
 
 
 # `{ size=N }`, N being the value of the member `member`
@@ -54,9 +54,9 @@ def size_summary(member):
     return summary
 
 
-vector_summary = size_summary("Size")
-list_summary = size_summary("Count")
-int_map_summary = size_summary("Count")
+vector_summary = size_summary("size_")
+list_summary = size_summary("count_")
+int_map_summary = size_summary("count_")
 
 
 class VectorProvider:
@@ -64,14 +64,14 @@ class VectorProvider:
         self.valobj = valobj
 
     def num_children(self):
-        return 2 + _member(self.valobj, "Size").GetValueAsUnsigned()
+        return 2 + _member(self.valobj, "size_").GetValueAsUnsigned()
 
     def get_child_at_index(self, index):
         if index == 0:
-            return _renamed("[size]", _member(self.valobj, "Size"))
+            return _renamed("[size]", _member(self.valobj, "size_"))
         if index == 1:
-            return _renamed("[capacity]", _member(self.valobj, "Capacity"))
-        begin = _member(self.valobj, "Begin")
+            return _renamed("[capacity]", _member(self.valobj, "capacity_"))
+        begin = _member(self.valobj, "begin_")
         element = begin.GetType().GetPointeeType()
         address = begin.GetValueAsUnsigned() + (index - 2) * element.GetByteSize()
         return self.valobj.CreateValueFromAddress(f"[{index - 2}]", address, element)
@@ -79,10 +79,10 @@ class VectorProvider:
 
 def _optional_value(valobj):
     optional = _object(valobj)
-    if not optional.GetChildMemberWithName("HasValue").GetValueAsUnsigned():
+    if not optional.GetChildMemberWithName("has_value_").GetValueAsUnsigned():
         return None
     value_type = optional.GetType().GetTemplateArgumentType(0)
-    storage = optional.GetChildMemberWithName("Storage")
+    storage = optional.GetChildMemberWithName("storage_")
     return optional.CreateValueFromAddress("[value]", storage.GetLoadAddress(), value_type)
 
 
@@ -109,11 +109,11 @@ class ListProvider:
         self.valobj = valobj
 
     def _values(self):
-        node = _member(self.valobj, "Head")
+        node = _member(self.valobj, "head_")
         while node.GetValueAsUnsigned():
             node = node.Dereference()
-            yield node.GetChildMemberWithName("Value")
-            node = node.GetChildMemberWithName("Next")
+            yield node.GetChildMemberWithName("value")
+            node = node.GetChildMemberWithName("next")
 
     def num_children(self):
         return sum(1 for _ in self._values())
@@ -134,11 +134,11 @@ class IntMapProvider:
         def in_order(node):
             if node.GetValueAsUnsigned():
                 node = node.Dereference()
-                yield from in_order(node.GetChildMemberWithName("Left"))
-                yield node.GetChildMemberWithName("Value")
-                yield from in_order(node.GetChildMemberWithName("Right"))
+                yield from in_order(node.GetChildMemberWithName("left"))
+                yield node.GetChildMemberWithName("value")
+                yield from in_order(node.GetChildMemberWithName("right"))
 
-        return list(in_order(_member(self.valobj, "Root")))
+        return list(in_order(_member(self.valobj, "root_")))
 
     def num_children(self):
         return len(self._values())
@@ -155,14 +155,14 @@ def __lldb_init_module(debugger, internal_dict):
             f'type {kind} add {regex}{option} {__name__}.{function} "{type_name}"'
         )
 
-    add("summary", "point_summary", "mylib::Point")
-    add("summary", "string_summary", "mylib::String")
-    add("synthetic", "StringProvider", "mylib::String")
-    add("summary", "vector_summary", "^mylib::Vector<.+>$")
-    add("synthetic", "VectorProvider", "^mylib::Vector<.+>$")
-    add("summary", "optional_summary", "^mylib::Optional<.+>$")
-    add("synthetic", "OptionalProvider", "^mylib::Optional<.+>$")
-    add("summary", "list_summary", "^mylib::List<.+>$")
-    add("synthetic", "ListProvider", "^mylib::List<.+>$")
-    add("summary", "int_map_summary", "^mylib::IntMap<.+>$")
-    add("synthetic", "IntMapProvider", "^mylib::IntMap<.+>$")
+    add("summary", "point_summary", "mylib::point")
+    add("summary", "string_summary", "mylib::string")
+    add("synthetic", "StringProvider", "mylib::string")
+    add("summary", "vector_summary", "^mylib::vector<.+>$")
+    add("synthetic", "VectorProvider", "^mylib::vector<.+>$")
+    add("summary", "optional_summary", "^mylib::optional<.+>$")
+    add("synthetic", "OptionalProvider", "^mylib::optional<.+>$")
+    add("summary", "list_summary", "^mylib::list<.+>$")
+    add("synthetic", "ListProvider", "^mylib::list<.+>$")
+    add("summary", "int_map_summary", "^mylib::int_map<.+>$")
+    add("synthetic", "IntMapProvider", "^mylib::int_map<.+>$")

@@ -48,8 +48,8 @@ class PairArrProvider:
 
 
 def __lldb_init_module(debugger, internal_dict):
-    debugger.HandleCommand(f"type summary add -F {__name__}.pair_summary Pair")
-    debugger.HandleCommand(f"type summary add -F {__name__}.arr_summary Arr")
-    debugger.HandleCommand(f"type synthetic add -l {__name__}.ArrProvider Arr")
-    debugger.HandleCommand(f"type summary add -F {__name__}.pair_arr_summary PairArr")
-    debugger.HandleCommand(f"type synthetic add -l {__name__}.PairArrProvider PairArr")
+    debugger.HandleCommand(f"type summary add -F {__name__}.pair_summary pair")
+    debugger.HandleCommand(f"type summary add -F {__name__}.arr_summary int_array")
+    debugger.HandleCommand(f"type synthetic add -l {__name__}.ArrProvider int_array")
+    debugger.HandleCommand(f"type summary add -F {__name__}.pair_arr_summary pair_array")
+    debugger.HandleCommand(f"type synthetic add -l {__name__}.PairArrProvider pair_array")

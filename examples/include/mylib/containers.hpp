@@ -9,144 +9,144 @@
 
 namespace mylib {
 
-struct Point {
+struct point {
   int x = 0;
   int y = 0;
 };
 
-class String {
+class string {
 public:
-  String(const char *text) : Length(std::strlen(text)) {
-    Data = new char[Length + 1];
-    std::memcpy(Data, text, Length + 1);
+  string(const char *text) : length_(std::strlen(text)) {
+    data_ = new char[length_ + 1];
+    std::memcpy(data_, text, length_ + 1);
   }
-  ~String() { delete[] Data; }
-  String(const String &) = delete;
-  String &operator=(const String &) = delete;
-  std::size_t size() const { return Length; }
+  ~string() { delete[] data_; }
+  string(const string &) = delete;
+  string &operator=(const string &) = delete;
+  std::size_t size() const { return length_; }
 
 private:
-  char *Data;
-  std::size_t Length;
+  char *data_;
+  std::size_t length_;
 };
 
-template <typename T> class Vector {
+template <typename T> class vector {
 public:
-  Vector() = default;
-  ~Vector() {
-    for (std::size_t i = 0; i < Size; ++i)
-      Begin[i].~T();
-    ::operator delete(Begin);
+  vector() = default;
+  ~vector() {
+    for (std::size_t i = 0; i < size_; ++i)
+      begin_[i].~T();
+    ::operator delete(begin_);
   }
-  Vector(const Vector &) = delete;
-  Vector &operator=(const Vector &) = delete;
+  vector(const vector &) = delete;
+  vector &operator=(const vector &) = delete;
 
   void push_back(T value) {
-    if (Size == Capacity)
+    if (size_ == capacity_)
       grow();
-    new (&Begin[Size++]) T(std::move(value));
+    new (&begin_[size_++]) T(std::move(value));
   }
-  std::size_t size() const { return Size; }
+  std::size_t size() const { return size_; }
 
 private:
   void grow() {
-    std::size_t newCapacity = Capacity ? Capacity * 2 : 4;
-    T *newBegin = static_cast<T *>(::operator new(newCapacity * sizeof(T)));
-    for (std::size_t i = 0; i < Size; ++i) {
-      new (&newBegin[i]) T(std::move(Begin[i]));
-      Begin[i].~T();
+    std::size_t new_capacity = capacity_ ? capacity_ * 2 : 4;
+    T *new_begin = static_cast<T *>(::operator new(new_capacity * sizeof(T)));
+    for (std::size_t i = 0; i < size_; ++i) {
+      new (&new_begin[i]) T(std::move(begin_[i]));
+      begin_[i].~T();
     }
-    ::operator delete(Begin);
-    Begin = newBegin;
-    Capacity = newCapacity;
+    ::operator delete(begin_);
+    begin_ = new_begin;
+    capacity_ = new_capacity;
   }
 
-  T *Begin = nullptr;
-  std::size_t Size = 0;
-  std::size_t Capacity = 0;
+  T *begin_ = nullptr;
+  std::size_t size_ = 0;
+  std::size_t capacity_ = 0;
 };
 
-template <typename T> class Optional {
+template <typename T> class optional {
 public:
-  Optional() : HasValue(false) {}
-  Optional(T value) : HasValue(true) { new (&Storage) T(std::move(value)); }
-  ~Optional() {
-    if (HasValue)
-      reinterpret_cast<T *>(&Storage)->~T();
+  optional() : has_value_(false) {}
+  optional(T value) : has_value_(true) { new (&storage_) T(std::move(value)); }
+  ~optional() {
+    if (has_value_)
+      reinterpret_cast<T *>(&storage_)->~T();
   }
 
 private:
-  alignas(T) unsigned char Storage[sizeof(T)];
-  bool HasValue;
+  alignas(T) unsigned char storage_[sizeof(T)];
+  bool has_value_;
 };
 
-template <typename T> class List {
-  struct Node {
-    T Value;
-    Node *Next;
+template <typename T> class list {
+  struct node {
+    T value;
+    node *next;
   };
 
 public:
-  List() = default;
-  ~List() {
-    while (Head) {
-      Node *next = Head->Next;
-      delete Head;
-      Head = next;
+  list() = default;
+  ~list() {
+    while (head_) {
+      node *next = head_->next;
+      delete head_;
+      head_ = next;
     }
   }
-  List(const List &) = delete;
-  List &operator=(const List &) = delete;
+  list(const list &) = delete;
+  list &operator=(const list &) = delete;
 
   void push_front(T value) {
-    Head = new Node{std::move(value), Head};
-    ++Count;
+    head_ = new node{std::move(value), head_};
+    ++count_;
   }
 
 private:
-  Node *Head = nullptr;
-  std::size_t Count = 0;
+  node *head_ = nullptr;
+  std::size_t count_ = 0;
 };
 
 // Unbalanced binary search tree mapping int keys to values.
-template <typename V> class IntMap {
-  struct Node {
-    int Key;
-    V Value;
-    Node *Left = nullptr;
-    Node *Right = nullptr;
+template <typename V> class int_map {
+  struct node {
+    int key;
+    V value;
+    node *left = nullptr;
+    node *right = nullptr;
   };
 
 public:
-  IntMap() = default;
-  ~IntMap() { destroy(Root); }
-  IntMap(const IntMap &) = delete;
-  IntMap &operator=(const IntMap &) = delete;
+  int_map() = default;
+  ~int_map() { destroy(root_); }
+  int_map(const int_map &) = delete;
+  int_map &operator=(const int_map &) = delete;
 
   void insert(int key, V value) {
-    Node **slot = &Root;
+    node **slot = &root_;
     while (*slot) {
-      if (key == (*slot)->Key) {
-        (*slot)->Value = std::move(value);
+      if (key == (*slot)->key) {
+        (*slot)->value = std::move(value);
         return;
       }
-      slot = key < (*slot)->Key ? &(*slot)->Left : &(*slot)->Right;
+      slot = key < (*slot)->key ? &(*slot)->left : &(*slot)->right;
     }
-    *slot = new Node{key, std::move(value)};
-    ++Count;
+    *slot = new node{key, std::move(value)};
+    ++count_;
   }
 
 private:
-  static void destroy(Node *node) {
-    if (!node)
+  static void destroy(node *n) {
+    if (!n)
       return;
-    destroy(node->Left);
-    destroy(node->Right);
-    delete node;
+    destroy(n->left);
+    destroy(n->right);
+    delete n;
   }
 
-  Node *Root = nullptr;
-  std::size_t Count = 0;
+  node *root_ = nullptr;
+  std::size_t count_ = 0;
 };
 
 } // namespace mylib

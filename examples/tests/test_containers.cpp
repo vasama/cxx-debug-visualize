@@ -10,22 +10,22 @@
 // files only differ where a debugger formats a value in its own way.
 
 int main() {
-  mylib::Point p{3, -4};
+  mylib::point p{3, -4};
   visualize(p);
 
-  mylib::Vector<int> empty;
-  mylib::Vector<int> v;
+  mylib::vector<int> empty;
+  mylib::vector<int> v;
   for (int i = 1; i <= 3; ++i)
     v.push_back(i * 10);
-  mylib::Vector<mylib::Point> points;
+  mylib::vector<mylib::point> points;
   points.push_back({1, 2});
-  mylib::List<int> list;
+  mylib::list<int> list;
   list.push_front(3);
   list.push_front(2);
   list.push_front(1);
-  mylib::Optional<int> none;
-  mylib::Optional<int> some(42);
-  mylib::IntMap<int> map;
+  mylib::optional<int> none;
+  mylib::optional<int> some(42);
+  mylib::int_map<int> map;
   map.insert(20, 200);
   map.insert(10, 100);
   map.insert(30, 300);
@@ -43,7 +43,7 @@ int main() {
 
   // natvis pages elements past the first 50 under a "[More...]" node, which
   // cxx-debug-visualize flattens into the list.
-  mylib::Vector<int> big;
+  mylib::vector<int> big;
   for (int i = 0; i < 60; ++i)
     big.push_back(i);
   visualize(big);

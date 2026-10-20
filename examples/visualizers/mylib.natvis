@@ -1,59 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-  <Type Name="mylib::Point">
+  <Type Name="mylib::point">
     <DisplayString>({x}, {y})</DisplayString>
   </Type>
 
-  <Type Name="mylib::String">
-    <DisplayString>{Data,s8}</DisplayString>
-    <StringView>Data,s8</StringView>
+  <Type Name="mylib::string">
+    <DisplayString>{data_,s8}</DisplayString>
+    <StringView>data_,s8</StringView>
     <Expand>
-      <Item Name="[size]">Length</Item>
+      <Item Name="[size]">length_</Item>
     </Expand>
   </Type>
 
-  <Type Name="mylib::Vector&lt;*&gt;">
-    <DisplayString>{{ size={Size} }}</DisplayString>
+  <Type Name="mylib::vector&lt;*&gt;">
+    <DisplayString>{{ size={size_} }}</DisplayString>
     <Expand>
-      <Item Name="[size]">Size</Item>
-      <Item Name="[capacity]">Capacity</Item>
+      <Item Name="[size]">size_</Item>
+      <Item Name="[capacity]">capacity_</Item>
       <ArrayItems>
-        <Size>Size</Size>
-        <ValuePointer>Begin</ValuePointer>
+        <Size>size_</Size>
+        <ValuePointer>begin_</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
 
-  <Type Name="mylib::Optional&lt;*&gt;">
-    <DisplayString Condition="!HasValue">empty</DisplayString>
-    <DisplayString>{*($T1*)Storage}</DisplayString>
+  <Type Name="mylib::optional&lt;*&gt;">
+    <DisplayString Condition="!has_value_">empty</DisplayString>
+    <DisplayString>{*($T1*)storage_}</DisplayString>
     <Expand>
-      <Item Name="[value]" Condition="HasValue">*($T1*)Storage</Item>
+      <Item Name="[value]" Condition="has_value_">*($T1*)storage_</Item>
     </Expand>
   </Type>
 
-  <Type Name="mylib::List&lt;*&gt;">
-    <DisplayString>{{ size={Count} }}</DisplayString>
+  <Type Name="mylib::list&lt;*&gt;">
+    <DisplayString>{{ size={count_} }}</DisplayString>
     <Expand>
       <LinkedListItems>
-        <Size>Count</Size>
-        <HeadPointer>Head</HeadPointer>
-        <NextPointer>Next</NextPointer>
-        <ValueNode>Value</ValueNode>
+        <Size>count_</Size>
+        <HeadPointer>head_</HeadPointer>
+        <NextPointer>next</NextPointer>
+        <ValueNode>value</ValueNode>
       </LinkedListItems>
     </Expand>
   </Type>
 
-  <Type Name="mylib::IntMap&lt;*&gt;">
-    <DisplayString>{{ size={Count} }}</DisplayString>
+  <Type Name="mylib::int_map&lt;*&gt;">
+    <DisplayString>{{ size={count_} }}</DisplayString>
     <Expand>
       <TreeItems>
-        <Size>Count</Size>
-        <HeadPointer>Root</HeadPointer>
-        <LeftPointer>Left</LeftPointer>
-        <RightPointer>Right</RightPointer>
-        <ValueNode Name="[{Key}]">Value</ValueNode>
+        <Size>count_</Size>
+        <HeadPointer>root_</HeadPointer>
+        <LeftPointer>left</LeftPointer>
+        <RightPointer>right</RightPointer>
+        <ValueNode Name="[{key}]">value</ValueNode>
       </TreeItems>
     </Expand>
   </Type>
