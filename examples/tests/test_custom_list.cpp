@@ -7,31 +7,45 @@
 
 int main()
 {
-  // Four buckets: keys 1, 5 and 9 share bucket 1, key 2 is in bucket 2, buckets 0 and 3 are empty.
-  mylib::hash_map<int> map(4);
-  map.insert(1, 10);
-  map.insert(5, 50);
-  map.insert(2, 20);
-  map.insert(9, 90);
-  visualize(map);
+  // Keys 1, 5 and 9 share bucket 1, key 2 is in bucket 2, and buckets 0 and 3 are empty.
+  {
+    mylib::hash_map<int> map(4);
+    map.insert(1, 10);
+    map.insert(5, 50);
+    map.insert(2, 20);
+    map.insert(9, 90);
+    visualize(map);
+  }
 
-  mylib::hash_map<int> empty_map(4);
-  visualize(empty_map);
+  // A hash map with only empty buckets.
+  {
+    mylib::hash_map<int> empty_map(4);
+    visualize(empty_map);
+  }
 
-  mylib::variant_array values(8);
-  values.push_back(1);
-  values.push_back(2.5);
-  values.push_back_none();
-  values.push_back(-3);
-  visualize(values);
+  // Two integers, a real and an empty entry, each shown by its own branch of If/Elseif/Else.
+  {
+    mylib::variant_array values(8);
+    values.push_back(1);
+    values.push_back(2.5);
+    values.push_back_none();
+    values.push_back(-3);
+    visualize(values);
+  }
 
-  mylib::variant_array empty_values(4);
-  visualize(empty_values);
+  // An array without entries, which the Condition on CustomListItems leaves unexpanded.
+  {
+    mylib::variant_array empty_values(4);
+    visualize(empty_values);
+  }
 
-  // more than 50 items, which MIEngine pages under "[More...]"
-  mylib::variant_array many(60);
-  for (int i = 0; i < 60; ++i)
-    many.push_back(100 + i);
-  visualize(many);
+  // More than 50 entries, which MIEngine pages under "[More...]".
+  {
+    mylib::variant_array many(60);
+    for (int i = 0; i < 60; ++i)
+      many.push_back(100 + i);
+    visualize(many);
+  }
+
   return 0;
 }
