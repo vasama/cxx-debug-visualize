@@ -98,6 +98,3 @@ def main(argv: list[str] | None = None) -> int:
                     gdb_printers=ns.gdb_printers, lldb_formatters=ns.lldb_formatters,
                     log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None)
     return 0 if runner.run() else 1
-
-if __name__ == "__main__":
-    sys.exit(main())
