@@ -1,9 +1,8 @@
 # Minimal Debug Adapter Protocol client.
 #
-# Talks to a debug adapter (here: OpenDebugAD7 from the VS Code C/C++ extension)
-# over its stdin/stdout, the same way VS Code does. Everything runs on the
-# caller's thread: waiting for a response or an event reads protocol messages
-# from the adapter's stdout until it has arrived.
+# Talks to a debug adapter (here: OpenDebugAD7 from the VS Code C/C++ extension) over its
+# stdin/stdout, the same way VS Code does. Everything runs on the caller's thread. Waiting for a
+# response or an event reads protocol messages from the adapter's stdout until it has arrived.
 
 import collections
 import json
