@@ -43,6 +43,28 @@ instead. cxx-debug-visualize itself succeeds, and the comparison reports it:
 +    Capacity = 4 [std::size_t]
 ```
 
+## Installation
+
+```
+pipx install cxx-debug-visualize
+```
+
+(or `pip install cxx-debug-visualize`) installs the `cxx-debug-visualize`
+command, which is all that is needed to run tests. It needs Python 3.10 or
+later and uses only the standard library.
+
+Two optional extras are not part of the package; take them from the
+[repository](https://github.com/vasama/cxx-debug-visualize) if you want them:
+
+* [`include/cxx_debug_visualize.h`][header], which defines the `visualize()`
+  function tests call (a test can just as well define its own, see "Writing
+  tests");
+* the CMake helper [`cmake/CxxDebugVisualize.cmake`][cmake], which builds test
+  programs and registers CTest tests (see "CMake / CTest").
+
+[header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.h
+[cmake]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/cmake/CxxDebugVisualize.cmake
+
 ## How natvis support works in VS Code
 
 These findings come from reading and running cpptools 1.34.4 and MIEngine `main` (September 2026).
@@ -164,16 +186,24 @@ is a small DAP client, and `runner.py` holds the test logic.
 
 ## Writing tests
 
-A test is an ordinary C++ program compiled with `-g -O0`.
-`include/cxx_debug_visualize.h` provides `visualize(object)`, a no-op call that
-keeps its argument alive. Each line holding just `visualize(x);` prints
-the tree of `x` when it runs. A line holding anything else as well (another
-statement, even a trailing comment) is not a breakpoint.
+A test is an ordinary C++ program compiled with `-g -O0`. Each line holding
+just `visualize(x);` prints the tree of `x` when it runs. A line holding
+anything else as well (another statement, even a trailing comment) is not a
+breakpoint.
 
-Each `visualize` line must compile to code of its own. If it doesn't,
-e.g. inside `if (false)` or an `#if 0` block, gdb moves its breakpoint to the
-next line with code, and cxx-debug-visualize fails with `breakpoint landed on line N
-instead` rather than stopping somewhere else.
+`visualize` only has to exist. The repository's `include/cxx_debug_visualize.h`
+defines it as a no-op function, but a test can define its own instead, e.g.:
+
+```cpp
+template <typename T> void visualize(const T &) {}
+```
+
+Each `visualize` line must compile to code of its own. If it doesn't, e.g.
+inside `if (false)` or an `#if 0` block, or when `visualize` is a macro that
+expands to nothing or to code-free expressions such as `(void)(x)`, gdb moves
+its breakpoint to the next line with code, and cxx-debug-visualize fails with
+`breakpoint landed on line N instead` rather than stopping somewhere else. A
+function call, as above, always compiles to code at `-O0`.
 
 ### Output format
 
@@ -291,8 +321,8 @@ adapter (OpenDebugAD7).
 | `--trace` | dump DAP traffic to stderr |
 
 The output goes to stdout. A test passes if cxx-debug-visualize exits with status 0
-and its output matches the expected output (see above). `pip install .`
-installs a `cxx-debug-visualize` command.
+and its output matches the expected output (see above). The installed package
+provides the same as a `cxx-debug-visualize` command (see "Installation").
 
 There is no timeout: cxx-debug-visualize waits as long as the program runs; stop it
 with Ctrl+C. cxx-debug-visualize doesn't handle signals itself. When it exits, the
@@ -305,6 +335,10 @@ but killing cxx-debug-visualize alone, e.g. with SIGTERM, leaves those processes
 behind.
 
 ### CMake / CTest
+
+The CMake helper is not part of the PyPI package: use it from a checkout of
+the repository. It runs cxx-debug-visualize from that checkout, so the package
+doesn't need to be installed for it.
 
 ```cmake
 list(APPEND CMAKE_MODULE_PATH path/to/cxx-debug-visualize/cmake)
