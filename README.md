@@ -456,7 +456,7 @@ always run. The integration tests need the fixture programs, and gdb and
 `CXX_DEBUG_VISUALIZE_ADAPTER` (`--adapter`). They check the printed trees for
 natvis files and pretty printers (including unexpanded children, nested
 flattened `[More...]` pages, the `map` display hint, calls in loops and calls
-never reached), how broken visualizers show in them (natvis evaluation errors,
+never reached), how bad visualizers show in them (natvis evaluation errors,
 a dropped `Expand`, raising printers), and the errors cxx-debug-visualize
 reports (malformed XML, a printer script that doesn't load, crashes). The tests
 of gdb's own DAP support check the printed trees and crashes; they need gdb 14

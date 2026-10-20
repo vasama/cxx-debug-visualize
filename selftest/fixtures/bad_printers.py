@@ -1,4 +1,4 @@
-# gdb pretty printers that raise while printing (like bad_expr.natvis).
+# gdb pretty printers that raise while printing (like bad.natvis).
 
 import gdb.printing
 
