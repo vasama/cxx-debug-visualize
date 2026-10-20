@@ -13,8 +13,21 @@ class LaunchConfigTests(unittest.TestCase):
         )._launch_config()
         self.assertEqual(cfg["visualizerFile"], os.path.abspath("my.natvis"))
         self.assertIs(cfg["showDisplayString"], True)
-        self.assertNotIn("setupCommands", cfg)
+        # by default, gdb's own pretty printers show what natvis does not
+        self.assertEqual([c["text"] for c in cfg["setupCommands"]], ["-enable-pretty-printing"])
         self.assertNotIn("miDebuggerArgs", cfg)
+
+    def test_natvis_without_default_visualizers(self):
+        cfg = DebugSession(
+            "miengine",
+            "OpenDebugAD7",
+            "test_program",
+            [],
+            debugger="gdb",
+            natvis="my.natvis",
+            default_visualizers=False,
+        )._launch_config()
+        self.assertNotIn("setupCommands", cfg)
 
     def test_printers(self):
         cfg = DebugSession(
@@ -26,6 +39,23 @@ class LaunchConfigTests(unittest.TestCase):
             gdb_printers="my_printers.py",
         )._launch_config()
         self.assertNotIn("visualizerFile", cfg)
+        # no gdb init files, but auto-loaded printers (e.g. libstdc++'s)
+        self.assertEqual(cfg["miDebuggerArgs"], "-nx")
+        self.assertEqual(
+            [c["text"] for c in cfg["setupCommands"]],
+            ["-enable-pretty-printing", f"source {os.path.abspath('my_printers.py')}"],
+        )
+
+    def test_printers_without_default_visualizers(self):
+        cfg = DebugSession(
+            "miengine",
+            "OpenDebugAD7",
+            "test_program",
+            [],
+            debugger="gdb",
+            gdb_printers="my_printers.py",
+            default_visualizers=False,
+        )._launch_config()
         # isolated: no gdb init files, no auto-loaded printers
         self.assertEqual(cfg["miDebuggerArgs"], "-nx")
         self.assertEqual(
@@ -64,6 +94,20 @@ class LaunchConfigTests(unittest.TestCase):
             None, None, "test_program", [], debugger="lldb", lldb_formatters="my_formatters.py"
         )._launch_config()
         self.assertEqual(cfg["program"], os.path.abspath("test_program"))
+        self.assertEqual(
+            cfg["initCommands"], [f"command script import {os.path.abspath('my_formatters.py')}"]
+        )
+
+    def test_lldb_formatters_without_default_visualizers(self):
+        cfg = DebugSession(
+            None,
+            None,
+            "test_program",
+            [],
+            debugger="lldb",
+            lldb_formatters="my_formatters.py",
+            default_visualizers=False,
+        )._launch_config()
         # isolated: lldb's built-in C++ formatters are disabled before the script is loaded
         self.assertEqual(
             cfg["initCommands"],
@@ -104,9 +148,22 @@ class LaunchConfigTests(unittest.TestCase):
                 "args": ["arg"],
                 "cwd": os.path.dirname(os.path.abspath("test_program")),
                 "visualizerFile": os.path.abspath("my.natvis"),
+                "defaultVisualizers": True,
                 "debuggerPath": "/debuggers/x64",
             },
         )
+
+    def test_dbgeng_without_default_visualizers(self):
+        cfg = DebugSession(
+            "dbgeng",
+            "dbgeng-adapter",
+            "test_program",
+            [],
+            debugger="dbgeng",
+            natvis="my.natvis",
+            default_visualizers=False,
+        )._launch_config()
+        self.assertIs(cfg["defaultVisualizers"], False)
 
     # dbgeng is only supported through its debug adapter, and only with natvis
     def test_dbgeng_needs_adapter_and_natvis(self):

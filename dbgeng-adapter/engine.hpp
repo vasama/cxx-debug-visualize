@@ -102,6 +102,9 @@ public:
   void launch(std::filesystem::path const& program, std::vector<std::string> const& args,
               std::filesystem::path const& cwd);
 
+  // Unload all natvis files, including those that the engine loads by default.
+  void unload_natvis();
+
   // Load a natvis file; return what the engine printed if that failed, else "".
   std::string load_natvis(std::string_view path);
 

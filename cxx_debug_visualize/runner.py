@@ -61,6 +61,7 @@ class Runner:
         natvis: str | None = None,
         gdb_printers: str | None = None,
         lldb_formatters: str | None = None,
+        default_visualizers: bool = True,
         log: Callable[[str], None] | None = None,
     ) -> None:
         self._adapter = adapter
@@ -75,6 +76,7 @@ class Runner:
             "gdb_printers": gdb_printers,
             "lldb_formatters": lldb_formatters,
         }
+        self._default_visualizers = default_visualizers
         self._log = log
         self._failed = False
 
@@ -155,6 +157,7 @@ class Runner:
             debugger=self._debugger,
             debugger_path=self._debugger_path,
             **self._visualizer,
+            default_visualizers=self._default_visualizers,
             log=self._log,
         )
         try:

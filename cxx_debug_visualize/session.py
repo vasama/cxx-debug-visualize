@@ -34,6 +34,9 @@ class DebugSession:
     # lldb-dap).
     #
     # `debugger_path` is the debugger to use instead of the one found on PATH.
+    #
+    # With `default_visualizers` False, only the visualizer under test is active, not the ones the
+    # debugger loads by default (e.g. libstdc++'s pretty printers, lldb's C++ formatters).
     def __init__(
         self,
         adapter: str | None,
@@ -46,6 +49,7 @@ class DebugSession:
         natvis: str | None = None,
         gdb_printers: str | None = None,
         lldb_formatters: str | None = None,
+        default_visualizers: bool = True,
         log: Callable[[str], None] | None = None,
     ) -> None:
         # The command line rejects all of these.
@@ -78,6 +82,7 @@ class DebugSession:
         self._natvis = natvis and os.path.abspath(natvis)
         self._gdb_printers = gdb_printers and os.path.abspath(gdb_printers)
         self._lldb_formatters = lldb_formatters and os.path.abspath(lldb_formatters)
+        self._default_visualizers = default_visualizers
         self._log = log
         self._breakpoints: dict[int, dict[str, Any]] = {}
         self._client_or_none: DapClient | None = None
@@ -98,22 +103,23 @@ class DebugSession:
                 "args": self._program_args,
                 "cwd": os.path.dirname(self._program),
                 "visualizerFile": self._natvis,
+                "defaultVisualizers": self._default_visualizers,
             }
             if self._debugger_path:
                 config["debuggerPath"] = self._debugger_path
             return config
 
         if self._debugger == "lldb":
-            # Only the formatters under test are active. lldb-dap is instructed to read no init
-            # files and to disable any built-in C++ formatters (e.g. for libstdc++).
+            # Without the default visualizers, lldb's built-in C++ formatters (e.g. for libstdc++)
+            # are disabled before the script is loaded.
+            init_commands = [f"command script import {self._lldb_formatters}"]
+            if not self._default_visualizers:
+                init_commands.insert(0, "type category disable -l c++")
             return {
                 "program": self._program,
                 "args": self._program_args,
                 "cwd": os.path.dirname(self._program),
-                "initCommands": [
-                    "type category disable -l c++",
-                    f"command script import {self._lldb_formatters}",
-                ],
+                "initCommands": init_commands,
             }
 
         cfg: dict[str, Any] = {
@@ -139,15 +145,19 @@ class DebugSession:
             # children under a "[Visualized View]" node. This is not desirable for testing purposes.
             cfg["showDisplayString"] = True
 
+            # As in VS Code's default configuration, gdb's pretty printers (those it loads by
+            # default) show what natvis does not.
+            if self._default_visualizers:
+                cfg["setupCommands"] = [{"text": "-enable-pretty-printing"}]
+
         if self._gdb_printers:
-            # Only the printers under test are active. gdb is instructed to read no init files
-            # (-nx) and auto-loading of printers (e.g. for libstdc++'s) is disabled.
+            # gdb is instructed to read no init files (-nx). Without the default visualizers,
+            # auto-loading of printers (e.g. libstdc++'s) is disabled.
             cfg["miDebuggerArgs"] = "-nx"
-            cfg["setupCommands"] = [
-                {"text": "-enable-pretty-printing"},
-                {"text": "set auto-load python-scripts off"},
-                {"text": f"source {self._gdb_printers}"},
-            ]
+            cfg["setupCommands"] = [{"text": "-enable-pretty-printing"}]
+            if not self._default_visualizers:
+                cfg["setupCommands"].append({"text": "set auto-load python-scripts off"})
+            cfg["setupCommands"].append({"text": f"source {self._gdb_printers}"})
 
         return cfg
 
@@ -200,20 +210,13 @@ class DebugSession:
                 raise DapError("lldb-dap (or lldb-vscode) not found on PATH")
             argv = [lldb_dap]
         else:
-            # As with OpenDebugAD7, only the printers under test are active. The program is loaded
-            # up front, so that breakpoints are bound as soon as they are set.
-            argv = [
-                self._debugger_path or "gdb",
-                "-q",
-                "-nx",
-                "-i",
-                "dap",
-                "-iex",
-                "set auto-load python-scripts off",
-                "-ex",
-                f"source {self._gdb_printers}",
-                self._program,
-            ]
+            # As with OpenDebugAD7, gdb reads no init files, and without the default visualizers
+            # loads no printers but those under test. The program is loaded up front, so that
+            # breakpoints are bound as soon as they are set.
+            argv = [self._debugger_path or "gdb", "-q", "-nx", "-i", "dap"]
+            if not self._default_visualizers:
+                argv += ["-iex", "set auto-load python-scripts off"]
+            argv += ["-ex", f"source {self._gdb_printers}", self._program]
 
         self._client_or_none = DapClient(argv, log=self._log, on_event=self._handle_event)
         self._client.request(

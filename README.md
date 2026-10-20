@@ -79,6 +79,10 @@ cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
   at each breakpoint.
 * Exactly one visualizer script must be specified using `--natvis`, `--gdb-printers`, or
   `--lldb-formatters`.
+* The visualizers that the debugger loads by default (e.g. libstdc++'s pretty printers, LLDB's C++
+  formatters, or the Natvis files of the Debugging Tools for Windows) are active alongside the
+  visualizer under test. `--no-default-visualizers` disables them, so that only the visualizer under
+  test is active.
 * The debugger executable to use may be specified using `--debugger-path`. For `dbgeng`, it is the
   directory of `dbgeng.dll` (or a file in it, such as `cdb.exe`), by default that of the Debugging
   Tools for Windows.

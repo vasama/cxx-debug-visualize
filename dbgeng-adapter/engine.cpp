@@ -562,6 +562,11 @@ void debugger::launch(std::filesystem::path const& program, std::vector<std::str
   m_output.flush();
 }
 
+void debugger::unload_natvis()
+{
+  execute(L".nvunloadall");
+}
+
 std::string debugger::load_natvis(std::string_view const path)
 {
   std::wstring const wide_path = widen(path);

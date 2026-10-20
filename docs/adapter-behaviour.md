@@ -96,17 +96,18 @@ GDB has its own DAP support since GDB 14.
 * **A script that fails to load passes silently**: values show without printers, and only the
   output reveals it. Through OpenDebugAD7 the launch fails instead.
 * **Isolation.** gdb reads `~/.gdbinit` and auto-loads installed printers (e.g. libstdc++'s for
-  `std::` types) unless told otherwise; `cxx-debug-visualize` passes `-nx` and turns off
-  `auto-load python-scripts`, so only the printers under test are active.
+  `std::` types) unless told otherwise. `cxx-debug-visualize` always passes `-nx`, and with
+  `--no-default-visualizers` also turns off `auto-load python-scripts`, so that only the printers
+  under test are active.
 
 ## LLDB (`lldb-dap`)
 
 LLDB's DAP server is called `lldb-dap` since LLVM 18, and `lldb-vscode` before that. Some
 distributions only install a versioned name, such as `lldb-dap-18` or `lldb-vscode-16`.
 
-* **A summary follows the value, separated by a space.** For types without a value of their own
-  (structs, classes), the displayed value is an empty value, a space, and the summary, so it
-  starts with a space (e.g. ` (3, -4)`).
+* **Until LLVM 18, a summary follows the value, separated by a space.** For types without a value of
+  their own (structs, classes), the displayed value is an empty value, a space, and the summary, so
+  it starts with a space (e.g. ` (3, -4)`).
 * **A reference's or pointer's address is shown before the summary** of what it points to (e.g.
   `0x… 0x… "world"` for a reference to a string whose summary itself starts with an address).
 * **A summary does not hide the members.** Unless a synthetic children provider replaces them, the
@@ -117,7 +118,7 @@ distributions only install a versioned name, such as `lldb-dap-18` or `lldb-vsco
   missing. A script that fails to import is only reported on the debug console, and values show
   without formatters. Only the output reveals either.
 * **Isolation.** lldb's built-in C++ formatters (e.g. for libstdc++ and libc++) are active by
-  default; `cxx-debug-visualize` disables the `c++` category before importing the script under
-  test.
+  default. With `--no-default-visualizers`, `cxx-debug-visualize` disables the `c++` category
+  before importing the script under test.
 * **Output differs between LLVM versions**, so expected output recorded with one version may not
   match another.

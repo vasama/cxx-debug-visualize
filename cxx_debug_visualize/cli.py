@@ -77,6 +77,12 @@ def main(argv: list[str] | None = None) -> int:
     visualizer.add_argument(
         "--lldb-formatters", metavar="FILE", help="lldb formatter script (Python)"
     )
+    parser.add_argument(
+        "--no-default-visualizers",
+        action="store_true",
+        help="disable default visualizers loaded by the debugger (e.g. libstdc++'s pretty "
+             "printers, lldb's C++ formatters, or MSSTL Natvis files)",
+    )
 
     parser.add_argument("source", help="test program source")
     parser.add_argument("program", help="test program executable")
@@ -224,6 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         natvis=ns.natvis,
         gdb_printers=ns.gdb_printers,
         lldb_formatters=ns.lldb_formatters,
+        default_visualizers=not ns.no_default_visualizers,
         log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None,
     )
 

@@ -1,7 +1,7 @@
-// A debug adapter for the Windows debug engine (DbgEng), for cxx-debug-visualize --debugger dbgeng:
-// a prototype replacement for cxx_debug_visualize/local_adapter.py, which drives cdb instead. It
-// takes the same launch arguments: program, args, cwd, visualizerFile, and debuggerPath (the
-// directory of dbgeng.dll, or a file in it such as cdb.exe).
+// A debug adapter for the Windows debug engine (DbgEng), for cxx-debug-visualize --adapter dbgeng.
+// Its launch arguments are program, args, cwd, visualizerFile, defaultVisualizers (false to unload
+// the natvis files that the engine loads by default, such as the Debugging Tools'), and
+// debuggerPath (the directory of dbgeng.dll, or a file in it such as cdb.exe).
 //
 // Only what cxx-debug-visualize uses is implemented: one program, reported as a single thread 1,
 // line breakpoints, the top stack frame, and values with their children (one level deep). Requests
@@ -117,6 +117,9 @@ private:
     m_debugger->launch(args.at("program").get<std::string>(),
                        args.value("args", std::vector<std::string>()),
                        args.value("cwd", ""));
+
+    if (!args.value("defaultVisualizers", true))
+      m_debugger->unload_natvis();
 
     std::string const natvis = args.value("visualizerFile", "");
     if (!natvis.empty())

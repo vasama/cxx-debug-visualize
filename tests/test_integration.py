@@ -65,6 +65,8 @@ class FixtureTestCase(unittest.TestCase):
             natvis=fixture(natvis),
             gdb_printers=fixture(gdb_printers),
             lldb_formatters=fixture(lldb_formatters),
+            # only the visualizer under test
+            default_visualizers=False,
         )
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):

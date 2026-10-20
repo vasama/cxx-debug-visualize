@@ -89,11 +89,17 @@ to its stderr. The adapter's own messages are passed on verbatim.
 * **Launch configuration:** For `OpenDebugAD7`, a `cppdbg` configuration as VS Code would send it,
   with `visualizerFile` and `showDisplayString` for Natvis, or `setupCommands` that enable pretty
   printing and load the script. For LLDB, `initCommands` that load the formatter script. For the
-  dbgeng adapter, its own: the program, its arguments and working directory, `visualizerFile`, and
-  `debuggerPath` for `--debugger-path`.
-* **Isolation:** Only the visualizer under test is active: GDB reads no init files (`-nx`) and
-  auto-loads no printers, and LLDB's built-in C++ formatters are disabled. This ensures that test
-  results do not depend on the host configuration.
+  dbgeng adapter, its own: the program, its arguments and working directory, `visualizerFile`,
+  `defaultVisualizers`, and `debuggerPath` for `--debugger-path`.
+* **Isolation:** If `default_visualizers` is true, the debuggers's default visualizers are loaded.
+  Otherwise, adapter and debugger specific configuration is provided in order to disable all default
+  visualizers. This ensures that test results do not depend on the host configuration.
+  * GDB: Init files are not read, regardless of configuration (`-nx`).
+  * GDB: If disabled, Python script auto-loading is disabled (`set auto-load python-scripts off`).
+  * GDB: If enabled, when using Natvis with MIEngine, GDB pretty printing is enabled
+    (`enable-pretty-printing`).
+  * LLDB: If disabled, the `c++` visualizer category is disabled (`type category disable -l c++`).
+  * dbgeng: If disabled, `defaultVisualizers=false` is passed to the adapter on startup.
 * **Request order:** `OpenDebugAD7`, the dbgeng adapter and LLDB follow the DAP specification
   (`launch`, then breakpoints on `initialized`, then `configurationDone`). GDB 14 and 15 run the
   program as soon as `launch` arrives, so for GDB the breakpoints are set and configuration is
@@ -128,7 +134,8 @@ line breakpoints, the top stack frame, and values with their direct children.
   the program runs.
 * `engine.cpp` (`debugger`) drives DbgEng through its COM interfaces. It loads `dbgeng.dll` from
   the Debugging Tools for Windows (or `debuggerPath`), starts the program stopped at the loader's
-  initial breakpoint, and loads the Natvis file with `.nvload`. Expressions are evaluated with
+  initial breakpoint, and loads the Natvis file with `.nvload`, after unloading the ones DbgEng
+  loads by default (`.nvunloadall`) if `defaultVisualizers` is false. Expressions are evaluated with
   DbgEng's data model, which applies the Natvis file: values are its display strings, with
   integers in decimal, and children are the visualizer's items and elements, or otherwise the
   fields.
@@ -137,7 +144,9 @@ line breakpoints, the top stack frame, and values with their direct children.
 
 The unit tests (line scanning, launch configurations, adapter discovery, debugger type deduction)
 need nothing but Python. The integration tests run the fixture program under each adapter with good,
-bad and malformed visualizers, and check both the printed trees and the errors reported.
+bad and malformed visualizers, and check both the printed trees and the errors reported. Like the
+example's tests, they disable the default visualizers, so that only the visualizer under test is
+active.
 
 `python3 -m tests` takes the fixture program (`--program`) and the executables to test with
 (`--gdb`, `--lldb-dap`, `--miengine`, `--dbgeng`). An integration test class runs only when the

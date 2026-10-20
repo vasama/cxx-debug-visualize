@@ -19,10 +19,10 @@
 #   gdb-miengine.<name>     GDB_PRINTERS, through OpenDebugAD7
 #   gdb-native.<name>       GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
 #   lldb-native.<name>      LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18)
-# Each compares the printed Variables trees with an expected output file next to the test
-# source, the first file in SOURCES: <test>.<kind>.txt, e.g. <test>.natvis-miengine.txt,
-# <test>.natvis-dbgeng.txt, <test>.gdb-miengine.txt, <test>.gdb-native.txt and
-# <test>.lldb-native.txt for tests/<test>.cpp.
+# Only the visualizer under test is active (--no-default-visualizers). Each test compares the
+# printed Variables trees with an expected output file next to the test source, the first file in
+# SOURCES: <test>.<kind>.txt, e.g. <test>.natvis-miengine.txt, <test>.natvis-dbgeng.txt,
+# <test>.gdb-miengine.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the output is
 # replaced by "0x?" before comparing; expected files contain "0x?" in their place.  Line endings
@@ -162,7 +162,7 @@ function(_add_visualizer_run kind name test_source adapter option file)
   get_filename_component(test_name "${test_source}" NAME_WE)
   set(expected "${test_dir}/${test_name}.${kind}.txt")
   set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
-  set(run ${CXX_DEBUG_VISUALIZE_COMMAND} --adapter ${adapter})
+  set(run ${CXX_DEBUG_VISUALIZE_COMMAND} --adapter ${adapter} --no-default-visualizers)
   if(adapter STREQUAL "miengine")
     list(APPEND run --miengine "${CXXDEBVIS_MIENGINE_PATH}")
   elseif(adapter STREQUAL "dbgeng")
