@@ -289,9 +289,9 @@ There is no timeout: cxx-vistest waits as long as the program runs; stop it
 with Ctrl+C. cxx-vistest doesn't handle signals itself. When it exits, the
 debug adapter's input closes, and the adapter is expected to shut down, taking
 gdb and the program with it. Current OpenDebugAD7 releases don't do this:
-they keep running (with gdb and the program) when their input closes. The
-issue is drafted in `mi-engine-issue/`, with a reproduction. Until it is fixed,
-Ctrl+C in a terminal still cleans up (the adapter receives the SIGINT too),
+they keep running (with gdb and the program) when their input closes. Until
+this is fixed in MIEngine, Ctrl+C in a terminal still cleans up (the adapter
+receives the SIGINT too),
 but killing cxx-vistest alone, e.g. with SIGTERM, leaves those processes
 behind.
 
