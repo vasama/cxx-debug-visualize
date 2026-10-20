@@ -103,7 +103,6 @@ enum pairings : unsigned
   libcxx_lldb = 1 << 3,
   msstl_lldb = 1 << 4,
   msstl_natvis = 1 << 5,
-  all_pairings = (1 << 6) - 1,
 };
 
 int main(int argc, char** argv)
@@ -150,49 +149,50 @@ int main(int argc, char** argv)
     }
   }
 
-  unsigned current_pairing = 0;
+  unsigned current_target = 0;
 
   if (lib == stdlib::libstdcxx && vis == visualizer::gdb)
   {
-    current_pairing = libstdcxx_gdb;
+    current_target = libstdcxx_gdb;
   }
   else if (lib == stdlib::libstdcxx && vis == visualizer::lldb)
   {
-    current_pairing = libstdcxx_lldb;
+    current_target = libstdcxx_lldb;
   }
   else if (lib == stdlib::libcxx && vis == visualizer::gdb)
   {
-    current_pairing = libcxx_gdb;
+    current_target = libcxx_gdb;
   }
   else if (lib == stdlib::libcxx && vis == visualizer::lldb)
   {
-    current_pairing = libcxx_lldb;
+    current_target = libcxx_lldb;
   }
   else if (lib == stdlib::msstl && vis == visualizer::lldb)
   {
-    current_pairing = msstl_lldb;
+    current_target = msstl_lldb;
   }
   else if (lib == stdlib::msstl && vis == visualizer::natvis)
   {
-    current_pairing = msstl_natvis;
+    current_target = msstl_natvis;
   }
 
-  auto const is_supported = [&](unsigned const pairings)
+  auto const is_target_one_of = [&](auto const... targets) -> bool
   {
-    return (pairings & current_pairing) != 0;
+    unsigned const target_mask = (targets | ... | 0u);
+    return (target_mask & current_target) != 0;
   };
 
   // -- <any> --------------------------------------------------------------------------------------
 
   {
     std::any any = 42;
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(any);
     }
 
     std::any empty_any;
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(empty_any);
     }
@@ -202,7 +202,7 @@ int main(int argc, char** argv)
 
   {
     std::array<int, 3> array{1, 2, 3};
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(array);
     }
@@ -212,13 +212,13 @@ int main(int argc, char** argv)
 
   {
     std::atomic<int> atomic{42};
-    if (is_supported(libstdcxx_gdb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(atomic);
     }
 
     std::atomic_flag atomic_flag = ATOMIC_FLAG_INIT;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(atomic_flag);
     }
@@ -228,7 +228,7 @@ int main(int argc, char** argv)
 
   {
     std::bitset<8> bitset(0b1010'0101);
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_natvis))
     {
       visualize(bitset);
     }
@@ -238,13 +238,13 @@ int main(int argc, char** argv)
 
   {
     std::chrono::seconds duration{90};
-    if (is_supported(libstdcxx_gdb | libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_lldb, msstl_natvis))
     {
       visualize(duration);
     }
 
     std::chrono::system_clock::time_point time_point{std::chrono::seconds{1'000'000'000}};
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(time_point);
     }
@@ -254,7 +254,7 @@ int main(int argc, char** argv)
 
   {
     std::complex<double> complex(1.5, -2.0);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(complex);
     }
@@ -264,19 +264,16 @@ int main(int argc, char** argv)
 
   {
     std::deque<int> deque{1, 2, 3};
-    if (is_supported(all_pairings))
-    {
-      visualize(deque);
-    }
+    visualize(deque);
 
     std::deque<int>::iterator deque_iterator = deque.begin() + 1;
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(deque_iterator);
     }
 
     std::deque<int>::iterator deque_end = deque.end();
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(deque_end);
     }
@@ -286,7 +283,7 @@ int main(int argc, char** argv)
 
   {
     std::filesystem::path path = "/usr/include/stdio.h";
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, msstl_natvis))
     {
       visualize(path);
     }
@@ -296,19 +293,19 @@ int main(int argc, char** argv)
 
   {
     std::forward_list<int> forward_list{1, 2, 3};
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(forward_list);
     }
 
     std::forward_list<int>::iterator forward_list_iterator = std::next(forward_list.begin());
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, msstl_natvis))
     {
       visualize(forward_list_iterator);
     }
 
     std::forward_list<int>::iterator forward_list_end = forward_list.end();
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, msstl_natvis))
     {
       visualize(forward_list_end);
     }
@@ -318,37 +315,37 @@ int main(int argc, char** argv)
 
   {
     std::plus<int> plus;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(plus);
     }
 
     std::minus<int> minus;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(minus);
     }
 
     std::multiplies<int> multiplies;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(multiplies);
     }
 
     std::divides<int> divides;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(divides);
     }
 
     std::modulus<int> modulus;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(modulus);
     }
 
     std::negate<int> negate;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(negate);
     }
@@ -356,37 +353,37 @@ int main(int argc, char** argv)
 
   {
     std::equal_to<int> equal_to;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(equal_to);
     }
 
     std::not_equal_to<int> not_equal_to;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(not_equal_to);
     }
 
     std::greater<int> greater;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(greater);
     }
 
     std::less<int> less;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(less);
     }
 
     std::greater_equal<int> greater_equal;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(greater_equal);
     }
 
     std::less_equal<int> less_equal;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(less_equal);
     }
@@ -394,19 +391,19 @@ int main(int argc, char** argv)
 
   {
     std::logical_and<bool> logical_and;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(logical_and);
     }
 
     std::logical_or<bool> logical_or;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(logical_or);
     }
 
     std::logical_not<bool> logical_not;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(logical_not);
     }
@@ -414,25 +411,25 @@ int main(int argc, char** argv)
 
   {
     std::bit_and<int> bit_and;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(bit_and);
     }
 
     std::bit_or<int> bit_or;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(bit_or);
     }
 
     std::bit_xor<int> bit_xor;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(bit_xor);
     }
 
     std::bit_not<int> bit_not;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(bit_not);
     }
@@ -440,7 +437,7 @@ int main(int argc, char** argv)
 
   {
     std::hash<int> hash;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(hash);
     }
@@ -449,7 +446,7 @@ int main(int argc, char** argv)
   {
     int referenced = 42;
     std::reference_wrapper<int> reference_wrapper = std::ref(referenced);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(reference_wrapper);
     }
@@ -461,7 +458,7 @@ int main(int argc, char** argv)
       return value * 2;
     };
 
-    if (is_supported(libcxx_lldb))
+    if (is_target_one_of(libcxx_lldb))
     {
       visualize(function);
     }
@@ -471,7 +468,7 @@ int main(int argc, char** argv)
     std::string pattern = "needle";
 
     std::default_searcher default_searcher(pattern.begin(), pattern.end());
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(default_searcher);
     }
@@ -481,21 +478,21 @@ int main(int argc, char** argv)
 
   {
     std::promise<int> promise;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(promise);
     }
 
     promise.set_value(42);
     std::future<int> future = promise.get_future();
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(future);
     }
 
     // sharing the future leaves it without a state, so this comes after it
     std::shared_future<int> shared_future = future.share();
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(shared_future);
     }
@@ -503,7 +500,7 @@ int main(int argc, char** argv)
 
   {
     std::packaged_task<int()> packaged_task([] { return 42; });
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(packaged_task);
     }
@@ -513,7 +510,7 @@ int main(int argc, char** argv)
 
   {
     std::initializer_list<int> initializer_list = {1, 2, 3};
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(initializer_list);
     }
@@ -525,19 +522,19 @@ int main(int argc, char** argv)
     std::vector<int> vector{1, 2, 3};
 
     std::reverse_iterator<std::vector<int>::iterator> reverse_iterator = vector.rbegin();
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(reverse_iterator);
     }
 
     std::back_insert_iterator<std::vector<int>> back_insert_iterator(vector);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(back_insert_iterator);
     }
 
     std::insert_iterator<std::vector<int>> insert_iterator(vector, vector.begin() + 1);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(insert_iterator);
     }
@@ -547,7 +544,7 @@ int main(int argc, char** argv)
     std::list<int> list{1, 2, 3};
 
     std::front_insert_iterator<std::list<int>> front_insert_iterator(list);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(front_insert_iterator);
     }
@@ -557,19 +554,16 @@ int main(int argc, char** argv)
 
   {
     std::list<int> list{1, 2, 3};
-    if (is_supported(all_pairings))
-    {
-      visualize(list);
-    }
+    visualize(list);
 
     std::list<int>::iterator list_iterator = std::next(list.begin());
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, msstl_natvis))
     {
       visualize(list_iterator);
     }
 
     std::list<int>::iterator list_end = list.end();
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(list_end);
     }
@@ -579,19 +573,13 @@ int main(int argc, char** argv)
 
   {
     std::map<int, std::string> map{{1, "one"}, {2, "two"}, {3, "three"}};
-    if (is_supported(all_pairings))
-    {
-      visualize(map);
-    }
+    visualize(map);
 
     std::map<int, std::string>::iterator map_iterator = std::next(map.begin());
-    if (is_supported(all_pairings))
-    {
-      visualize(map_iterator);
-    }
+    visualize(map_iterator);
 
     std::map<int, std::string>::iterator map_end = map.end();
-    if (is_supported(libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(map_end);
     }
@@ -599,37 +587,28 @@ int main(int argc, char** argv)
 
   {
     std::multimap<int, std::string> multimap{{1, "one"}, {1, "uno"}};
-    if (is_supported(all_pairings))
-    {
-      visualize(multimap);
-    }
+    visualize(multimap);
   }
 
   // -- <memory> -----------------------------------------------------------------------------------
 
   {
     std::unique_ptr<int> unique_ptr = std::make_unique<int>(42);
-    if (is_supported(all_pairings))
-    {
-      visualize(unique_ptr);
-    }
+    visualize(unique_ptr);
 
     std::unique_ptr<int[]> unique_array = std::make_unique<int[]>(3);
-    if (is_supported(all_pairings))
-    {
-      visualize(unique_array);
-    }
+    visualize(unique_array);
   }
 
   {
     std::shared_ptr<int> shared_ptr = std::make_shared<int>(42);
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb))
     {
       visualize(shared_ptr);
     }
 
     std::weak_ptr<int> weak_ptr = shared_ptr;
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb))
     {
       visualize(weak_ptr);
     }
@@ -637,13 +616,13 @@ int main(int argc, char** argv)
 
   {
     std::allocator<int> allocator;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(allocator);
     }
 
     std::default_delete<int> default_delete;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(default_delete);
     }
@@ -653,31 +632,31 @@ int main(int argc, char** argv)
 
   {
     std::mutex mutex;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(mutex);
     }
 
     std::recursive_mutex recursive_mutex;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(recursive_mutex);
     }
 
     std::timed_mutex timed_mutex;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(timed_mutex);
     }
 
     std::recursive_timed_mutex recursive_timed_mutex;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(recursive_timed_mutex);
     }
 
     std::once_flag once_flag;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(once_flag);
     }
@@ -687,7 +666,7 @@ int main(int argc, char** argv)
     std::mutex mutex;
 
     std::lock_guard<std::mutex> lock_guard(mutex);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(lock_guard);
     }
@@ -697,7 +676,7 @@ int main(int argc, char** argv)
     std::mutex mutex;
 
     std::unique_lock<std::mutex> unique_lock(mutex);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(unique_lock);
     }
@@ -708,7 +687,7 @@ int main(int argc, char** argv)
     std::mutex second;
 
     std::scoped_lock<std::mutex, std::mutex> scoped_lock(first, second);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(scoped_lock);
     }
@@ -716,19 +695,19 @@ int main(int argc, char** argv)
 
   {
     std::adopt_lock_t adopt_lock = std::adopt_lock;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(adopt_lock);
     }
 
     std::defer_lock_t defer_lock = std::defer_lock;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(defer_lock);
     }
 
     std::try_to_lock_t try_to_lock = std::try_to_lock;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(try_to_lock);
     }
@@ -738,19 +717,19 @@ int main(int argc, char** argv)
 
   {
     std::optional<int> optional = 42;
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(optional);
     }
 
     std::optional<int> empty_optional;
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(empty_optional);
     }
 
     std::nullopt_t nullopt = std::nullopt;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(nullopt);
     }
@@ -760,7 +739,7 @@ int main(int argc, char** argv)
 
   {
     std::queue<int> queue(std::deque<int>{1, 2});
-    if (is_supported(libstdcxx_gdb | libcxx_gdb | libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_gdb, libcxx_lldb, msstl_natvis))
     {
       visualize(queue);
     }
@@ -768,7 +747,7 @@ int main(int argc, char** argv)
 
   {
     std::priority_queue<int> priority_queue(std::less<int>(), std::vector<int>{1, 3, 2});
-    if (is_supported(libstdcxx_gdb | libcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_gdb, msstl_natvis))
     {
       visualize(priority_queue);
     }
@@ -780,43 +759,43 @@ int main(int argc, char** argv)
     std::string text = "abc123 def456";
 
     std::regex regex("([a-z]+)([0-9]+)");
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(regex);
     }
 
     std::smatch match_results = *std::sregex_iterator(text.begin(), text.end(), regex);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(match_results);
     }
 
     std::ssub_match sub_match = match_results[1];
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(sub_match);
     }
 
     std::sregex_iterator regex_iterator(text.begin(), text.end(), regex);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(regex_iterator);
     }
 
     std::sregex_iterator regex_end;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(regex_end);
     }
 
     std::sregex_token_iterator regex_token_iterator(text.begin(), text.end(), regex, 1);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(regex_token_iterator);
     }
 
     std::sregex_token_iterator regex_token_end;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(regex_token_end);
     }
@@ -826,19 +805,16 @@ int main(int argc, char** argv)
 
   {
     std::set<int> set{1, 2, 3};
-    if (is_supported(all_pairings))
-    {
-      visualize(set);
-    }
+    visualize(set);
 
     std::set<int>::iterator set_iterator = std::next(set.begin());
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, msstl_lldb, msstl_natvis))
     {
       visualize(set_iterator);
     }
 
     std::set<int>::iterator set_end = set.end();
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, msstl_lldb, msstl_natvis))
     {
       visualize(set_end);
     }
@@ -846,35 +822,32 @@ int main(int argc, char** argv)
 
   {
     std::multiset<int> multiset{1, 2, 2};
-    if (is_supported(all_pairings))
-    {
-      visualize(multiset);
-    }
+    visualize(multiset);
   }
 
   // -- <sstream> ----------------------------------------------------------------------------------
 
   {
     std::istringstream istringstream("1 2 3");
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(istringstream);
     }
 
     std::ostringstream ostringstream("hello", std::ios_base::ate);
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(ostringstream);
     }
 
     std::stringstream stringstream("hello");
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(stringstream);
     }
 
     std::stringbuf stringbuf("hello");
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(stringbuf);
     }
@@ -884,7 +857,7 @@ int main(int argc, char** argv)
 
   {
     std::stack<int> stack(std::deque<int>{1, 2});
-    if (is_supported(libstdcxx_gdb | libcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_gdb, msstl_natvis))
     {
       visualize(stack);
     }
@@ -894,19 +867,16 @@ int main(int argc, char** argv)
 
   {
     std::string string = "hello";
-    if (is_supported(all_pairings))
-    {
-      visualize(string);
-    }
+    visualize(string);
 
     std::string::iterator string_iterator = string.begin() + 1;
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_natvis))
     {
       visualize(string_iterator);
     }
 
     std::string::iterator string_end = string.end();
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_natvis))
     {
       visualize(string_end);
     }
@@ -914,15 +884,12 @@ int main(int argc, char** argv)
 
   {
     std::wstring wstring = L"hello";
-    if (is_supported(all_pairings))
-    {
-      visualize(wstring);
-    }
+    visualize(wstring);
   }
 
   {
     std::u16string u16string = u"hello";
-    if (is_supported(libstdcxx_gdb | libcxx_gdb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_gdb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(u16string);
     }
@@ -930,7 +897,7 @@ int main(int argc, char** argv)
 
   {
     std::u32string u32string = U"hello";
-    if (is_supported(libstdcxx_gdb | libcxx_gdb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_gdb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(u32string);
     }
@@ -940,15 +907,12 @@ int main(int argc, char** argv)
 
   {
     std::string_view string_view = "hello";
-    if (is_supported(all_pairings))
-    {
-      visualize(string_view);
-    }
+    visualize(string_view);
   }
 
   {
     std::wstring_view wstring_view = L"hello";
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(wstring_view);
     }
@@ -956,7 +920,7 @@ int main(int argc, char** argv)
 
   {
     std::u16string_view u16string_view = u"hello";
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_lldb))
     {
       visualize(u16string_view);
     }
@@ -964,7 +928,7 @@ int main(int argc, char** argv)
 
   {
     std::u32string_view u32string_view = U"hello";
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_lldb))
     {
       visualize(u32string_view);
     }
@@ -974,13 +938,13 @@ int main(int argc, char** argv)
 
   {
     std::error_code error_code = std::make_error_code(std::errc::invalid_argument);
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(error_code);
     }
 
     std::error_condition error_condition = std::errc::invalid_argument;
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(error_condition);
     }
@@ -990,13 +954,13 @@ int main(int argc, char** argv)
 
   {
     std::thread thread;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(thread);
     }
 
     std::thread::id thread_id;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(thread_id);
     }
@@ -1006,17 +970,14 @@ int main(int argc, char** argv)
 
   {
     std::tuple<int, double, std::string> tuple(1, 2.5, "three");
-    if (is_supported(all_pairings))
-    {
-      visualize(tuple);
-    }
+    visualize(tuple);
   }
 
   // -- <type_traits> ------------------------------------------------------------------------------
 
   {
     std::integral_constant<int, 42> integral_constant;
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(integral_constant);
     }
@@ -1026,19 +987,19 @@ int main(int argc, char** argv)
 
   {
     std::unordered_map<int, std::string> unordered_map{{1, "one"}, {2, "two"}};
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb))
     {
       visualize(unordered_map);
     }
 
     std::unordered_map<int, std::string>::iterator unordered_map_iterator = unordered_map.begin();
-    if (is_supported(libcxx_gdb | libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libcxx_gdb, libcxx_lldb, msstl_natvis))
     {
       visualize(unordered_map_iterator);
     }
 
     std::unordered_map<int, std::string>::iterator unordered_map_end = unordered_map.end();
-    if (is_supported(libcxx_gdb | libcxx_lldb))
+    if (is_target_one_of(libcxx_gdb, libcxx_lldb))
     {
       visualize(unordered_map_end);
     }
@@ -1046,7 +1007,7 @@ int main(int argc, char** argv)
 
   {
     std::unordered_multimap<int, std::string> unordered_multimap{{1, "one"}, {1, "uno"}};
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb))
     {
       visualize(unordered_multimap);
     }
@@ -1056,7 +1017,7 @@ int main(int argc, char** argv)
 
   {
     std::unordered_set<int> unordered_set{1, 2, 3};
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb))
     {
       visualize(unordered_set);
     }
@@ -1064,7 +1025,7 @@ int main(int argc, char** argv)
 
   {
     std::unordered_multiset<int> unordered_multiset{1, 2, 2};
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb))
     {
       visualize(unordered_multiset);
     }
@@ -1074,7 +1035,7 @@ int main(int argc, char** argv)
 
   {
     std::pair<int, std::string> pair(1, "one");
-    if (is_supported(libstdcxx_gdb | libcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libcxx_gdb, msstl_natvis))
     {
       visualize(pair);
     }
@@ -1084,13 +1045,13 @@ int main(int argc, char** argv)
 
   {
     std::valarray<int> valarray{1, 2, 3, 4, 5, 6};
-    if (is_supported(libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libcxx_lldb, msstl_natvis))
     {
       visualize(valarray);
     }
 
     std::slice_array<int> slice_array = valarray[std::slice(0, 3, 2)];
-    if (is_supported(libcxx_lldb))
+    if (is_target_one_of(libcxx_lldb))
     {
       visualize(slice_array);
     }
@@ -1100,13 +1061,13 @@ int main(int argc, char** argv)
 
   {
     std::variant<int, std::string> variant = std::string("text");
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(variant);
     }
 
     std::monostate monostate;
-    if (is_supported(msstl_natvis))
+    if (is_target_one_of(msstl_natvis))
     {
       visualize(monostate);
     }
@@ -1116,19 +1077,16 @@ int main(int argc, char** argv)
 
   {
     std::vector<int> vector{1, 2, 3};
-    if (is_supported(all_pairings))
-    {
-      visualize(vector);
-    }
+    visualize(vector);
 
     std::vector<int>::iterator vector_iterator = vector.begin() + 1;
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb, msstl_natvis))
     {
       visualize(vector_iterator);
     }
 
     std::vector<int>::iterator vector_end = vector.end();
-    if (is_supported(libstdcxx_gdb | libstdcxx_lldb | libcxx_lldb))
+    if (is_target_one_of(libstdcxx_gdb, libstdcxx_lldb, libcxx_lldb))
     {
       visualize(vector_end);
     }
@@ -1136,25 +1094,22 @@ int main(int argc, char** argv)
 
   {
     std::vector<bool> bool_vector{true, false, true};
-    if (is_supported(all_pairings))
-    {
-      visualize(bool_vector);
-    }
+    visualize(bool_vector);
 
     std::vector<bool>::iterator bool_iterator = bool_vector.begin();
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, msstl_natvis))
     {
       visualize(bool_iterator);
     }
 
     std::vector<bool>::iterator bool_end = bool_vector.end();
-    if (is_supported(libstdcxx_gdb))
+    if (is_target_one_of(libstdcxx_gdb))
     {
       visualize(bool_end);
     }
 
     std::vector<bool>::reference bool_reference = bool_vector[0];
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_target_one_of(libstdcxx_gdb, msstl_natvis))
     {
       visualize(bool_reference);
     }
