@@ -3,7 +3,7 @@
 #     cxx-vistest --adapter OpenDebugAD7 --natvis my.natvis test.cpp ./prog \
 #         | FileCheck test.cpp
 #
-#     cxx-vistest --adapter OpenDebugAD7 --printers my_printers.py test.cpp ./prog \
+#     cxx-vistest --adapter OpenDebugAD7 --gdb-printers my_printers.py test.cpp ./prog \
 #         | FileCheck test.cpp
 
 import argparse
@@ -35,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
 
     visualizer = parser.add_mutually_exclusive_group(required=True)
     visualizer.add_argument("--natvis", metavar="FILE", help="natvis file to test")
-    visualizer.add_argument("--printers", metavar="FILE",
+    visualizer.add_argument("--gdb-printers", metavar="FILE",
                             help="gdb pretty-printer script (Python) to test")
 
     parser.add_argument("source", help="C++ visualization test source")
@@ -74,15 +74,16 @@ def main(argv: list[str] | None = None) -> int:
         paths.append(("debug adapter", ns.adapter))
     if ns.natvis:
         paths.append(("natvis file", ns.natvis))
-    if ns.printers:
-        paths.append(("pretty-printer script", ns.printers))
+    if ns.gdb_printers:
+        paths.append(("pretty-printer script", ns.gdb_printers))
     missing = [(what, path) for what, path in paths if not os.path.isfile(path)]
     for what, path in missing:
         print(f"error: {what} not found: {path}", file=sys.stderr)
     if missing:
         return 2
 
-    runner = Runner(ns.adapter, ns.program, ns.source, natvis=ns.natvis, printers=ns.printers,
+    runner = Runner(ns.adapter, ns.program, ns.source, natvis=ns.natvis,
+                    gdb_printers=ns.gdb_printers,
                     log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None)
     return 0 if runner.run() else 1
 

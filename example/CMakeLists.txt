@@ -17,11 +17,11 @@ set(MYLIB_PRINTERS "${CMAKE_CURRENT_SOURCE_DIR}/printers/mylib_printers.py")
 cxx_vistest_add_test(test_containers
   SOURCES tests/test_containers.cpp
   NATVIS ${MYLIB_NATVIS}
-  PRINTERS ${MYLIB_PRINTERS}
+  GDB_PRINTERS ${MYLIB_PRINTERS}
   LINK_LIBRARIES mylib)
 
 cxx_vistest_add_test(test_strings
   SOURCES tests/test_strings.cpp
   NATVIS ${MYLIB_NATVIS}
-  PRINTERS ${MYLIB_PRINTERS}
+  GDB_PRINTERS ${MYLIB_PRINTERS}
   LINK_LIBRARIES mylib)

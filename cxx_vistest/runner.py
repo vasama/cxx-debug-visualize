@@ -46,12 +46,12 @@ class Runner:
     # The visualizer under test is a natvis file or a gdb pretty-printer script. With `adapter`
     # None, gdb's native DAP support is used.
     def __init__(self, adapter: str | None, program: str, source: str, *, natvis: str | None = None,
-                 printers: str | None = None,
+                 gdb_printers: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
         self._adapter = adapter
         self._program = program
         self._source = os.path.abspath(source)
-        self._visualizer: dict[str, str | None] = {"natvis": natvis, "printers": printers}
+        self._visualizer: dict[str, str | None] = {"natvis": natvis, "gdb_printers": gdb_printers}
         self._log = log
         self._failed = False
 

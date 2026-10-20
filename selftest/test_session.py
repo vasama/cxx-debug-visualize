@@ -15,7 +15,7 @@ class LaunchConfigTests(unittest.TestCase):
         self.assertNotIn("miDebuggerArgs", cfg)
 
     def test_printers(self):
-        cfg = DebugSession("adapter", "prog", printers="my_printers.py")._launch_config()
+        cfg = DebugSession("adapter", "prog", gdb_printers="my_printers.py")._launch_config()
         self.assertNotIn("visualizerFile", cfg)
         # isolated: no gdb init files, no auto-loaded printers
         self.assertEqual(cfg["miDebuggerArgs"], "-nx")
@@ -29,13 +29,13 @@ class LaunchConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             DebugSession("adapter", "prog")
         with self.assertRaises(ValueError):
-            DebugSession("adapter", "prog", natvis="my.natvis", printers="my_printers.py")
+            DebugSession("adapter", "prog", natvis="my.natvis", gdb_printers="my_printers.py")
 
     # gdb's own DAP support (no adapter) knows nothing about natvis
     def test_native_dap_rejects_natvis(self):
         with self.assertRaises(ValueError):
             DebugSession(None, "prog", natvis="my.natvis")
-        DebugSession(None, "prog", printers="my_printers.py")
+        DebugSession(None, "prog", gdb_printers="my_printers.py")
 
 
 if __name__ == "__main__":

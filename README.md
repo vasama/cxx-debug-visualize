@@ -266,7 +266,7 @@ CHECK lines against.
 
 ```
 python3 -m cxx_vistest [--adapter PATH | --vs-code-adapter | --native-dap] \
-    (--natvis FILE.natvis | --printers FILE.py) [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
+    (--natvis FILE.natvis | --gdb-printers FILE.py) [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
 `TEST.cpp` is the test source: its `visualize(x);` lines get
@@ -276,9 +276,9 @@ breakpoints. Calls in other files of the program are not breakpoints.
 |---|---|
 | `--adapter PATH` | OpenDebugAD7 to use; by default, `$CXX_VISTEST_ADAPTER` (see below) |
 | `--vs-code-adapter` | use the OpenDebugAD7 of the newest installed VS Code C/C++ extension (see below) |
-| `--native-dap` | use gdb's own DAP support (GDB 14 and later) instead of OpenDebugAD7; `--printers` only |
+| `--native-dap` | use gdb's own DAP support (GDB 14 and later) instead of OpenDebugAD7; `--gdb-printers` only |
 | `--natvis FILE` | the natvis file under test |
-| `--printers FILE` | the gdb pretty-printer script (Python) under test; exactly one of `--natvis` and `--printers` is required |
+| `--gdb-printers FILE` | the gdb pretty-printer script (Python) under test; exactly one of `--natvis` and `--gdb-printers` is required |
 | `--trace` | dump DAP traffic to stderr |
 
 Use `set -o pipefail` (or check both exit codes) when piping by hand, so an
@@ -304,8 +304,8 @@ enable_testing()
 
 cxx_vistest_add_test(test_containers
   SOURCES tests/test_containers.cpp
-  NATVIS natvis/mylib.natvis                  # at least one of NATVIS and PRINTERS
-  PRINTERS printers/mylib_printers.py
+  NATVIS natvis/mylib.natvis                  # at least one of NATVIS and GDB_PRINTERS
+  GDB_PRINTERS printers/mylib_printers.py
   LINK_LIBRARIES mylib)
 ```
 

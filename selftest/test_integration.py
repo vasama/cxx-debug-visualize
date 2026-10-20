@@ -47,10 +47,10 @@ class FixtureTestCase(unittest.TestCase):
 
     # Run the fixture with a natvis file or a pretty-printer script from
     # fixtures/; return (stdout, stderr lines).
-    def run_visualizer(self, variant="plain", *, natvis=None, printers=None):
+    def run_visualizer(self, variant="plain", *, natvis=None, gdb_printers=None):
         runner = Runner(self.adapter, self.programs[variant], SOURCE,
                         natvis=natvis and os.path.join(FIXTURES, natvis),
-                        printers=printers and os.path.join(FIXTURES, printers))
+                        gdb_printers=gdb_printers and os.path.join(FIXTURES, gdb_printers))
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             ok = runner.run()
@@ -130,7 +130,7 @@ class IntegrationTests(FixtureTestCase):
         self.assertIn("crash", crash[0])
 
     def test_good_printers(self):
-        output, errors = self.run_visualizer(printers="good_printers.py")
+        output, errors = self.run_visualizer(gdb_printers="good_printers.py")
         self.assertEqual(output, "\n".join([
             # a printer without children() shows no children
             "visualize(pr) at prog.cpp:17",
@@ -158,7 +158,7 @@ class IntegrationTests(FixtureTestCase):
         self.assertEqual(errors, [])
 
     def test_printer_errors(self):
-        output, errors = self.run_visualizer(printers="broken_printers.py")
+        output, errors = self.run_visualizer(gdb_printers="broken_printers.py")
         # exceptions in printers pass silently: the value stays empty and the
         # children are missing, for the CHECK lines to catch
         self.assertIn("visualize(pr) at prog.cpp:17\n   [Pair]\n", output)
@@ -168,7 +168,7 @@ class IntegrationTests(FixtureTestCase):
 
     def test_malformed_printers(self):
         # sourcing the script fails, so the launch fails with gdb's message
-        output, errors = self.run_visualizer(printers="malformed_printers.py")
+        output, errors = self.run_visualizer(gdb_printers="malformed_printers.py")
         self.assertEqual(output, "")
         self.assertTrue(any(e.startswith("Unable to start debugging.") and "invalid syntax" in e
                             for e in errors), errors)
@@ -186,7 +186,7 @@ class NativeDapTests(FixtureTestCase):
         super().setUpClass()
 
     def test_good_printers(self):
-        output, errors = self.run_visualizer(printers="good_printers.py")
+        output, errors = self.run_visualizer(gdb_printers="good_printers.py")
         self.assertEqual(output, "\n".join([
             "visualize(pr) at prog.cpp:17",
             "  <1,2> [Pair]",
@@ -214,7 +214,7 @@ class NativeDapTests(FixtureTestCase):
         self.assertEqual(errors, [])
 
     def test_crash(self):
-        output, errors = self.run_visualizer("crash", printers="good_printers.py")
+        output, errors = self.run_visualizer("crash", gdb_printers="good_printers.py")
         # the crash comes after the last call, so every call has printed
         self.assertTrue(output.startswith("visualize(pr) at prog.cpp:17\n"), output)
         self.assertIn("visualize(big) at prog.cpp:31\n", output)

@@ -4,7 +4,7 @@
 #   cxx_vistest_add_test(<name>
 #     SOURCES <test.cpp>...              # the first one is the test source
 #     [NATVIS <file.natvis>]             # natvis file under test
-#     [PRINTERS <printers.py>]           # gdb pretty-printer script under test
+#     [GDB_PRINTERS <printers.py>]       # gdb pretty-printer script under test
 #     [LINK_LIBRARIES <lib>...]
 #     [INCLUDE_DIRECTORIES <dir>...]
 #     [ARGS <cxx-vistest option>...]  # e.g. --trace
@@ -18,7 +18,7 @@
 # visualize() lines, and FileCheck reads its CHECK lines.  A test fails
 # if either cxx-vistest or FileCheck fails.
 #
-# With both NATVIS and PRINTERS, lines where the two outputs differ use the
+# With both NATVIS and GDB_PRINTERS, lines where the two outputs differ use the
 # FileCheck prefixes NATVIS and GDB instead of CHECK: the tests run FileCheck
 # with --check-prefixes=CHECK,NATVIS and CHECK,GDB.  Either prefix may go
 # unused, e.g. when both visualizers produce the same output.
@@ -44,13 +44,13 @@ if(NOT CXX_VISTEST_FILECHECK)
 endif()
 
 function(cxx_vistest_add_test name)
-  cmake_parse_arguments(PARSE_ARGV 1 TV "" "NATVIS;PRINTERS"
+  cmake_parse_arguments(PARSE_ARGV 1 TV "" "NATVIS;GDB_PRINTERS"
                         "SOURCES;LINK_LIBRARIES;INCLUDE_DIRECTORIES;ARGS")
   if(NOT TV_SOURCES)
     message(FATAL_ERROR "cxx_vistest_add_test(${name}): SOURCES is required")
   endif()
-  if(NOT TV_NATVIS AND NOT TV_PRINTERS)
-    message(FATAL_ERROR "cxx_vistest_add_test(${name}): NATVIS or PRINTERS is required")
+  if(NOT TV_NATVIS AND NOT TV_GDB_PRINTERS)
+    message(FATAL_ERROR "cxx_vistest_add_test(${name}): NATVIS or GDB_PRINTERS is required")
   endif()
 
   add_executable(${name} ${TV_SOURCES})
@@ -69,7 +69,7 @@ function(cxx_vistest_add_test name)
   # Only a test source checked against both visualizers needs their prefixes.
   set(natvis_prefixes "")
   set(printers_prefixes "")
-  if(TV_NATVIS AND TV_PRINTERS)
+  if(TV_NATVIS AND TV_GDB_PRINTERS)
     set(natvis_prefixes --allow-unused-prefixes --check-prefixes=CHECK,NATVIS)
     set(printers_prefixes --allow-unused-prefixes --check-prefixes=CHECK,GDB)
   endif()
@@ -77,8 +77,8 @@ function(cxx_vistest_add_test name)
     _cxx_vistest_add_run(natvis ${name} "${test_source}" --natvis "${TV_NATVIS}"
                               "${natvis_prefixes}" ${TV_ARGS})
   endif()
-  if(TV_PRINTERS)
-    _cxx_vistest_add_run(gdb ${name} "${test_source}" --printers "${TV_PRINTERS}"
+  if(TV_GDB_PRINTERS)
+    _cxx_vistest_add_run(gdb ${name} "${test_source}" --gdb-printers "${TV_GDB_PRINTERS}"
                               "${printers_prefixes}" ${TV_ARGS})
   endif()
 endfunction()

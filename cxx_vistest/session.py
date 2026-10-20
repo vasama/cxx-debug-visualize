@@ -30,17 +30,17 @@ class DebugSession:
     # With `adapter` None, gdb's native DAP support is used instead of OpenDebugAD7. In this mode
     # natvis is not supported.
     def __init__(self, adapter: str | None, program: str, *, natvis: str | None = None,
-                 printers: str | None = None,
+                 gdb_printers: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
-        if (natvis is None) == (printers is None):
-            raise ValueError("exactly one of natvis or printers is required")
+        if (natvis is None) == (gdb_printers is None):
+            raise ValueError("exactly one of natvis or gdb_printers is required")
         if adapter is None and natvis is not None:
             raise ValueError("gdb does not support natvis")
 
         self._adapter = adapter
         self._program = os.path.abspath(program)
         self._natvis = natvis and os.path.abspath(natvis)
-        self._printers = printers and os.path.abspath(printers)
+        self._gdb_printers = gdb_printers and os.path.abspath(gdb_printers)
         self._log = log
         self._breakpoints: dict[int, dict[str, Any]] = {}
         self._client_or_none: DapClient | None = None
@@ -74,14 +74,14 @@ class DebugSession:
             # children under a "[Visualized View]" node. This is not desirable for testing purposes.
             cfg["showDisplayString"] = True
 
-        if self._printers:
+        if self._gdb_printers:
             # Only the printers under test are active. gdb is insutrcted to read no init files
             # (-nx) and auto-loading of printers (e.g. libstdc++'s) is disabled.
             cfg["miDebuggerArgs"] = "-nx"
             cfg["setupCommands"] = [
                 {"text": "-enable-pretty-printing"},
                 {"text": "set auto-load python-scripts off"},
-                {"text": f"source {self._printers}"},
+                {"text": f"source {self._gdb_printers}"},
             ]
 
         return cfg
@@ -129,7 +129,7 @@ class DebugSession:
                 "-nx",
                 "-i", "dap",
                 "-iex", "set auto-load python-scripts off",
-                "-ex", f"source {self._printers}",
+                "-ex", f"source {self._gdb_printers}",
                 self._program
             ]
 
