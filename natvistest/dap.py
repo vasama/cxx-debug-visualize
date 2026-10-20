@@ -1,17 +1,18 @@
 """Minimal Debug Adapter Protocol client.
 
 Talks to a debug adapter (here: OpenDebugAD7 from the VS Code C/C++
-extension) over its stdin/stdout, the same way VS Code does.
+extension) over its stdin/stdout, the same way VS Code does.  Everything runs
+on the caller's thread: waiting for a response or an event reads protocol
+messages from the adapter's stdout until it has arrived.
 """
 
+import collections
 import json
 import os
-import queue
 import subprocess
-import threading
 
-# How often blocking waits wake up to check that the adapter is still alive.
-_POLL_INTERVAL = 0.5
+# OpenDebugAD7 writes this line to stderr whenever it starts in stdio mode.
+_BANNER = "waiting for v8 protocol on stdin/stdout"
 
 
 class DapError(Exception):
@@ -24,6 +25,8 @@ class AdapterError(DapError):
 
 class DapClient:
     def __init__(self, argv, env=None, log=None):
+        # stderr stays in its pipe until the adapter has exited (see close());
+        # the adapter writes next to nothing there.
         self._proc = subprocess.Popen(
             argv,
             stdin=subprocess.PIPE,
@@ -32,23 +35,14 @@ class DapClient:
             env=env,
         )
         self._seq = 0
-        self._lock = threading.Lock()
         self._responses = {}
-        self._response_cv = threading.Condition()
-        self.events = queue.Queue()
+        self._events = collections.deque()  # events not yet asked for
+        self._stderr = ""
         self.output = []  # (category, text) of every "output" event
         self.breakpoints = {}  # id -> latest breakpoint from "breakpoint" events
         self._log = log
-        self._reader = threading.Thread(target=self._read_loop, daemon=True)
-        self._reader.start()
-        self._stderr = []
-        threading.Thread(target=self._drain_stderr, daemon=True).start()
 
     # -- transport -----------------------------------------------------------
-
-    def _drain_stderr(self):
-        for line in self._proc.stderr:
-            self._stderr.append(line.decode(errors="replace"))
 
     def _read_message(self):
         headers = {}
@@ -70,49 +64,50 @@ class DapClient:
             body += chunk
         return json.loads(body)
 
-    def _read_loop(self):
-        while True:
-            msg = self._read_message()
-            if msg is None:
-                with self._response_cv:
-                    self._response_cv.notify_all()
-                self.events.put(None)
-                return
-            if self._log:
-                self._log("<- " + json.dumps(msg))
-            kind = msg.get("type")
-            if kind == "response":
-                with self._response_cv:
-                    self._responses[msg["request_seq"]] = msg
-                    self._response_cv.notify_all()
-            elif kind == "event":
-                body = msg.get("body", {})
-                if msg["event"] == "output":
-                    self.output.append((body.get("category", ""), body.get("output", "")))
-                elif msg["event"] == "breakpoint" and "id" in body.get("breakpoint", {}):
-                    self.breakpoints[body["breakpoint"]["id"]] = body["breakpoint"]
-                self.events.put(msg)
-            elif kind == "request":
+    def _handle_message(self, msg):
+        if self._log:
+            self._log("<- " + json.dumps(msg))
+
+        match msg:
+            case {"type": "response", "request_seq": seq}:
+                self._responses[seq] = msg
+            case {"type": "event"}:
+                match msg:
+                    case {"event": "output", "body": body}:
+                        self.output.append((body.get("category", ""), body.get("output", "")))
+                    case {"event": "breakpoint", "body": {"breakpoint": {"id": bp_id} as bp}}:
+                        self.breakpoints[bp_id] = bp
+                self._events.append(msg)
+            case {"type": "request", "seq": seq, "command": command}:
                 # Reverse requests (e.g. runInTerminal) are not supported; we
                 # launch with externalConsole=false so none should arrive.
                 self._send({
                     "type": "response",
-                    "request_seq": msg["seq"],
-                    "command": msg["command"],
+                    "request_seq": seq,
+                    "command": command,
                     "success": False,
                     "message": "not supported",
                 })
 
+    def _receive(self):
+        """Read and handle the next message from the adapter."""
+        msg = self._read_message()
+        if msg is None:
+            raise DapError(f"debug adapter exited (code {self._proc.wait()})")
+        self._handle_message(msg)
+
     def _send(self, msg):
-        with self._lock:
-            self._seq += 1
-            msg["seq"] = self._seq
-            data = json.dumps(msg).encode()
-            if self._log:
-                self._log("-> " + json.dumps(msg))
-            self._proc.stdin.write(f"Content-Length: {len(data)}\r\n\r\n".encode() + data)
-            self._proc.stdin.flush()
-            return self._seq
+        self._seq += 1
+        msg["seq"] = self._seq
+
+        if self._log:
+            self._log("-> " + json.dumps(msg))
+
+        data = json.dumps(msg).encode()
+        self._proc.stdin.write(f"Content-Length: {len(data)}\r\n\r\n".encode() + data)
+        self._proc.stdin.flush()
+
+        return self._seq
 
     # -- requests / events ---------------------------------------------------
 
@@ -124,13 +119,9 @@ class DapClient:
 
     def wait_response(self, seq):
         """Wait for the response to request `seq`."""
-        with self._response_cv:
-            while seq not in self._responses:
-                if self._proc.poll() is not None:
-                    stderr = "".join(self._stderr[-20:])
-                    raise DapError(f"debug adapter exited (code {self._proc.returncode}): {stderr}")
-                self._response_cv.wait(_POLL_INTERVAL)
-            resp = self._responses.pop(seq)
+        while seq not in self._responses:
+            self._receive()
+        resp = self._responses.pop(seq)
         if not resp.get("success"):
             raise AdapterError(resp.get("message") or json.dumps(resp.get("body")))
         return resp.get("body") or {}
@@ -147,20 +138,14 @@ class DapClient:
         if isinstance(names, str):
             names = (names,)
         while True:
-            if request_seq is not None:
-                with self._response_cv:
-                    resp = self._responses.get(request_seq)
-                if resp is not None and not resp.get("success"):
-                    self.wait_response(request_seq)  # raises the request's error
-            try:
-                ev = self.events.get(timeout=_POLL_INTERVAL)
-            except queue.Empty:
-                continue
-            if ev is None:
-                stderr = "".join(self._stderr[-20:])
-                raise DapError(f"debug adapter closed the connection: {stderr}")
-            if ev["event"] in names:
-                return ev
+            resp = self._responses.get(request_seq)
+            if resp is not None and not resp.get("success"):
+                self.wait_response(request_seq)  # raises the request's error
+            while self._events:
+                event = self._events.popleft()
+                if event["event"] in names:
+                    return event
+            self._receive()
 
     def close(self):
         """End the session and wait for the adapter to exit.
@@ -180,13 +165,31 @@ class DapClient:
                 self._proc.stdin.close()
             except (OSError, ValueError):
                 pass
+            # read whatever the adapter still sends, so that it never blocks
+            # writing to a pipe nobody reads while shutting down
+            try:
+                while True:
+                    msg = self._read_message()
+                    if msg is None:
+                        break
+                    self._handle_message(msg)
+            except (OSError, ValueError):
+                pass
             self._proc.wait()
-            self._reader.join()
+            self._stderr = self._proc.stderr.read().decode(errors="replace")
             for stream in (self._proc.stdout, self._proc.stderr):
                 try:
                     stream.close()
                 except (OSError, ValueError):
                     pass
+
+    def stderr_output(self):
+        """What the adapter wrote to stderr, without its startup banner.
+
+        Available once close() has returned.
+        """
+        return "".join(line for line in self._stderr.splitlines(keepends=True)
+                       if line.rstrip("\r\n") != _BANNER)
 
 
 def default_env():

@@ -104,7 +104,9 @@ Most mistakes fail silently. That is why natvis files need tests, and why
    * errors the debug adapter reports, printed verbatim: failed requests
      (e.g. a failed launch), breakpoints it could not set, and its natvis
      diagnostics (debug-console lines starting with `[Natvis]`, e.g. for
-     malformed XML; warnings too);
+     malformed XML; warnings too), and anything the adapter writes to its own
+     stderr apart from its `waiting for v8 protocol on stdin/stdout` banner
+     (e.g. a crash report), shown at the end;
    * natvistest's own errors, prefixed with `error: `, such as an unexpected
      stop (e.g. a segfault), the adapter going away, or a breakpoint that
      landed on a different line than its `check_visualizer` call (see below).
@@ -116,7 +118,7 @@ Most mistakes fail silently. That is why natvis files need tests, and why
 
 FileCheck then compares stdout with the `CHECK` lines in the test source.
 
-The implementation is pure Python standard library (3.8+): `natvistest/dap.py`
+The implementation is pure Python standard library (3.10+): `natvistest/dap.py`
 is a small DAP client, and `runner.py` holds the test logic.
 
 ## Writing tests

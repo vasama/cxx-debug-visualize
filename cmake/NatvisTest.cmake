@@ -20,7 +20,7 @@
 #   NATVISTEST_ADAPTER    path to OpenDebugAD7, passed as --adapter
 #   NATVISTEST_FILECHECK  path to LLVM's FileCheck
 
-find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
+find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
 get_filename_component(NATVISTEST_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(NATVISTEST_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")

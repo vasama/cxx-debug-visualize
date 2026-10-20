@@ -12,7 +12,8 @@ test source:
         ...
 
 Errors the adapter reports (failed requests, unverified breakpoints, natvis
-diagnostics) are printed to stderr verbatim; natvistest's own errors (e.g. an
+diagnostics, anything it writes to its stderr besides its startup banner) are
+printed to stderr verbatim; natvistest's own errors (e.g. an
 unexpected stop) are prefixed with "error: ".  Either fails the run.  Everything else,
 including evaluation errors and calls that are never reached, shows up as
 output that differs from what the CHECK lines expect.
@@ -156,4 +157,8 @@ class Runner:
                 for category, text in session.client.output:
                     if category == "console" and text.startswith(NATVIS_PREFIX):
                         self._report(text)
+                # anything else the adapter wrote to stderr is a failure too
+                stderr = session.client.stderr_output()
+                if stderr:
+                    self._report(stderr)
         return not self.failed
