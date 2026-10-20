@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         ns.debugger = deduce_debugger_type(debugger_path) if debugger_path else "gdb"
         if ns.debugger is None:
             print(
-                f"error: cannot deduce debugger type from its path; use --debugger to specify",
+                "error: cannot deduce debugger type from its path; use --debugger to specify",
                 file=sys.stderr,
             )
             return 2

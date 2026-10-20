@@ -113,7 +113,7 @@ class Runner:
         for invocation in invocations:
 
             def _bp_error(message: str) -> None:
-                self._error(f"{self._source}:{invocation.line}: {message}")
+                self._error(f"{self._source}:{invocation.line}: {message}")  # noqa: B023
 
             bp = session.get_breakpoint(invocation.breakpoint_id)
             if not bp.get("verified"):

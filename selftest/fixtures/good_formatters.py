@@ -1,7 +1,5 @@
 # lldb formatters for the self-test fixture test_program.cpp (like good_printers.py).
 
-import lldb
-
 
 def pair_summary(valobj, internal_dict):
     a = valobj.GetChildMemberWithName("a").GetValueAsSigned()

@@ -4,8 +4,6 @@
 #
 # Loaded with `command script import`, which calls __lldb_init_module.
 
-import lldb
-
 
 # A child named `name` that shows the value `value`.
 def _renamed(name, value):

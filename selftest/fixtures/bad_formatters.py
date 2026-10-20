@@ -2,8 +2,6 @@
 #
 # lldb returns an invalid value, without a value, for a missing member; converting that raises.
 
-import lldb
-
 
 def pair_summary(valobj, internal_dict):
     a = int(valobj.GetChildMemberWithName("a").GetValue())

@@ -209,7 +209,9 @@ class NativeDapTests(FixtureTestCase):
         if (
             not shutil.which("gdb")
             or subprocess.run(
-                ["gdb", "-nx", "-batch", "-ex", "python import gdb.dap"], capture_output=True
+                ["gdb", "-nx", "-batch", "-ex", "python import gdb.dap"],
+                capture_output=True,
+                check=False,
             ).returncode
             != 0
         ):
