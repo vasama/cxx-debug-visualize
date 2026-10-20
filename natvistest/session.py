@@ -30,6 +30,9 @@ class DebugSession:
         self.log = log
         self.client = None
         self._children_cache = {}
+        # breakpoint id -> state from the setBreakpoints reply (with "line" None),
+        # before any "breakpoint" event updates it
+        self._initial_breakpoint_states = {}
 
     # -- lifecycle -----------------------------------------------------------
 
@@ -80,19 +83,30 @@ class DebugSession:
         return resolved
 
     def set_breakpoints(self, source, lines):
+        """Set breakpoints; return the adapter's reply entries, with "line" None.
+
+        The reply only echoes the requested lines, so "line" is cleared to
+        keep it from being mistaken for where a breakpoint really landed.
+        """
         body = self.client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
             "breakpoints": [{"line": line} for line in lines],
         })
-        return body.get("breakpoints", [])
+        breakpoints = body.get("breakpoints", [])
+        for bp in breakpoints:
+            bp["line"] = None
+            self._initial_breakpoint_states[bp["id"]] = bp
+        return breakpoints
 
-    def get_breakpoint(self, breakpoint):
+    def get_breakpoint(self, breakpoint_id):
         """Latest state of a breakpoint returned by set_breakpoints.
 
-        The adapter reports where a breakpoint really lands (e.g. moved to the
-        next line with code) in "breakpoint" events sent during startup.
+        That is the last "breakpoint" event about it, which has the line it
+        really landed on (e.g. moved to the next line with code); without
+        one, the setBreakpoints reply entry, whose "line" is None.
         """
-        return self.client.breakpoints.get(breakpoint.get("id"), breakpoint)
+        initial = self._initial_breakpoint_states[breakpoint_id]
+        return self.client.breakpoints.get(breakpoint_id, initial)
 
     def wait_stop(self):
         """Wait for the program to stop or end; return the DAP event."""

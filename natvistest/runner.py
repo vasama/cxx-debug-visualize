@@ -39,6 +39,7 @@ class Call:
     def __init__(self, line, identifier):
         self.line = line
         self.identifier = identifier
+        self.breakpoint_id = -1
 
 
 def find_calls(path):
@@ -88,19 +89,22 @@ class Runner:
             if kid.name == "[More...]":
                 self._write_children(session, kid, indent + 1)
 
-    def _verify_breakpoints(self, session, placed):
+    def _verify_breakpoints(self, session, calls):
         """Report and return False unless every breakpoint sits on its requested line."""
-        for call, bp in placed:
-            bp = session.get_breakpoint(bp)
+        for call in calls:
+            bp = session.get_breakpoint(call.breakpoint_id)
             if not bp.get("verified"):
                 if bp.get("message"):
                     self._report(bp["message"])
                 else:
                     self._error(f"{self.source}:{call.line}: breakpoint could not be set")
                 return False
-            if bp.get("line") != call.line:
+            if bp.get("line") is None:
+                self._error(f"{self.source}:{call.line}: breakpoint was not bound to any line")
+                return False
+            if bp["line"] != call.line:
                 self._error(f"{self.source}:{call.line}: breakpoint landed on line "
-                            f"{bp.get('line')} instead (no code on line {call.line}?)")
+                            f"{bp['line']} instead (no code on line {call.line}?)")
                 return False
         return True
 
@@ -114,15 +118,17 @@ class Runner:
         session = DebugSession(self.adapter, self.program, self.natvis, log=self.log)
         try:
             resolved = session.start({self.source: [call.line for call in calls]})
-            placed = list(zip(calls, resolved[self.source]))
-            breakpoints = {call.line: call for call in calls}
+
+            for call, bp in zip(calls, resolved[self.source]):
+                call.breakpoint_id = bp["id"]
 
             # Every breakpoint must land on its own line; otherwise stop without
             # running any further.  The adapter reports where breakpoints land
             # during startup, and they don't move afterwards.
-            if not self._verify_breakpoints(session, placed):
+            if not self._verify_breakpoints(session, calls):
                 return False
 
+            breakpoints_by_line = {call.line: call for call in calls}
             while True:
                 event = session.wait_stop()
                 if event["event"] != "stopped":
@@ -133,8 +139,8 @@ class Runner:
                 frame = session.top_frame(thread_id)
                 source = frame.get("source", {}).get("path", self.program)
 
-                if body["reason"] == "breakpoint" and frame["line"] in breakpoints:
-                    call = breakpoints[frame["line"]]
+                if body["reason"] == "breakpoint" and frame["line"] in breakpoints_by_line:
+                    call = breakpoints_by_line[frame["line"]]
                     print(f"check_visualizer({call.identifier}) at "
                           f"{os.path.basename(source)}:{call.line}")
                     node = session.evaluate(call.identifier, frame["id"])
