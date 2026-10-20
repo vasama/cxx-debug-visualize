@@ -41,13 +41,18 @@ class FixtureTestCase(unittest.TestCase):
     # Run the fixture with a natvis file, a pretty-printer script or an lldb formatter script
     # from fixtures/, and the command line arguments `program_args` (any make it crash at the
     # end); return (stdout, stderr lines).
-    def run_visualizer(self, *program_args, natvis=None, gdb_printers=None,
-                       lldb_formatters=None):
+    def run_visualizer(self, *program_args, natvis=None, gdb_printers=None, lldb_formatters=None):
         fixture = lambda name: name and os.path.join(FIXTURES, name)
-        runner = Runner(self.adapter, SOURCE, PROGRAM, list(program_args),
-                        debugger=self.debugger,
-                        natvis=fixture(natvis), gdb_printers=fixture(gdb_printers),
-                        lldb_formatters=fixture(lldb_formatters))
+        runner = Runner(
+            self.adapter,
+            SOURCE,
+            PROGRAM,
+            list(program_args),
+            debugger=self.debugger,
+            natvis=fixture(natvis),
+            gdb_printers=fixture(gdb_printers),
+            lldb_formatters=fixture(lldb_formatters),
+        )
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             ok = runner.run()
@@ -67,36 +72,43 @@ class IntegrationTests(FixtureTestCase):
 
     def test_good_natvis(self):
         output, errors = self.run_visualizer(natvis="good.natvis")
-        self.assertEqual(output, "\n".join([
-            "visualize(pr) at test_program.cpp:17",
-            "  <1,2> [Pair]",
-            "    a = 1 [int]",
-            "    b = 2 [int]",
-            "visualize(arr) at test_program.cpp:18",
-            "  {...} [Arr]",
-            "    [0] = 7 [int]",
-            "    [1] = 8 [int]",
-            "    [2] = 9 [int]",
-            # every hit of the call in the loop is printed
-            "visualize(pr) at test_program.cpp:21",
-            "  <0,2> [Pair]",
-            "    a = 0 [int]",
-            "    b = 2 [int]",
-            "visualize(pr) at test_program.cpp:21",
-            "  <1,2> [Pair]",
-            "    a = 1 [int]",
-            "    b = 2 [int]",
-            # children that are visualized objects are not expanded
-            "visualize(pa) at test_program.cpp:26",
-            "  {...} [PairArr]",
-            "    [0] = <3,4> [Pair]",
-            "    [1] = <5,6> [Pair]",
-            # [More...] pages, which continue the list, are flattened into it
-            "visualize(big) at test_program.cpp:31",
-            "  {...} [Arr]",
-        ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
-            "",
-        ]))
+        self.assertEqual(
+            output,
+            "\n".join(
+                [
+                    "visualize(pr) at test_program.cpp:17",
+                    "  <1,2> [Pair]",
+                    "    a = 1 [int]",
+                    "    b = 2 [int]",
+                    "visualize(arr) at test_program.cpp:18",
+                    "  {...} [Arr]",
+                    "    [0] = 7 [int]",
+                    "    [1] = 8 [int]",
+                    "    [2] = 9 [int]",
+                    # every hit of the call in the loop is printed
+                    "visualize(pr) at test_program.cpp:21",
+                    "  <0,2> [Pair]",
+                    "    a = 0 [int]",
+                    "    b = 2 [int]",
+                    "visualize(pr) at test_program.cpp:21",
+                    "  <1,2> [Pair]",
+                    "    a = 1 [int]",
+                    "    b = 2 [int]",
+                    # children that are visualized objects are not expanded
+                    "visualize(pa) at test_program.cpp:26",
+                    "  {...} [PairArr]",
+                    "    [0] = <3,4> [Pair]",
+                    "    [1] = <5,6> [Pair]",
+                    # [More...] pages, which continue the list, are flattened into it
+                    "visualize(big) at test_program.cpp:31",
+                    "  {...} [Arr]",
+                ]
+                + [f"    [{i}] = {i} [int]" for i in range(120)]
+                + [
+                    "",
+                ]
+            ),
+        )
         self.assertEqual(errors, [])
 
     def test_bad_natvis(self):
@@ -114,8 +126,10 @@ class IntegrationTests(FixtureTestCase):
         output, errors = self.run_visualizer(natvis="malformed.natvis")
         self.assertIn("{...} [Pair]", output)
         # passed on verbatim, as the adapter reported it
-        self.assertTrue(any(e.startswith("[Natvis] [Error]") and "error in XML document" in e
-                            for e in errors), errors)
+        self.assertTrue(
+            any(e.startswith("[Natvis] [Error]") and "error in XML document" in e for e in errors),
+            errors,
+        )
 
     def test_crash(self):
         output, errors = self.run_visualizer("crash", natvis="good.natvis")
@@ -128,30 +142,37 @@ class IntegrationTests(FixtureTestCase):
 
     def test_good_printers(self):
         output, errors = self.run_visualizer(gdb_printers="good_printers.py")
-        self.assertEqual(output, "\n".join([
-            # a printer without children() shows no children
-            "visualize(pr) at test_program.cpp:17",
-            "  <1,2> [Pair]",
-            "visualize(arr) at test_program.cpp:18",
-            "  n=3 [Arr]",
-            "    [0] = 7 [int]",
-            "    [1] = 8 [int]",
-            "    [2] = 9 [int]",
-            "visualize(pr) at test_program.cpp:21",
-            "  <0,2> [Pair]",
-            "visualize(pr) at test_program.cpp:21",
-            "  <1,2> [Pair]",
-            # the "map" display hint names each value by its key
-            "visualize(pa) at test_program.cpp:26",
-            "  pairs=2 [PairArr]",
-            "    [3] = 4 [int]",
-            "    [5] = 6 [int]",
-            # no [More...] paging
-            "visualize(big) at test_program.cpp:31",
-            "  n=120 [Arr]",
-        ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
-            "",
-        ]))
+        self.assertEqual(
+            output,
+            "\n".join(
+                [
+                    # a printer without children() shows no children
+                    "visualize(pr) at test_program.cpp:17",
+                    "  <1,2> [Pair]",
+                    "visualize(arr) at test_program.cpp:18",
+                    "  n=3 [Arr]",
+                    "    [0] = 7 [int]",
+                    "    [1] = 8 [int]",
+                    "    [2] = 9 [int]",
+                    "visualize(pr) at test_program.cpp:21",
+                    "  <0,2> [Pair]",
+                    "visualize(pr) at test_program.cpp:21",
+                    "  <1,2> [Pair]",
+                    # the "map" display hint names each value by its key
+                    "visualize(pa) at test_program.cpp:26",
+                    "  pairs=2 [PairArr]",
+                    "    [3] = 4 [int]",
+                    "    [5] = 6 [int]",
+                    # no [More...] paging
+                    "visualize(big) at test_program.cpp:31",
+                    "  n=120 [Arr]",
+                ]
+                + [f"    [{i}] = {i} [int]" for i in range(120)]
+                + [
+                    "",
+                ]
+            ),
+        )
         self.assertEqual(errors, [])
 
     def test_bad_printers(self):
@@ -159,55 +180,68 @@ class IntegrationTests(FixtureTestCase):
         # exceptions in printers pass silently: the value stays empty and the
         # children are missing, for the expected output to catch
         self.assertIn("visualize(pr) at test_program.cpp:17\n   [Pair]\n", output)
-        self.assertIn("visualize(arr) at test_program.cpp:18\n  n=3 [Arr]\n"
-                      "visualize(pr)", output)
+        self.assertIn("visualize(arr) at test_program.cpp:18\n  n=3 [Arr]\nvisualize(pr)", output)
         self.assertEqual(errors, [])
 
     def test_malformed_printers(self):
         # sourcing the script fails, so the launch fails with gdb's message
         output, errors = self.run_visualizer(gdb_printers="malformed_printers.py")
         self.assertEqual(output, "")
-        self.assertTrue(any(e.startswith("Unable to start debugging.") and "invalid syntax" in e
-                            for e in errors), errors)
-
+        self.assertTrue(
+            any(
+                e.startswith("Unable to start debugging.") and "invalid syntax" in e for e in errors
+            ),
+            errors,
+        )
 
 
 # The pretty printers through gdb's own DAP support (the default), without OpenDebugAD7.
 class NativeDapTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
-        if not shutil.which("gdb") or subprocess.run(
-                ["gdb", "-nx", "-batch", "-ex", "python import gdb.dap"],
-                capture_output=True).returncode != 0:
+        if (
+            not shutil.which("gdb")
+            or subprocess.run(
+                ["gdb", "-nx", "-batch", "-ex", "python import gdb.dap"], capture_output=True
+            ).returncode
+            != 0
+        ):
             raise unittest.SkipTest("needs gdb 14 or later")
         super().setUpClass()
 
     def test_good_printers(self):
         output, errors = self.run_visualizer(gdb_printers="good_printers.py")
-        self.assertEqual(output, "\n".join([
-            "visualize(pr) at test_program.cpp:17",
-            "  <1,2> [Pair]",
-            "visualize(arr) at test_program.cpp:18",
-            "  n=3 [Arr]",
-            "    [0] = 7 [int]",
-            "    [1] = 8 [int]",
-            "    [2] = 9 [int]",
-            "visualize(pr) at test_program.cpp:21",
-            "  <0,2> [Pair]",
-            "visualize(pr) at test_program.cpp:21",
-            "  <1,2> [Pair]",
-            # unlike OpenDebugAD7, gdb shows the "map" display hint's keys and values as children
-            "visualize(pa) at test_program.cpp:26",
-            "  pairs=2 [PairArr]",
-            "    key0 = 3 [int]",
-            "    value0 = 4 [int]",
-            "    key1 = 5 [int]",
-            "    value1 = 6 [int]",
-            "visualize(big) at test_program.cpp:31",
-            "  n=120 [Arr]",
-        ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
-            "",
-        ]))
+        self.assertEqual(
+            output,
+            "\n".join(
+                [
+                    "visualize(pr) at test_program.cpp:17",
+                    "  <1,2> [Pair]",
+                    "visualize(arr) at test_program.cpp:18",
+                    "  n=3 [Arr]",
+                    "    [0] = 7 [int]",
+                    "    [1] = 8 [int]",
+                    "    [2] = 9 [int]",
+                    "visualize(pr) at test_program.cpp:21",
+                    "  <0,2> [Pair]",
+                    "visualize(pr) at test_program.cpp:21",
+                    "  <1,2> [Pair]",
+                    # unlike OpenDebugAD7, gdb shows the "map" display hint's keys and values as children
+                    "visualize(pa) at test_program.cpp:26",
+                    "  pairs=2 [PairArr]",
+                    "    key0 = 3 [int]",
+                    "    value0 = 4 [int]",
+                    "    key1 = 5 [int]",
+                    "    value1 = 6 [int]",
+                    "visualize(big) at test_program.cpp:31",
+                    "  n=120 [Arr]",
+                ]
+                + [f"    [{i}] = {i} [int]" for i in range(120)]
+                + [
+                    "",
+                ]
+            ),
+        )
         self.assertEqual(errors, [])
 
     def test_bad_printers(self):
@@ -221,8 +255,10 @@ class NativeDapTests(FixtureTestCase):
         # unlike through OpenDebugAD7, a script that doesn't load passes silently: values show
         # without printers, for the expected output to catch
         output, errors = self.run_visualizer(gdb_printers="malformed_printers.py")
-        self.assertIn("visualize(pr) at test_program.cpp:17\n   [Pair]\n    a = 1 [int]\n"
-                      "    b = 2 [int]\n", output)
+        self.assertIn(
+            "visualize(pr) at test_program.cpp:17\n   [Pair]\n    a = 1 [int]\n    b = 2 [int]\n",
+            output,
+        )
         self.assertEqual(errors, [])
 
     def test_crash(self):
@@ -233,7 +269,6 @@ class NativeDapTests(FixtureTestCase):
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
         self.assertIn("crash", crash[0])
-
 
 
 # The lldb formatters through lldb's own DAP server (lldb-dap, or lldb-vscode before LLVM 18).
@@ -248,45 +283,55 @@ class LldbTests(FixtureTestCase):
 
     def test_good_formatters(self):
         output, errors = self.run_visualizer(lldb_formatters="good_formatters.py")
-        self.assertEqual(output, "\n".join([
-            # lldb-dap shows a summary after an empty value and a space, and a summary does not
-            # hide the members
-            "visualize(pr) at test_program.cpp:17",
-            "   <1,2> [Pair]",
-            "    a = 1 [int]",
-            "    b = 2 [int]",
-            "visualize(arr) at test_program.cpp:18",
-            "   n=3 [Arr]",
-            "    [0] = 7 [int]",
-            "    [1] = 8 [int]",
-            "    [2] = 9 [int]",
-            "visualize(pr) at test_program.cpp:21",
-            "   <0,2> [Pair]",
-            "    a = 0 [int]",
-            "    b = 2 [int]",
-            "visualize(pr) at test_program.cpp:21",
-            "   <1,2> [Pair]",
-            "    a = 1 [int]",
-            "    b = 2 [int]",
-            # synthetic children named by key, like the gdb "map" display hint in OpenDebugAD7
-            "visualize(pa) at test_program.cpp:26",
-            "   pairs=2 [PairArr]",
-            "    [3] = 4 [int]",
-            "    [5] = 6 [int]",
-            # no paging
-            "visualize(big) at test_program.cpp:31",
-            "   n=120 [Arr]",
-        ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
-            "",
-        ]))
+        self.assertEqual(
+            output,
+            "\n".join(
+                [
+                    # lldb-dap shows a summary after an empty value and a space, and a summary does not
+                    # hide the members
+                    "visualize(pr) at test_program.cpp:17",
+                    "   <1,2> [Pair]",
+                    "    a = 1 [int]",
+                    "    b = 2 [int]",
+                    "visualize(arr) at test_program.cpp:18",
+                    "   n=3 [Arr]",
+                    "    [0] = 7 [int]",
+                    "    [1] = 8 [int]",
+                    "    [2] = 9 [int]",
+                    "visualize(pr) at test_program.cpp:21",
+                    "   <0,2> [Pair]",
+                    "    a = 0 [int]",
+                    "    b = 2 [int]",
+                    "visualize(pr) at test_program.cpp:21",
+                    "   <1,2> [Pair]",
+                    "    a = 1 [int]",
+                    "    b = 2 [int]",
+                    # synthetic children named by key, like the gdb "map" display hint in OpenDebugAD7
+                    "visualize(pa) at test_program.cpp:26",
+                    "   pairs=2 [PairArr]",
+                    "    [3] = 4 [int]",
+                    "    [5] = 6 [int]",
+                    # no paging
+                    "visualize(big) at test_program.cpp:31",
+                    "   n=120 [Arr]",
+                ]
+                + [f"    [{i}] = {i} [int]" for i in range(120)]
+                + [
+                    "",
+                ]
+            ),
+        )
         self.assertEqual(errors, [])
 
     def test_bad_formatters(self):
         # exceptions in formatters pass silently: a summary falls back to lldb's default and
         # synthetic children are missing, for the expected output to catch
         output, errors = self.run_visualizer(lldb_formatters="bad_formatters.py")
-        self.assertRegex(output, r"visualize\(pr\) at test_program.cpp:17\n"
-                                 r"  Pair @ 0x[0-9a-f]+ \[Pair\]\n    a = 1 \[int\]\n")
+        self.assertRegex(
+            output,
+            r"visualize\(pr\) at test_program.cpp:17\n"
+            r"  Pair @ 0x[0-9a-f]+ \[Pair\]\n    a = 1 \[int\]\n",
+        )
         self.assertIn("visualize(arr) at test_program.cpp:18\n   n=3 [Arr]\nvisualize(pr)", output)
         self.assertEqual(errors, [])
 
@@ -294,8 +339,11 @@ class LldbTests(FixtureTestCase):
         # importing the script fails, which lldb-dap only reports on its debug console: values
         # show without formatters, for the expected output to catch
         output, errors = self.run_visualizer(lldb_formatters="malformed_formatters.py")
-        self.assertRegex(output, r"visualize\(arr\) at test_program.cpp:18\n"
-                                 r"  Arr @ 0x[0-9a-f]+ \[Arr\]\n    data = ")
+        self.assertRegex(
+            output,
+            r"visualize\(arr\) at test_program.cpp:18\n"
+            r"  Arr @ 0x[0-9a-f]+ \[Arr\]\n    data = ",
+        )
         self.assertEqual(errors, [])
 
     def test_crash(self):

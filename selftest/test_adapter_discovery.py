@@ -8,6 +8,7 @@ from unittest import mock
 
 from cxx_debug_visualize.adapter import _EXECUTABLE, find_adapter
 
+
 class FindAdapterTests(unittest.TestCase):
     # `find_adapter` searches the home directory, i.e. $HOME.
     def setUp(self):
@@ -21,8 +22,9 @@ class FindAdapterTests(unittest.TestCase):
 
     # Set up a mock extension installation. Return the full adapter path.
     def install(self, extensions_dir, extension, with_adapter=True, executable=True):
-        bin_dir = os.path.join(self.home, extensions_dir, "extensions", extension,
-                               "debugAdapters", "bin")
+        bin_dir = os.path.join(
+            self.home, extensions_dir, "extensions", extension, "debugAdapters", "bin"
+        )
         os.makedirs(bin_dir)
         path = os.path.join(bin_dir, _EXECUTABLE)
         if with_adapter:

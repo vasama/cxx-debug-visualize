@@ -11,6 +11,7 @@ from .dap import DapClient, DapError
 # console output such as "[Natvis] [Error] Error ... while reading file: ...".
 _NATVIS_PREFIX = "[Natvis]"
 
+
 # One row of the Variables/Watch tree.
 class VisualizationNode:
     def __init__(self, name: str, value: str, type_: str | None, ref: int) -> None:
@@ -23,6 +24,7 @@ class VisualizationNode:
     def expandable(self) -> bool:
         return self.ref > 0
 
+
 class DebugSession:
     # The visualizer under test is a natvis file, a gdb pretty-printer script or an lldb formatter
     # script. Exactly one must be specified.
@@ -32,17 +34,28 @@ class DebugSession:
     # this way.
     #
     # `debugger_path` is the debugger to use instead of the one found on PATH.
-    def __init__(self, adapter: str | None, program: str, program_args: list[str], *,
-                 debugger: str, debugger_path: str | None = None, natvis: str | None = None,
-                 gdb_printers: str | None = None, lldb_formatters: str | None = None,
-                 log: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self,
+        adapter: str | None,
+        program: str,
+        program_args: list[str],
+        *,
+        debugger: str,
+        debugger_path: str | None = None,
+        natvis: str | None = None,
+        gdb_printers: str | None = None,
+        lldb_formatters: str | None = None,
+        log: Callable[[str], None] | None = None,
+    ) -> None:
         # The command line rejects all of these.
-        assert [natvis, gdb_printers, lldb_formatters].count(None) == 2, \
+        assert [natvis, gdb_printers, lldb_formatters].count(None) == 2, (
             "exactly one of natvis, gdb_printers or lldb_formatters is required"
+        )
         assert debugger in ("gdb", "lldb"), f"unknown debugger: {debugger}"
         assert adapter is not None or natvis is None, "native DAP does not support natvis"
-        assert debugger != "lldb" or adapter is None, \
+        assert debugger != "lldb" or adapter is None, (
             "lldb is only supported through its native DAP support"
+        )
         assert gdb_printers is None or debugger == "gdb", "gdb_printers needs gdb"
         assert lldb_formatters is None or debugger == "lldb", "lldb_formatters needs lldb"
 
@@ -131,10 +144,13 @@ class DebugSession:
     # being mistaken for where a breakpoint really landed. gdb's and lldb-dap's replies have the
     # real lines.
     def _set_breakpoints(self, source: str, lines: list[int]) -> list[int]:
-        body = self._client.request("setBreakpoints", {
-            "source": {"path": source, "name": os.path.basename(source)},
-            "breakpoints": [{"line": line} for line in lines],
-        })
+        body = self._client.request(
+            "setBreakpoints",
+            {
+                "source": {"path": source, "name": os.path.basename(source)},
+                "breakpoints": [{"line": line} for line in lines],
+            },
+        )
 
         breakpoints = body.get("breakpoints", [])
         for bp in breakpoints:
@@ -165,25 +181,31 @@ class DebugSession:
                 self._debugger_path or "gdb",
                 "-q",
                 "-nx",
-                "-i", "dap",
-                "-iex", "set auto-load python-scripts off",
-                "-ex", f"source {self._gdb_printers}",
-                self._program
+                "-i",
+                "dap",
+                "-iex",
+                "set auto-load python-scripts off",
+                "-ex",
+                f"source {self._gdb_printers}",
+                self._program,
             ]
 
         self._client_or_none = DapClient(argv, log=self._log, on_event=self._handle_event)
-        self._client.request("initialize", {
-            "clientID": "vscode",
-            "clientName": "cxx-debug-visualize",
-            "adapterID": "cppdbg",
-            "pathFormat": "path",
-            "linesStartAt1": True,
-            "columnsStartAt1": True,
-            "supportsVariableType": True,
-            "supportsVariablePaging": True,
-            "supportsRunInTerminalRequest": False,
-            "locale": "en-us",
-        })
+        self._client.request(
+            "initialize",
+            {
+                "clientID": "vscode",
+                "clientName": "cxx-debug-visualize",
+                "adapterID": "cppdbg",
+                "pathFormat": "path",
+                "linesStartAt1": True,
+                "columnsStartAt1": True,
+                "supportsVariableType": True,
+                "supportsVariablePaging": True,
+                "supportsRunInTerminalRequest": False,
+                "locale": "en-us",
+            },
+        )
         resolved: dict[str, list[int]] = {}
 
         if self._adapter is None and self._debugger == "gdb":
@@ -201,8 +223,9 @@ class DebugSession:
             for source, lines in breakpoints.items():
                 resolved[source] = self._set_breakpoints(source, lines)
             self._client.request("configurationDone")
-            self._client.request("launch", {"cwd": os.path.dirname(self._program),
-                                            "args": self._program_args})
+            self._client.request(
+                "launch", {"cwd": os.path.dirname(self._program), "args": self._program_args}
+            )
             return resolved
         else:
             launch_seq = self._client.request_async("launch", self._launch_config())
@@ -240,22 +263,28 @@ class DebugSession:
     # -- Inspection ----------------------------------------------------------
 
     def top_frame(self, thread_id: int) -> dict[str, Any]:
-        frames = self._client.request("stackTrace", {"threadId": thread_id, "startFrame": 0,
-                                                    "levels": 1})["stackFrames"]
+        frames = self._client.request(
+            "stackTrace", {"threadId": thread_id, "startFrame": 0, "levels": 1}
+        )["stackFrames"]
         if not frames:
             raise DapError(f"thread {thread_id} has no stack frames")
         return frames[0]
 
     def evaluate(self, expression: str, frame_id: int) -> VisualizationNode:
-        body = self._client.request("evaluate", {"expression": expression, "frameId": frame_id,
-                                                "context": "watch"})
-        return VisualizationNode(expression, body.get("result", ""), body.get("type"),
-                                 body.get("variablesReference", 0))
+        body = self._client.request(
+            "evaluate", {"expression": expression, "frameId": frame_id, "context": "watch"}
+        )
+        return VisualizationNode(
+            expression, body.get("result", ""), body.get("type"), body.get("variablesReference", 0)
+        )
 
     def children(self, node: VisualizationNode) -> list[VisualizationNode]:
         if not node.expandable:
             return []
         body = self._client.request("variables", {"variablesReference": node.ref})
-        return [VisualizationNode(v["name"], v.get("value", ""), v.get("type"),
-                                  v.get("variablesReference", 0))
-                for v in body.get("variables", [])]
+        return [
+            VisualizationNode(
+                v["name"], v.get("value", ""), v.get("type"), v.get("variablesReference", 0)
+            )
+            for v in body.get("variables", [])
+        ]

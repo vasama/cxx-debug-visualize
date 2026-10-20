@@ -17,14 +17,23 @@ import unittest
 from . import test_integration
 
 parser = argparse.ArgumentParser(prog="python3 -m selftest")
-parser.add_argument("--program", metavar="PATH",
-                    help="the built fixture program selftest/fixtures/test_program.cpp")
+parser.add_argument(
+    "--program", metavar="PATH", help="the built fixture program selftest/fixtures/test_program.cpp"
+)
 parser.add_argument("--vs-code-adapter", metavar="PATH", help="path to OpenDebugAD7")
-parser.add_argument("--fail-on-skip", action="store_true",
-                    help="fail if any test is skipped, e.g. because a tool is missing")
+parser.add_argument(
+    "--fail-on-skip",
+    action="store_true",
+    help="fail if any test is skipped, e.g. because a tool is missing",
+)
 parser.add_argument("--list", action="store_true", help="print the IDs of all tests and exit")
-parser.add_argument("--test", metavar="ID", action="append", default=[],
-                    help="run only the test with this ID (as --list prints it); repeatable")
+parser.add_argument(
+    "--test",
+    metavar="ID",
+    action="append",
+    default=[],
+    help="run only the test with this ID (as --list prints it); repeatable",
+)
 
 ns, rest = parser.parse_known_args()
 if ns.program:
@@ -39,12 +48,14 @@ if ns.vs_code_adapter:
 here = os.path.dirname(os.path.abspath(__file__))
 
 if ns.list:
+
     def test_ids(suite):
         for test in suite:
             if isinstance(test, unittest.TestSuite):
                 yield from test_ids(test)
             else:
                 yield test.id()
+
     tests = unittest.defaultTestLoader.discover(here, top_level_dir=os.path.dirname(here))
     for test_id in test_ids(tests):
         print(test_id)

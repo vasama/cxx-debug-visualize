@@ -41,3 +41,7 @@ cxx-debug-visualize = "cxx_debug_visualize.cli:main"
 
 [tool.setuptools]
 packages = ["cxx_debug_visualize"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["selftest/fixtures/malformed_*.py"]

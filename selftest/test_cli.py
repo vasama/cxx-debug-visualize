@@ -4,6 +4,7 @@ import unittest
 
 from cxx_debug_visualize.cli import deduce_debugger_type
 
+
 class DebuggerTypeTests(unittest.TestCase):
     def test_from_file_name(self):
         for path, expected in [

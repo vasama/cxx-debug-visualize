@@ -52,6 +52,7 @@ class StringProvider:
 def size_summary(member):
     def summary(valobj, internal_dict):
         return f"{{ size={_member(valobj, member).GetValueAsUnsigned()} }}"
+
     return summary
 
 
@@ -138,6 +139,7 @@ class IntMapProvider:
                 yield from in_order(node.GetChildMemberWithName("Left"))
                 yield node.GetChildMemberWithName("Value")
                 yield from in_order(node.GetChildMemberWithName("Right"))
+
         return list(in_order(_member(self.valobj, "Root")))
 
     def num_children(self):
@@ -151,8 +153,9 @@ def __lldb_init_module(debugger, internal_dict):
     def add(kind, function, type_name):
         regex = "-x " if "<" in type_name else ""
         option = "-F" if kind == "summary" else "-l"
-        debugger.HandleCommand(f'type {kind} add {regex}{option} {__name__}.{function} '
-                               f'"{type_name}"')
+        debugger.HandleCommand(
+            f'type {kind} add {regex}{option} {__name__}.{function} "{type_name}"'
+        )
 
     add("summary", "point_summary", "mylib::Point")
     add("summary", "string_summary", "mylib::String")

@@ -95,6 +95,7 @@ class IntMapPrinter:
                 yield from in_order(node["Left"])
                 yield node
                 yield from in_order(node["Right"])
+
         for i, node in enumerate(in_order(self.val["Root"])):
             yield f"[{i}]", node["Value"]
 
@@ -114,8 +115,10 @@ def build_printers():
 # String need a lookup function of their own.
 def lookup_string_pointer(val):
     value_type = val.type.strip_typedefs()
-    if (value_type.code == gdb.TYPE_CODE_PTR
-            and str(value_type.target().strip_typedefs()) == "mylib::String"):
+    if (
+        value_type.code == gdb.TYPE_CODE_PTR
+        and str(value_type.target().strip_typedefs()) == "mylib::String"
+    ):
         return StringPointerPrinter(val)
     return None
 

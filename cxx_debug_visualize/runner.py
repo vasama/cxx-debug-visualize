@@ -26,12 +26,14 @@ from .session import DebugSession, VisualizationNode
 
 INVOCATION_RE = re.compile(r"^\s*visualize\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
 
+
 # Represents a `visualize(identifier);` line in a test source.
 class TestInvocation:
     def __init__(self, line: int, identifier: str) -> None:
         self.line = line
         self.identifier = identifier
         self.breakpoint_id: int = -1
+
 
 def discover_test_lines(path: str) -> list[TestInvocation]:
     invocations: list[TestInvocation] = []
@@ -42,21 +44,35 @@ def discover_test_lines(path: str) -> list[TestInvocation]:
                 invocations.append(TestInvocation(lineno, m.group(1)))
     return invocations
 
+
 class Runner:
     # The visualizer under test is a natvis file, a gdb pretty-printer script or an lldb formatter
     # script. With `adapter` None, the debugger's native DAP support is used (see DebugSession).
-    def __init__(self, adapter: str | None, source: str, program: str, program_args: list[str], *,
-                 debugger: str, debugger_path: str | None = None, natvis: str | None = None,
-                 gdb_printers: str | None = None, lldb_formatters: str | None = None,
-                 log: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self,
+        adapter: str | None,
+        source: str,
+        program: str,
+        program_args: list[str],
+        *,
+        debugger: str,
+        debugger_path: str | None = None,
+        natvis: str | None = None,
+        gdb_printers: str | None = None,
+        lldb_formatters: str | None = None,
+        log: Callable[[str], None] | None = None,
+    ) -> None:
         self._adapter = adapter
         self._program = program
         self._source = os.path.abspath(source)
         self._debugger = debugger
         self._debugger_path = debugger_path
         self._program_args = program_args
-        self._visualizer: dict[str, str | None] = {"natvis": natvis, "gdb_printers": gdb_printers,
-                                                   "lldb_formatters": lldb_formatters}
+        self._visualizer: dict[str, str | None] = {
+            "natvis": natvis,
+            "gdb_printers": gdb_printers,
+            "lldb_formatters": lldb_formatters,
+        }
         self._log = log
         self._failed = False
 
@@ -93,9 +109,9 @@ class Runner:
             self._write_node(child, indent, child.name)
 
     # Report and return false if any breakpoint was placed on a line other than the one requested.
-    def _verify_breakpoints(self, session: DebugSession,
-                            invocations: list[TestInvocation]) -> bool:
+    def _verify_breakpoints(self, session: DebugSession, invocations: list[TestInvocation]) -> bool:
         for invocation in invocations:
+
             def _bp_error(message: str) -> None:
                 self._error(f"{self._source}:{invocation.line}: {message}")
 
@@ -112,8 +128,10 @@ class Runner:
                 return False
 
             if bp["line"] != invocation.line:
-                _bp_error(f"breakpoint landed on line "
-                          f"{bp['line']} instead (no code on line {invocation.line}?)")
+                _bp_error(
+                    f"breakpoint landed on line "
+                    f"{bp['line']} instead (no code on line {invocation.line}?)"
+                )
                 return False
 
         return True
@@ -127,16 +145,23 @@ class Runner:
         if not invocations:
             return True
 
-        session = DebugSession(self._adapter, self._program, self._program_args,
-                               debugger=self._debugger, debugger_path=self._debugger_path,
-                               **self._visualizer, log=self._log)
+        session = DebugSession(
+            self._adapter,
+            self._program,
+            self._program_args,
+            debugger=self._debugger,
+            debugger_path=self._debugger_path,
+            **self._visualizer,
+            log=self._log,
+        )
         try:
-            breakpoint_ids = session.start({
-                self._source: [invocation.line for invocation in invocations]
-            })
+            breakpoint_ids = session.start(
+                {self._source: [invocation.line for invocation in invocations]}
+            )
 
-            for invocation, breakpoint_id in zip(invocations, breakpoint_ids[self._source],
-                                                 strict=True):
+            for invocation, breakpoint_id in zip(
+                invocations, breakpoint_ids[self._source], strict=True
+            ):
                 invocation.breakpoint_id = breakpoint_id
 
             if not self._verify_breakpoints(session, invocations):
@@ -155,16 +180,20 @@ class Runner:
 
                 if body["reason"] == "breakpoint" and frame["line"] in breakpoints_by_line:
                     invocation = breakpoints_by_line[frame["line"]]
-                    print(f"visualize({invocation.identifier}) at "
-                          f"{os.path.basename(source)}:{invocation.line}")
+                    print(
+                        f"visualize({invocation.identifier}) at "
+                        f"{os.path.basename(source)}:{invocation.line}"
+                    )
                     node = session.evaluate(invocation.identifier, frame["id"])
                     self._write_node(node, 1)
                     self._write_children(session, node, 2)
                     sys.stdout.flush()
                 else:
-                    text = (body.get("text") or body.get("description") or body.get("reason"))
-                    self._error(f"{source}:{frame['line']}: program stopped unexpectedly ({text}) "
-                                f"in {frame['name']}")
+                    text = body.get("text") or body.get("description") or body.get("reason")
+                    self._error(
+                        f"{source}:{frame['line']}: program stopped unexpectedly ({text}) "
+                        f"in {frame['name']}"
+                    )
 
                 session.resume(thread_id)
         except AdapterError as e:

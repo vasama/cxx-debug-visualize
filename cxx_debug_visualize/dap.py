@@ -14,19 +14,26 @@ from typing import IO, Any
 # OpenDebugAD7 writes this line to stderr whenever it starts in stdio mode.
 _BANNER = "waiting for v8 protocol on stdin/stdout"
 
+
 # The debug session cannot continue, e.g. because the adapter exited.
 class DapError(Exception):
     pass
+
 
 # A request the adapter answered with an error; str() is its message.
 class AdapterError(DapError):
     pass
 
+
 class DapClient:
     # `on_event` is called with every event as soon as it arrives, before it is queued for
     # wait_event().
-    def __init__(self, argv: list[str], log: Callable[[str], None] | None = None,
-                 on_event: Callable[[dict[str, Any]], None] | None = None) -> None:
+    def __init__(
+        self,
+        argv: list[str],
+        log: Callable[[str], None] | None = None,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         env = dict(os.environ)
         env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"
 
@@ -68,13 +75,15 @@ class DapClient:
 
             case {"type": "request", "seq": seq, "command": command}:
                 # Reverse requests (e.g. runInTerminal) are not supported.
-                self._send({
-                    "type": "response",
-                    "request_seq": seq,
-                    "command": command,
-                    "success": False,
-                    "message": "not supported",
-                })
+                self._send(
+                    {
+                        "type": "response",
+                        "request_seq": seq,
+                        "command": command,
+                        "success": False,
+                        "message": "not supported",
+                    }
+                )
 
     # -- Transport -----------------------------------------------------------
 
@@ -141,8 +150,9 @@ class DapClient:
 
     # Return the next event whose name is in `names`, discarding others.
     # If request `request_seq` fails in the meantime, raise its error instead.
-    def wait_event(self, names: str | tuple[str, ...],
-                   request_seq: int | None = None) -> dict[str, Any]:
+    def wait_event(
+        self, names: str | tuple[str, ...], request_seq: int | None = None
+    ) -> dict[str, Any]:
         if isinstance(names, str):
             names = (names,)
 
@@ -195,5 +205,8 @@ class DapClient:
     # Only available once close() has returned.
     def stderr_output(self) -> str:
         assert self._stderr is not None, "only available after close()"
-        return "".join(line for line in self._stderr.splitlines(keepends=True)
-                       if line.rstrip("\r\n") != _BANNER)
+        return "".join(
+            line
+            for line in self._stderr.splitlines(keepends=True)
+            if line.rstrip("\r\n") != _BANNER
+        )

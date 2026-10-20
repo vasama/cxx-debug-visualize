@@ -12,6 +12,7 @@ import sys
 _EXTENSION_DIRS = (".vscode", ".vscode-server", ".vscode-insiders", ".vscode-server-insiders")
 _EXECUTABLE = "OpenDebugAD7.exe" if sys.platform == "win32" else "OpenDebugAD7"
 
+
 # The OpenDebugAD7 of the newest VS Code C/C++ extension installed in the user's home directory, or
 # None if not found.
 #
@@ -21,8 +22,11 @@ def find_adapter() -> str | None:
     candidates: list[str] = []
     for directory in _EXTENSION_DIRS:
         extensions = os.path.join(os.path.expanduser("~"), directory, "extensions")
-        candidates += glob.glob(os.path.join(extensions, "ms-vscode.cpptools-[0-9]*",
-                                             "debugAdapters", "bin", _EXECUTABLE))
+        candidates += glob.glob(
+            os.path.join(
+                extensions, "ms-vscode.cpptools-[0-9]*", "debugAdapters", "bin", _EXECUTABLE
+            )
+        )
     candidates = [path for path in candidates if os.access(path, os.X_OK)]
 
     def extract_version(path: str) -> tuple[int, ...]:
@@ -31,10 +35,12 @@ def find_adapter() -> str | None:
 
     return max(candidates, key=extract_version, default=None)
 
+
 # lldb's own DAP server on PATH, or None if not found. LLVM 18 renamed it from lldb-vscode to
 # lldb-dap.
 def find_lldb_dap() -> str | None:
     return shutil.which("lldb-dap") or shutil.which("lldb-vscode")
+
 
 # Command line used to start the adapter.
 #
