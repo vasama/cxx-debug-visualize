@@ -23,11 +23,14 @@ ADAPTER = None
 CXX = os.environ.get("CXX") or shutil.which("g++") or shutil.which("clang++")
 
 
-class IntegrationTests(unittest.TestCase):
+# Builds the fixture program and runs test_visualizers on it; the test classes below say which
+# debug adapter to use.
+class FixtureTestCase(unittest.TestCase):
+    # path of OpenDebugAD7, or None for gdb's own DAP support (--native-dap)
+    adapter = None
+
     @classmethod
     def setUpClass(cls):
-        if not (ADAPTER and CXX and shutil.which("gdb")):
-            raise unittest.SkipTest("needs --adapter, gdb and a C++ compiler")
         cls.tmp = tempfile.mkdtemp(prefix="test_visualizers-")
         # variants of the fixture: without and with a crash after the last call
         cls.programs = {}
@@ -45,7 +48,7 @@ class IntegrationTests(unittest.TestCase):
     # Run the fixture with a natvis file or a pretty-printer script from
     # fixtures/; return (stdout, stderr lines).
     def run_visualizer(self, variant="plain", *, natvis=None, printers=None):
-        runner = Runner(ADAPTER, self.programs[variant], SOURCE,
+        runner = Runner(self.adapter, self.programs[variant], SOURCE,
                         natvis=natvis and os.path.join(FIXTURES, natvis),
                         printers=printers and os.path.join(FIXTURES, printers))
         out, err = io.StringIO(), io.StringIO()
@@ -55,6 +58,15 @@ class IntegrationTests(unittest.TestCase):
         # anything on stderr (adapter messages, test_visualizers errors) means failure
         self.assertEqual(ok, not errors, errors)
         return out.getvalue(), errors
+
+
+class IntegrationTests(FixtureTestCase):
+    @classmethod
+    def setUpClass(cls):
+        if not (ADAPTER and CXX and shutil.which("gdb")):
+            raise unittest.SkipTest("needs --adapter, gdb and a C++ compiler")
+        cls.adapter = ADAPTER
+        super().setUpClass()
 
     def test_good_natvis(self):
         output, errors = self.run_visualizer(natvis="good.natvis")
@@ -160,6 +172,55 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(output, "")
         self.assertTrue(any(e.startswith("Unable to start debugging.") and "invalid syntax" in e
                             for e in errors), errors)
+
+
+
+# The pretty printers through gdb's own DAP support (--native-dap), without OpenDebugAD7.
+class NativeDapTests(FixtureTestCase):
+    @classmethod
+    def setUpClass(cls):
+        if not (CXX and shutil.which("gdb")) or subprocess.run(
+                ["gdb", "-nx", "-batch", "-ex", "python import gdb.dap"],
+                capture_output=True).returncode != 0:
+            raise unittest.SkipTest("needs gdb 14 or later and a C++ compiler")
+        super().setUpClass()
+
+    def test_good_printers(self):
+        output, errors = self.run_visualizer(printers="good_printers.py")
+        self.assertEqual(output, "\n".join([
+            "check_visualizer(pr) at prog.cpp:17",
+            "  <1,2> [Pair]",
+            "check_visualizer(arr) at prog.cpp:18",
+            "  n=3 [Arr]",
+            "    [0] = 7 [int]",
+            "    [1] = 8 [int]",
+            "    [2] = 9 [int]",
+            "check_visualizer(pr) at prog.cpp:21",
+            "  <0,2> [Pair]",
+            "check_visualizer(pr) at prog.cpp:21",
+            "  <1,2> [Pair]",
+            # unlike OpenDebugAD7, gdb shows the "map" display hint's keys and values as children
+            "check_visualizer(pa) at prog.cpp:26",
+            "  pairs=2 [PairArr]",
+            "    key0 = 3 [int]",
+            "    value0 = 4 [int]",
+            "    key1 = 5 [int]",
+            "    value1 = 6 [int]",
+            "check_visualizer(big) at prog.cpp:31",
+            "  n=120 [Arr]",
+        ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
+            "",
+        ]))
+        self.assertEqual(errors, [])
+
+    def test_crash(self):
+        output, errors = self.run_visualizer("crash", printers="good_printers.py")
+        # the crash comes after the last call, so every call has printed
+        self.assertTrue(output.startswith("check_visualizer(pr) at prog.cpp:17\n"), output)
+        self.assertIn("check_visualizer(big) at prog.cpp:31\n", output)
+        crash = [e for e in errors if "program stopped unexpectedly" in e]
+        self.assertEqual(len(crash), 1, errors)
+        self.assertIn("crash", crash[0])
 
 
 if __name__ == "__main__":

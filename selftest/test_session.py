@@ -31,6 +31,12 @@ class LaunchConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             DebugSession("adapter", "prog", natvis="my.natvis", printers="my_printers.py")
 
+    # gdb's own DAP support (no adapter) knows nothing about natvis
+    def test_native_dap_rejects_natvis(self):
+        with self.assertRaises(ValueError):
+            DebugSession(None, "prog", natvis="my.natvis")
+        DebugSession(None, "prog", printers="my_printers.py")
+
 
 if __name__ == "__main__":
     unittest.main()

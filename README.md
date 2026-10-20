@@ -365,7 +365,9 @@ natvis files and pretty printers (including unexpanded children, nested
 flattened `[More...]` pages, the `map` display hint, calls in loops and calls never
 reached), how broken visualizers show in them (natvis evaluation errors, a
 dropped `Expand`, raising printers), and the errors test_visualizers reports
-(malformed XML, a printer script that doesn't load, crashes).
+(malformed XML, a printer script that doesn't load, crashes). The
+`--native-dap` tests check the printed trees and crashes with gdb's own DAP
+support; they need gdb 14 or later and g++/clang++, but no `--adapter`.
 
 ## Limitations
 
