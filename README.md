@@ -265,20 +265,27 @@ CHECK lines against.
 ## Running
 
 ```
-python3 -m cxx_vistest [--adapter PATH | --vs-code-adapter | --native-dap] \
-    (--natvis FILE.natvis | --gdb-printers FILE.py) [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
+python3 -m cxx_vistest [--debugger gdb|lldb] [--adapter PATH | --vs-code-adapter] \
+    (--natvis FILE.natvis | --gdb-printers FILE.py | --lldb-formatters FILE.py) [options] \
+    TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
 `TEST.cpp` is the test source: its `visualize(x);` lines get
 breakpoints. Calls in other files of the program are not breakpoints.
 
+Without a debug adapter (`--adapter`, `--vs-code-adapter` or
+`$CXX_VISTEST_ADAPTER`), cxx-vistest uses the debugger's own DAP support,
+found on `PATH`: `gdb -i dap` (GDB 14 and later), or lldb-dap (called
+lldb-vscode before LLVM 18). natvis needs a debug adapter (OpenDebugAD7).
+
 | Option | Meaning |
 |---|---|
+| `--debugger gdb\|lldb` | the debugger (default: `gdb`); `lldb` can't be used with a debug adapter |
 | `--adapter PATH` | OpenDebugAD7 to use; by default, `$CXX_VISTEST_ADAPTER` (see below) |
 | `--vs-code-adapter` | use the OpenDebugAD7 of the newest installed VS Code C/C++ extension (see below) |
-| `--native-dap` | use gdb's own DAP support (GDB 14 and later) instead of OpenDebugAD7; `--gdb-printers` only |
-| `--natvis FILE` | the natvis file under test |
-| `--gdb-printers FILE` | the gdb pretty-printer script (Python) under test; exactly one of `--natvis` and `--gdb-printers` is required |
+| `--natvis FILE` | the natvis file under test; requires a debug adapter |
+| `--gdb-printers FILE` | the gdb pretty-printer script (Python) under test; requires `--debugger gdb` |
+| `--lldb-formatters FILE` | the lldb formatter script (Python, loaded with `command script import`) under test; requires `--debugger lldb`. Exactly one of `--natvis`, `--gdb-printers` and `--lldb-formatters` is required |
 | `--trace` | dump DAP traffic to stderr |
 
 Use `set -o pipefail` (or check both exit codes) when piping by hand, so an
@@ -331,8 +338,8 @@ cmake --build build && ctest --test-dir build -L visualizers
 
 `--adapter` gives the path of an `OpenDebugAD7` executable (or
 `OpenDebugAD7.dll`, run with `dotnet`). Without it, `cxx-vistest` uses the
-`CXX_VISTEST_ADAPTER` environment variable. One of the two is required
-unless `--vs-code-adapter` or `--native-dap` is given.
+`CXX_VISTEST_ADAPTER` environment variable. Without either, and without
+`--vs-code-adapter`, the debugger's own DAP support is used (see above).
 
 `--vs-code-adapter` uses the adapter of the newest VS Code C/C++ extension
 installed in your home directory:
@@ -371,12 +378,13 @@ flattened `[More...]` pages, the `map` display hint, calls in loops and calls ne
 reached), how broken visualizers show in them (natvis evaluation errors, a
 dropped `Expand`, raising printers), and the errors cxx-vistest reports
 (malformed XML, a printer script that doesn't load, crashes). The
-`--native-dap` tests check the printed trees and crashes with gdb's own DAP
-support; they need gdb 14 or later and g++/clang++, but no `--adapter`.
+tests of gdb's own DAP support check the printed trees and crashes; they need
+gdb 14 or later and g++/clang++, but no `--adapter`.
 
 ## Limitations
 
-* The debugger is always the `gdb` found on `PATH`; lldb is not supported.
+* The debugger is the `gdb` or lldb-dap found on `PATH`. lldb is only supported
+  through lldb-dap, so not with OpenDebugAD7 or natvis.
 * Windows' `cppvsdbg` / Visual Studio natvis is a different engine and is not
   tested by this tool.
 * Exceptions inside pretty printers pass silently (see above); only the CHECK

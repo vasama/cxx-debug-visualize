@@ -4,7 +4,7 @@ import os
 from collections.abc import Callable
 from typing import Any
 
-from .adapter import adapter_argv
+from .adapter import adapter_argv, find_lldb_dap
 from .dap import DapClient, DapError
 
 # Natvis diagnostics (bad XML, unparsable type names, ...) arrive as debug
@@ -24,23 +24,32 @@ class VisualizationNode:
         return self.ref > 0
 
 class DebugSession:
-    # The visualizer under test is either a natvis file or a gdb pretty-printer script. Exactly one
-    # must be specified.
+    # The visualizer under test is a natvis file, a gdb pretty-printer script or an lldb formatter
+    # script. Exactly one must be specified.
     #
-    # With `adapter` None, gdb's native DAP support is used instead of OpenDebugAD7. In this mode
-    # natvis is not supported.
-    def __init__(self, adapter: str | None, program: str, *, natvis: str | None = None,
-                 gdb_printers: str | None = None,
+    # With `adapter` None, the debugger's native DAP support is used instead of OpenDebugAD7
+    # (`gdb -i dap`, or lldb-dap). In this mode natvis is not supported. lldb is only supported
+    # this way.
+    def __init__(self, adapter: str | None, program: str, *, debugger: str,
+                 natvis: str | None = None, gdb_printers: str | None = None,
+                 lldb_formatters: str | None = None,
                  log: Callable[[str], None] | None = None) -> None:
-        if (natvis is None) == (gdb_printers is None):
-            raise ValueError("exactly one of natvis or gdb_printers is required")
-        if adapter is None and natvis is not None:
-            raise ValueError("gdb does not support natvis")
+        # The command line rejects all of these.
+        assert [natvis, gdb_printers, lldb_formatters].count(None) == 2, \
+            "exactly one of natvis, gdb_printers or lldb_formatters is required"
+        assert debugger in ("gdb", "lldb"), f"unknown debugger: {debugger}"
+        assert adapter is not None or natvis is None, "native DAP does not support natvis"
+        assert debugger != "lldb" or adapter is None, \
+            "lldb is only supported through its native DAP support"
+        assert gdb_printers is None or debugger == "gdb", "gdb_printers needs gdb"
+        assert lldb_formatters is None or debugger == "lldb", "lldb_formatters needs lldb"
 
         self._adapter = adapter
+        self._debugger = debugger
         self._program = os.path.abspath(program)
         self._natvis = natvis and os.path.abspath(natvis)
         self._gdb_printers = gdb_printers and os.path.abspath(gdb_printers)
+        self._lldb_formatters = lldb_formatters and os.path.abspath(lldb_formatters)
         self._log = log
         self._breakpoints: dict[int, dict[str, Any]] = {}
         self._client_or_none: DapClient | None = None
@@ -55,6 +64,19 @@ class DebugSession:
     # -- Lifecycle -----------------------------------------------------------
 
     def _launch_config(self) -> dict[str, Any]:
+        if self._debugger == "lldb":
+            # Only the formatters under test are active. lldb-dap is instructed to read no init
+            # files reads no init files, and any built-in C++ formatters (e.g. for libstdc++) are
+            # disabled.
+            return {
+                "program": self._program,
+                "cwd": os.path.dirname(self._program),
+                "initCommands": [
+                    "type category disable -l c++",
+                    f"command script import {self._lldb_formatters}",
+                ],
+            }
+
         cfg: dict[str, Any] = {
             "type": "cppdbg",
             "request": "launch",
@@ -75,8 +97,8 @@ class DebugSession:
             cfg["showDisplayString"] = True
 
         if self._gdb_printers:
-            # Only the printers under test are active. gdb is insutrcted to read no init files
-            # (-nx) and auto-loading of printers (e.g. libstdc++'s) is disabled.
+            # Only the printers under test are active. gdb is instructed to read no init files
+            # (-nx) and auto-loading of printers (e.g. for libstdc++'s) is disabled.
             cfg["miDebuggerArgs"] = "-nx"
             cfg["setupCommands"] = [
                 {"text": "-enable-pretty-printing"},
@@ -98,7 +120,8 @@ class DebugSession:
     # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
     # OpenDebugAD7's reply only echoes the requested lines, so "line" is cleared to keep it from
-    # being mistaken for where a breakpoint really landed. gdb's reply has the real lines.
+    # being mistaken for where a breakpoint really landed. gdb's and lldb-dap's replies have the
+    # real lines.
     def _set_breakpoints(self, source: str, lines: list[int]) -> list[int]:
         body = self._client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
@@ -120,6 +143,11 @@ class DebugSession:
     def start(self, breakpoints: dict[str, list[int]]) -> dict[str, list[int]]:
         if self._adapter is not None:
             argv = adapter_argv(self._adapter)
+        elif self._debugger == "lldb":
+            lldb_dap = find_lldb_dap()
+            if lldb_dap is None:
+                raise DapError("lldb-dap (or lldb-vscode) not found on PATH")
+            argv = [lldb_dap]
         else:
             # As with OpenDebugAD7, only the printers under test are active. The program is loaded
             # up front, so that breakpoints are bound as soon as they are set.
@@ -148,7 +176,7 @@ class DebugSession:
         })
         resolved: dict[str, list[int]] = {}
 
-        if self._adapter is None:
+        if self._adapter is None and self._debugger == "gdb":
             # gdb runs the program as soon as it is launched, so it is configured first.
             self._client.wait_event("initialized")
             for source, lines in breakpoints.items():

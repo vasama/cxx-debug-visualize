@@ -26,7 +26,7 @@ CXX = os.environ.get("CXX") or shutil.which("g++") or shutil.which("clang++")
 # Builds the fixture program and runs cxx-vistest on it; the test classes below say which
 # debug adapter to use.
 class FixtureTestCase(unittest.TestCase):
-    # path of OpenDebugAD7, or None for gdb's own DAP support (--native-dap)
+    # path of OpenDebugAD7, or None for gdb's own DAP support (the default)
     adapter = None
 
     @classmethod
@@ -175,7 +175,7 @@ class IntegrationTests(FixtureTestCase):
 
 
 
-# The pretty printers through gdb's own DAP support (--native-dap), without OpenDebugAD7.
+# The pretty printers through gdb's own DAP support (the default), without OpenDebugAD7.
 class NativeDapTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):

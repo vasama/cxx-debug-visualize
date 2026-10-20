@@ -19,24 +19,25 @@ def main(argv: list[str] | None = None) -> int:
                                                  "printers: visualizes the variable named at each "
                                                  "call to a function named `visualize`")
 
-    debugger = parser.add_mutually_exclusive_group()
-    debugger.add_argument("--adapter", metavar="PATH",
-                          default=os.environ.get("CXX_VISTEST_ADAPTER"),
-                          help="path to the debug adapter, e.g. a build of MIEngine (default: "
-                               "$CXX_VISTEST_ADAPTER)")
+    parser.add_argument("--debugger", choices=("gdb", "lldb"), default="gdb",
+                        help="debugger to use (default: gdb)")
 
-    debugger.add_argument("--vs-code-adapter", action="store_true",
-                          help="use the debug adapter of the newest VS Code C/C++ extension "
-                               "installed in ~/.vscode*/extensions")
+    adapter = parser.add_mutually_exclusive_group()
+    adapter.add_argument("--adapter", metavar="PATH",
+                         default=os.environ.get("CXX_VISTEST_ADAPTER"),
+                         help="path to the debug adapter, e.g. a build of MIEngine (default: "
+                              "$CXX_VISTEST_ADAPTER)")
 
-    debugger.add_argument("--native-dap", action="store_true",
-                          help="use gdb's native DAP support (GDB 14 and later) instead of a debug "
-                               "adapter; --natvis is not supported")
+    adapter.add_argument("--vs-code-adapter", action="store_true",
+                         help="use the debug adapter of the newest VS Code C/C++ extension "
+                              "installed in ~/.vscode*/extensions")
 
     visualizer = parser.add_mutually_exclusive_group(required=True)
     visualizer.add_argument("--natvis", metavar="FILE", help="natvis file to test")
     visualizer.add_argument("--gdb-printers", metavar="FILE",
                             help="gdb pretty-printer script (Python) to test")
+    visualizer.add_argument("--lldb-formatters", metavar="FILE",
+                            help="lldb formatter script (Python) to test")
 
     parser.add_argument("source", help="C++ visualization test source")
     parser.add_argument("program", help="Unit test program (executed without arguments)")
@@ -45,23 +46,32 @@ def main(argv: list[str] | None = None) -> int:
 
     ns = parser.parse_args(argv)
 
-    if ns.native_dap:
-        if ns.natvis:
-            print("error: --native-dap does not support --natvis", file=sys.stderr)
-            return 2
-        ns.adapter = None
-    elif ns.vs_code_adapter:
+    # Without a debug adapter, the debugger's native DAP support is used (GDB 14 and later, or
+    # lldb-dap).
+    use_adapter = ns.adapter is not None or ns.vs_code_adapter
+    if ns.debugger == "lldb" and use_adapter:
+        print("error: --debugger=lldb does not support a debug adapter", file=sys.stderr)
+        return 2
+    if ns.natvis and not use_adapter:
+        print("error: --natvis requires a debug adapter; pass --adapter or --vs-code-adapter, or "
+              "set CXX_VISTEST_ADAPTER", file=sys.stderr)
+        return 2
+    if ns.gdb_printers and ns.debugger != "gdb":
+        print("error: --gdb-printers requires --debugger=gdb", file=sys.stderr)
+        return 2
+    if ns.lldb_formatters and ns.debugger != "lldb":
+        print("error: --lldb-formatters requires --debugger=lldb", file=sys.stderr)
+        return 2
+
+    if ns.vs_code_adapter:
         ns.adapter = find_adapter()
         if ns.adapter is None:
             print("error: no VS Code C/C++ extension with an OpenDebugAD7 found", file=sys.stderr)
             return 2
-    elif ns.adapter is None:
-        print("error: no debug adapter; pass --adapter, --vs-code-adapter or --native-dap, or set "
-              "CXX_VISTEST_ADAPTER", file=sys.stderr)
-        return 2
 
     if ns.trace:
-        print(f"adapter: {ns.adapter or 'gdb -i dap'}", file=sys.stderr)
+        native = "gdb -i dap" if ns.debugger == "gdb" else "lldb-dap"
+        print(f"adapter: {ns.adapter or native}", file=sys.stderr)
 
     # Check that the specified debug adapter is executable:
     if ns.adapter is not None and not os.access(ns.adapter, os.X_OK):
@@ -76,14 +86,16 @@ def main(argv: list[str] | None = None) -> int:
         paths.append(("natvis file", ns.natvis))
     if ns.gdb_printers:
         paths.append(("pretty-printer script", ns.gdb_printers))
+    if ns.lldb_formatters:
+        paths.append(("lldb formatter script", ns.lldb_formatters))
     missing = [(what, path) for what, path in paths if not os.path.isfile(path)]
     for what, path in missing:
         print(f"error: {what} not found: {path}", file=sys.stderr)
     if missing:
         return 2
 
-    runner = Runner(ns.adapter, ns.program, ns.source, natvis=ns.natvis,
-                    gdb_printers=ns.gdb_printers,
+    runner = Runner(ns.adapter, ns.program, ns.source, debugger=ns.debugger, natvis=ns.natvis,
+                    gdb_printers=ns.gdb_printers, lldb_formatters=ns.lldb_formatters,
                     log=(lambda m: print(m, file=sys.stderr)) if ns.trace else None)
     return 0 if runner.run() else 1
 

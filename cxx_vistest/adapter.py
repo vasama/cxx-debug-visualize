@@ -6,6 +6,7 @@
 import glob
 import os
 import re
+import shutil
 import sys
 
 _EXTENSION_DIRS = (".vscode", ".vscode-server", ".vscode-insiders", ".vscode-server-insiders")
@@ -29,6 +30,11 @@ def find_adapter() -> str | None:
         return tuple(int(n) for n in m.groups()) if m else (0, 0, 0)
 
     return max(candidates, key=extract_version, default=None)
+
+# lldb's own DAP server on PATH, or None if not found. LLVM 18 renamed it from lldb-vscode to
+# lldb-dap.
+def find_lldb_dap() -> str | None:
+    return shutil.which("lldb-dap") or shutil.which("lldb-vscode")
 
 # Command line used to start the adapter.
 #
