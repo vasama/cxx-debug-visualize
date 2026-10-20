@@ -1,10 +1,13 @@
 # Run the self-tests:
 #
-#   python3 -m selftest [--program PATH] [--adapter PATH] [--fail-on-skip] [unittest options]
+#   python3 -m selftest [--program PATH] [--adapter PATH] [--fail-on-skip] [--test ID]...
+#                       [unittest options]
+#   python3 -m selftest --list
 #
-# The root CMakeLists.txt builds the fixture program and runs this as a CTest test. Tests whose
-# requirements are missing (the fixture program, --adapter, gdb, lldb-dap) are skipped. With
-# --fail-on-skip, any skipped test makes the run fail.
+# The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
+# CTest test, which runs it with --test. Tests whose requirements are missing (the fixture
+# program, --adapter, gdb, lldb-dap) are skipped. With --fail-on-skip, any skipped test makes the
+# run fail.
 
 import argparse
 import os
@@ -19,6 +22,9 @@ parser.add_argument("--program", metavar="PATH",
 parser.add_argument("--adapter", metavar="PATH", help="path to OpenDebugAD7")
 parser.add_argument("--fail-on-skip", action="store_true",
                     help="fail if any test is skipped, e.g. because a tool is missing")
+parser.add_argument("--list", action="store_true", help="print the IDs of all tests and exit")
+parser.add_argument("--test", metavar="ID", action="append", default=[],
+                    help="run only the test with this ID (as --list prints it); repeatable")
 
 ns, rest = parser.parse_known_args()
 if ns.program:
@@ -31,8 +37,25 @@ if ns.adapter:
     test_integration.ADAPTER = os.path.abspath(ns.adapter)
 
 here = os.path.dirname(os.path.abspath(__file__))
-program = unittest.main(module=None, argv=[sys.argv[0], "discover", "-s", here,
-                                           "-t", os.path.dirname(here)] + rest, exit=False)
+
+if ns.list:
+    def test_ids(suite):
+        for test in suite:
+            if isinstance(test, unittest.TestSuite):
+                yield from test_ids(test)
+            else:
+                yield test.id()
+    tests = unittest.defaultTestLoader.discover(here, top_level_dir=os.path.dirname(here))
+    for test_id in test_ids(tests):
+        print(test_id)
+    sys.exit(0)
+
+# All tests, or the ones given with --test, loaded by name.
+if ns.test:
+    argv = [sys.argv[0]] + rest + ns.test
+else:
+    argv = [sys.argv[0], "discover", "-s", here, "-t", os.path.dirname(here)] + rest
+program = unittest.main(module=None, argv=argv, exit=False)
 
 success = program.result.wasSuccessful()
 if ns.fail_on_skip and program.result.skipped:

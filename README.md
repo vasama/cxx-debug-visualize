@@ -444,6 +444,13 @@ self-tests (`python3 -m selftest --program PATH …`), which compile nothing
 themselves. The program crashes after its last `visualize()` call when given
 an argument, which the crash tests pass to it.
 
+Each self-test is a CTest test of its own, named by its unittest ID, e.g.
+`selftest.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls`, so
+`ctest -R LldbTests` runs a subset and `ctest -j 8` runs them in parallel.
+CMake lists the tests (`python3 -m selftest --list`) when it configures, and a
+build re-runs that when a file in `selftest/` changes; each test runs with
+`python3 -m selftest --test ID`.
+
 The tests of the `visualize` line scanner and of the launch configurations
 always run. The integration tests need the fixture programs, and gdb and
 `CXX_DEBUG_VISUALIZE_ADAPTER` (`--adapter`). They check the printed trees for
@@ -457,10 +464,10 @@ or later, but no adapter. The lldb tests check the same for lldb formatters
 ([`selftest/fixtures/good_formatters.py`][selftest-formatters]); they need
 lldb-dap (or lldb-vscode) on `PATH`.
 
-Tests whose requirements are missing are skipped. With
-`-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON` (`--fail-on-skip`), any skipped test
-makes the run fail, listing what was skipped and why, so a passing run means
-every test ran; the GitHub workflow uses it.
+Tests whose requirements are missing are skipped, and CTest reports them as
+skipped. With `-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON` (`--fail-on-skip`), a
+skipped test fails instead, saying why, so a passing run means every test ran;
+the GitHub workflow uses it.
 
 The [GitHub Actions workflow][workflow] runs the self-tests and the example's
 CTest tests on every released Python version that is not end-of-life, with
