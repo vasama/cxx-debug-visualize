@@ -1,5 +1,5 @@
 # gdb pretty printers for the toy types in include/mylib/containers.h; the
-# counterpart of natvis/mylib.natvis, written so that VS Code shows the same
+# counterpart of mylib.natvis, written so that VS Code shows the same
 # trees with either.
 
 import gdb

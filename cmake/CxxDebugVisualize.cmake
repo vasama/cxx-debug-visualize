@@ -31,9 +31,13 @@
 # written to <kind>.<name>.actual.txt in the build directory, for review or to
 # copy over the expected file, and a diff is printed.
 #
-# Cache variable (required for NATVIS and GDB_PRINTERS):
-#   CXX_DEBUG_VISUALIZE_ADAPTER    path to OpenDebugAD7, passed as --adapter
-#                                  (gdb-dap and lldb-dap tests use no adapter)
+# Cache variables:
+#   CXX_DEBUG_VISUALIZE_ADAPTER       path to OpenDebugAD7, passed as --adapter to the natvis and
+#                                     gdb tests (gdb-dap and lldb-dap tests use no adapter).
+#                                     Without it, those tests are registered disabled, which
+#                                     CTest reports as "Not Run (Disabled)".
+#   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP  make a missing CXX_DEBUG_VISUALIZE_ADAPTER an error instead
+#                                     (default: OFF)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
@@ -45,6 +49,7 @@ sys.stdout.writelines(difflib.unified_diff(old, open(actual).readlines(), expect
 
 get_filename_component(CXX_DEBUG_VISUALIZE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(CXX_DEBUG_VISUALIZE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
+option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail instead of skipping tests that cannot run" OFF)
 
 function(cxx_debug_visualize_add_test name)
   cmake_parse_arguments(PARSE_ARGV 1 TV "" "NATVIS;GDB_PRINTERS;LLDB_FORMATTERS"
@@ -56,7 +61,8 @@ function(cxx_debug_visualize_add_test name)
     message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): NATVIS, GDB_PRINTERS or "
                         "LLDB_FORMATTERS is required")
   endif()
-  if((TV_NATVIS OR TV_GDB_PRINTERS) AND NOT CXX_DEBUG_VISUALIZE_ADAPTER)
+  if((TV_NATVIS OR TV_GDB_PRINTERS) AND NOT CXX_DEBUG_VISUALIZE_ADAPTER
+     AND CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP)
     message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): set CXX_DEBUG_VISUALIZE_ADAPTER "
                         "to the path of OpenDebugAD7, e.g. "
                         "-DCXX_DEBUG_VISUALIZE_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7")
@@ -90,6 +96,15 @@ function(cxx_debug_visualize_add_test name)
     _cxx_debug_visualize_add_run(lldb-dap ${name} "${test_source}" ""
                                  --lldb-formatters "${TV_LLDB_FORMATTERS}" --debugger lldb
                                  ${TV_ARGS})
+  endif()
+
+  # The natvis and gdb tests need OpenDebugAD7; without it, they never run.
+  if(NOT adapter)
+    foreach(kind IN ITEMS natvis gdb)
+      if(TEST ${kind}.${name})
+        set_tests_properties(${kind}.${name} PROPERTIES DISABLED TRUE)
+      endif()
+    endforeach()
   endif()
 endfunction()
 

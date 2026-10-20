@@ -1,5 +1,5 @@
 # lldb formatters for the toy types in include/mylib/containers.h; the
-# counterpart of natvis/mylib.natvis and printers/mylib_printers.py, written so
+# counterpart of mylib.natvis and mylib_printers.py, written so
 # that lldb shows the same trees as far as it can.
 #
 # Loaded with `command script import`, which calls __lldb_init_module.

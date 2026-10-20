@@ -3,11 +3,11 @@
 
 // Every `visualize(x);` line prints x and the children its visualizer
 // produces, headed by "visualize(x) at <file>:<line>".  The output is compared
-// with test_containers.natvis.txt and test_containers.gdb.txt.
+// with test_containers.<kind>.txt: natvis, gdb, gdb-dap and lldb-dap.
 //
-// This test runs twice, with natvis/mylib.natvis and with
-// printers/mylib_printers.py.  The printers mirror the natvis file, so both
-// expected files are the same.
+// The test runs once per visualizer in visualizers/: mylib.natvis, and
+// mylib_printers.py and mylib_formatters.py, which mirror it, so the expected
+// files only differ where a debugger formats a value in its own way.
 
 int main() {
   mylib::Point p{3, -4};

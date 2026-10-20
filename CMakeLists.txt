@@ -1,5 +1,5 @@
-# Builds the self-tests' fixture program and runs the self-tests with CTest (see
-# selftest/CMakeLists.txt):
+# Builds and runs the self-tests (see selftest/CMakeLists.txt) and the example project's tests
+# (see example/CMakeLists.txt) with CTest:
 #
 #   cmake -S . -B build [-DCXX_DEBUG_VISUALIZE_ADAPTER=/path/to/OpenDebugAD7]
 #   cmake --build build
@@ -10,3 +10,4 @@ project(cxx-debug-visualize LANGUAGES CXX)
 
 enable_testing()
 add_subdirectory(selftest)
+add_subdirectory(example)

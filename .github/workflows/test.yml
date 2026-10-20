@@ -71,17 +71,12 @@ jobs:
           path: ${{ runner.temp }}/miengine
           key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.DOTNET_SDK }}
           fail-on-cache-miss: true
-      # CMake builds the fixture programs; fails if any test is skipped, e.g. because of a
+      # The self-tests and the example's tests; fails if any test is skipped, e.g. because of a
       # missing tool
-      - name: Run self-tests
+      - name: Build and run tests
         run: |
-          cmake -S . -B build-selftest \
+          cmake -S . -B build \
               -DCXX_DEBUG_VISUALIZE_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7" \
               -DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON
-          cmake --build build-selftest
-          ctest --test-dir build-selftest --output-on-failure
-      - name: Build and run examples
-        run: |
-          cmake -S example -B build -DCXX_DEBUG_VISUALIZE_ADAPTER="$RUNNER_TEMP/miengine/OpenDebugAD7"
           cmake --build build
-          ctest --test-dir build -L visualizers --output-on-failure
+          ctest --test-dir build --output-on-failure

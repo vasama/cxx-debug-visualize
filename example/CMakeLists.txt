@@ -11,9 +11,9 @@ enable_testing()
 add_library(mylib INTERFACE)
 target_include_directories(mylib INTERFACE include)
 
-set(MYLIB_NATVIS "${CMAKE_CURRENT_SOURCE_DIR}/natvis/mylib.natvis")
-set(MYLIB_PRINTERS "${CMAKE_CURRENT_SOURCE_DIR}/printers/mylib_printers.py")
-set(MYLIB_FORMATTERS "${CMAKE_CURRENT_SOURCE_DIR}/formatters/mylib_formatters.py")
+set(MYLIB_NATVIS "${CMAKE_CURRENT_SOURCE_DIR}/visualizers/mylib.natvis")
+set(MYLIB_PRINTERS "${CMAKE_CURRENT_SOURCE_DIR}/visualizers/mylib_printers.py")
+set(MYLIB_FORMATTERS "${CMAKE_CURRENT_SOURCE_DIR}/visualizers/mylib_formatters.py")
 
 cxx_debug_visualize_add_test(test_containers
   SOURCES tests/test_containers.cpp

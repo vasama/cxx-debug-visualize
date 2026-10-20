@@ -288,9 +288,9 @@ expected file, check that output and copy it over the expected file.
 A test source can be checked against a natvis file, a pretty-printer script
 and an lldb formatter script for the same types, e.g. when a library ships
 all of them; each run has its own expected file. The example's printers
-([`example/printers/mylib_printers.py`][example-printers]) and formatters
-([`example/formatters/mylib_formatters.py`][example-formatters]) mirror
-[`example/natvis/mylib.natvis`][example-natvis]
+([`example/visualizers/mylib_printers.py`][example-printers]) and formatters
+([`example/visualizers/mylib_formatters.py`][example-formatters]) mirror
+[`example/visualizers/mylib.natvis`][example-natvis]
 (same display strings and children, the members of `Point`, `[0]`, `[1]`, ...
 for the map), so its expected files are the same except where a debugger
 formats a value in its own way: gdb for `Optional<String*>`, and lldb-dap,
@@ -361,9 +361,9 @@ enable_testing()
 
 cxx_debug_visualize_add_test(test_containers
   SOURCES tests/test_containers.cpp
-  NATVIS natvis/mylib.natvis                  # at least one of these three
-  GDB_PRINTERS printers/mylib_printers.py
-  LLDB_FORMATTERS formatters/mylib_formatters.py
+  NATVIS visualizers/mylib.natvis             # at least one of these three
+  GDB_PRINTERS visualizers/mylib_printers.py
+  LLDB_FORMATTERS visualizers/mylib_formatters.py
   LINK_LIBRARIES mylib)
 ```
 
@@ -379,10 +379,11 @@ fails unless it succeeds and its output matches the expected file (see
 `visualize` lines are breakpoints, and its expected files sit next to it
 (`tests/test_containers.natvis.txt`, `tests/test_containers.gdb.txt`,
 `tests/test_containers.gdb-dap.txt`, `tests/test_containers.lldb-dap.txt`).
-With `NATVIS` or `GDB_PRINTERS`, `CXX_DEBUG_VISUALIZE_ADAPTER` must be set
-when configuring; configuration fails without it. See [`example/`][example]
-for a complete project, which tests `natvis/mylib.natvis`,
-`printers/mylib_printers.py` and `formatters/mylib_formatters.py` against the
+The natvis and gdb tests need `CXX_DEBUG_VISUALIZE_ADAPTER`; without it, they
+are registered disabled (CTest reports them as "Not Run (Disabled)"), or, with
+`-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON`, configuration fails. See [`example/`][example]
+for a complete project, which tests `visualizers/mylib.natvis`,
+`visualizers/mylib_printers.py` and `visualizers/mylib_formatters.py` against the
 same tests:
 
 ```
@@ -430,8 +431,8 @@ is skipped. `--trace` shows which adapter is used.
 ## Self-tests
 
 The [self-tests][selftest] are part of the repository, not of the package. The
-root `CMakeLists.txt` builds their fixture program and runs them with CTest;
-from a checkout:
+root `CMakeLists.txt` builds their fixture program and runs them with CTest,
+together with the example project's tests; from a checkout:
 
 ```
 cmake -S . -B build -DCXX_DEBUG_VISUALIZE_ADAPTER=/path/to/OpenDebugAD7
@@ -504,9 +505,9 @@ freely, without keeping any notice.
 [example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example
 [example-tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example/tests
 [example-strings]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/tests/test_strings.cpp
-[example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/natvis/mylib.natvis
-[example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/printers/mylib_printers.py
-[example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/formatters/mylib_formatters.py
+[example-natvis]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib.natvis
+[example-printers]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib_printers.py
+[example-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/example/visualizers/mylib_formatters.py
 [selftest]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/selftest
 [selftest-formatters]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/selftest/fixtures/good_formatters.py
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md

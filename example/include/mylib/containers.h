@@ -1,5 +1,5 @@
 // A few toy data structures, standing in for a real library whose
-// debugger visualizations are described in natvis/mylib.natvis.
+// debugger visualizations are described in visualizers/.
 #pragma once
 
 #include <cstddef>
