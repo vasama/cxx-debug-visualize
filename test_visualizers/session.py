@@ -49,14 +49,14 @@ class DebugSession:
 
         if self.natvis:
             cfg["visualizerFile"] = self.natvis
-            # VS Code's default (false) hides display strings and moves the
-            # visualized children under a "[Visualized View]" node
+
+            # MIEngine follows VS Code's default of hiding display strings, and moves the visualized
+            # children under a "[Visualized View]" node. This is not desirable for testing purposes.
             cfg["showDisplayString"] = True
 
         if self.printers:
-            # gdb pretty printers, which don't mix with natvis.  Only the
-            # printers under test are active: gdb reads no init files (-nx), and
-            # auto-loaded printers (e.g. libstdc++'s) stay off.
+            # Only the printers under test are active. gdb is insutrcted to read no init files
+            # (-nx) and auto-loading of printers (e.g. libstdc++'s) is disabled.
             cfg["miDebuggerArgs"] = "-nx"
             cfg["setupCommands"] = [
                 {"text": "-enable-pretty-printing"},
