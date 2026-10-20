@@ -118,9 +118,30 @@ class LaunchConfigTests(unittest.TestCase):
             ],
         )
 
-    def test_exactly_one_visualizer(self):
+    # without a visualizer under test, only the default visualizers are active
+    def test_default_visualizers_only(self):
+        cfg = DebugSession(
+            "miengine", "OpenDebugAD7", "test_program", [], debugger="gdb"
+        )._launch_config()
+        self.assertNotIn("visualizerFile", cfg)
+        self.assertEqual([c["text"] for c in cfg["setupCommands"]], ["-enable-pretty-printing"])
+        cfg = DebugSession(None, None, "test_program", [], debugger="lldb")._launch_config()
+        self.assertEqual(cfg["initCommands"], [])
+        cfg = DebugSession(
+            "dbgeng", "dbgeng-adapter", "test_program", [], debugger="dbgeng"
+        )._launch_config()
+        self.assertNotIn("visualizerFile", cfg)
+
+    def test_at_most_one_visualizer(self):
         with self.assertRaises(AssertionError):
-            DebugSession("miengine", "OpenDebugAD7", "test_program", [], debugger="gdb")
+            DebugSession(
+                "miengine",
+                "OpenDebugAD7",
+                "test_program",
+                [],
+                debugger="gdb",
+                default_visualizers=False,
+            )
         with self.assertRaises(AssertionError):
             DebugSession(
                 "miengine",
@@ -166,7 +187,7 @@ class LaunchConfigTests(unittest.TestCase):
         )._launch_config()
         self.assertIs(cfg["defaultVisualizers"], False)
 
-    # dbgeng is only supported through its debug adapter, and only with natvis
+    # dbgeng is only supported through its debug adapter, and only with natvis (or no visualizer)
     def test_dbgeng_needs_adapter_and_natvis(self):
         with self.assertRaises(AssertionError):
             DebugSession(None, None, "test_program", [], debugger="dbgeng", natvis="my.natvis")

@@ -9,6 +9,12 @@
 // specifications (__gnu_cxx::slist, std::tr1, std::experimental). Types internal to a library,
 // such as its iterators, are visualized through the standard types that use them.
 //
+// Nor are the objects visualized whose libstdc++ gdb pretty printers fail without libstdc++'s own
+// debug symbols: std::locale, std::stringbuf and the string streams, whose types are complete only
+// in those; nor node handles, whose printer looks for a member that they lack (as of GCC 14); nor,
+// with those printers, a map's end iterator, which they show as an element read from the memory
+// around the map, which differs between runs.
+//
 // Usage: standard_types LIBRARY VISUALIZER
 //
 // LIBRARY is the standard library implementation (libstdc++, libc++ or msstl), and VISUALIZER the
@@ -34,7 +40,6 @@
 #include <initializer_list>
 #include <iterator>
 #include <list>
-#include <locale>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -597,16 +602,6 @@ int main(int argc, char** argv)
     }
   }
 
-  // -- <locale> -----------------------------------------------------------------------------------
-
-  {
-    std::locale locale = std::locale::classic();
-    if (is_supported(libstdcxx_gdb))
-    {
-      visualize(locale);
-    }
-  }
-
   // -- <map> --------------------------------------------------------------------------------------
 
   {
@@ -623,16 +618,9 @@ int main(int argc, char** argv)
     }
 
     std::map<int, std::string>::iterator map_end = map.end();
-    if (is_supported(all_pairings))
+    if (is_supported(libstdcxx_lldb | libcxx_gdb | libcxx_lldb | msstl_lldb | msstl_natvis))
     {
       visualize(map_end);
-    }
-
-    // extracting the element changes the map, so this comes last
-    std::map<int, std::string>::node_type node_handle = map.extract(3);
-    if (is_supported(libstdcxx_gdb))
-    {
-      visualize(node_handle);
     }
   }
 
@@ -895,25 +883,25 @@ int main(int argc, char** argv)
 
   {
     std::istringstream istringstream("1 2 3");
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(msstl_natvis))
     {
       visualize(istringstream);
     }
 
     std::ostringstream ostringstream("hello", std::ios_base::ate);
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(msstl_natvis))
     {
       visualize(ostringstream);
     }
 
     std::stringstream stringstream("hello");
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(msstl_natvis))
     {
       visualize(stringstream);
     }
 
     std::stringbuf stringbuf("hello");
-    if (is_supported(libstdcxx_gdb | msstl_natvis))
+    if (is_supported(msstl_natvis))
     {
       visualize(stringbuf);
     }

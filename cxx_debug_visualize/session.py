@@ -4,7 +4,7 @@ import os
 from collections.abc import Callable
 from typing import Any
 
-from .adapter import miengine_argv, find_lldb_dap
+from .adapter import find_lldb_dap, miengine_argv
 from .dap import DapClient, DapError
 
 # Natvis diagnostics (bad XML, unparsable type names, ...) arrive as debug
@@ -27,7 +27,7 @@ class VisualizationNode:
 
 class DebugSession:
     # The visualizer under test is a natvis file, a gdb pretty-printer script or an lldb formatter
-    # script. Exactly one must be specified.
+    # script. At most one may be specified; without one, only the default visualizers are active.
     #
     # `adapter_path` is the path of the debug adapter executable (e.g. OpenDebugAD7). When
     # `adapter_path` is None, the debugger's native DAP support is used instead (`gdb -i dap`, or
@@ -53,16 +53,19 @@ class DebugSession:
         log: Callable[[str], None] | None = None,
     ) -> None:
         # The command line rejects all of these.
-        assert [natvis, gdb_printers, lldb_formatters].count(None) == 2, (
-            "exactly one of natvis, gdb_printers or lldb_formatters is required"
+        assert [natvis, gdb_printers, lldb_formatters].count(None) >= 2, (
+            "at most one of natvis, gdb_printers or lldb_formatters may be specified"
+        )
+        assert default_visualizers or [natvis, gdb_printers, lldb_formatters].count(None) == 2, (
+            "without the default visualizers, a visualizer under test is required"
         )
         assert (adapter is None) == (adapter_path is None), (
             "adapter type and path must be specified together"
         )
         assert debugger in ("gdb", "lldb", "dbgeng"), f"unknown debugger: {debugger}"
         assert natvis is None or adapter is not None, "native DAP does not support natvis"
-        assert debugger != "dbgeng" or (adapter is not None and natvis is not None), (
-            "dbgeng is only supported through an adapter, with a natvis visualizer"
+        assert debugger != "dbgeng" or adapter is not None, (
+            "dbgeng is only supported through an adapter"
         )
         assert debugger != "lldb" or adapter is None, (
             "lldb is only supported through its native DAP support"
@@ -102,9 +105,10 @@ class DebugSession:
                 "program": self._program,
                 "args": self._program_args,
                 "cwd": os.path.dirname(self._program),
-                "visualizerFile": self._natvis,
                 "defaultVisualizers": self._default_visualizers,
             }
+            if self._natvis:
+                config["visualizerFile"] = self._natvis
             if self._debugger_path:
                 config["debuggerPath"] = self._debugger_path
             return config
@@ -112,9 +116,11 @@ class DebugSession:
         if self._debugger == "lldb":
             # Without the default visualizers, lldb's built-in C++ formatters (e.g. for libstdc++)
             # are disabled before the script is loaded.
-            init_commands = [f"command script import {self._lldb_formatters}"]
+            init_commands = []
             if not self._default_visualizers:
-                init_commands.insert(0, "type category disable -l c++")
+                init_commands.append("type category disable -l c++")
+            if self._lldb_formatters:
+                init_commands.append(f"command script import {self._lldb_formatters}")
             return {
                 "program": self._program,
                 "args": self._program_args,
@@ -146,18 +152,16 @@ class DebugSession:
             # children under a "[Visualized View]" node. This is not desirable for testing purposes.
             cfg["showDisplayString"] = True
 
-            # As in VS Code's default configuration, gdb's pretty printers (those it loads by
-            # default) show what natvis does not.
-            if self._default_visualizers:
-                cfg["setupCommands"] = [{"text": "-enable-pretty-printing"}]
-
-        if self._gdb_printers:
-            # Without the default visualizers, auto-loading of printers (e.g. libstdc++'s) is
-            # disabled.
+        # Pretty printing is enabled for the printers under test, and as in VS Code's default
+        # configuration, for those gdb loads by default (e.g. libstdc++'s), which with natvis show
+        # what natvis does not. Without the default visualizers, auto-loading of printers is
+        # disabled.
+        if self._gdb_printers or self._default_visualizers:
             cfg["setupCommands"] = [{"text": "-enable-pretty-printing"}]
             if not self._default_visualizers:
                 cfg["setupCommands"].append({"text": "set auto-load python-scripts off"})
-            cfg["setupCommands"].append({"text": f"source {self._gdb_printers}"})
+            if self._gdb_printers:
+                cfg["setupCommands"].append({"text": f"source {self._gdb_printers}"})
 
         return cfg
 
@@ -216,7 +220,9 @@ class DebugSession:
             argv = [self._debugger_path or "gdb", "-q", "-nx", "-i", "dap"]
             if not self._default_visualizers:
                 argv += ["-iex", "set auto-load python-scripts off"]
-            argv += ["-ex", f"source {self._gdb_printers}", self._program]
+            if self._gdb_printers:
+                argv += ["-ex", f"source {self._gdb_printers}"]
+            argv.append(self._program)
 
         self._client_or_none = DapClient(argv, log=self._log, on_event=self._handle_event)
         self._client.request(

@@ -15,6 +15,8 @@
 #                       engine (DbgEng)
 # Each is an absolute path, or a name looked up on PATH; unset, the tests that need it are not
 # registered. At least one of CXXDEBVIS_GDB, CXXDEBVIS_LLDB_DAP and CXXDEBVIS_DBGENG must be set.
+#
+# CXXDEBVIS_TEST_STDLIB (default OFF) also registers the standard library tests (see below).
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
@@ -116,3 +118,71 @@ foreach(test IN LISTS selftests)
   set_tests_properties("${test}" PROPERTIES LABELS selftest
                        SKIP_REGULAR_EXPRESSION "OK \\(skipped=")
 endforeach()
+
+# The standard library tests, with CXXDEBVIS_TEST_STDLIB: the visualizers that the debuggers load
+# by default for the standard library that the compiler uses (libstdc++, libc++ or MSVC's STL, told
+# apart by the macros its headers define). fixtures/standard_types.cpp, built as C++17, runs under
+# cxx-debug-visualize without a visualizer under test, and its output is compared with
+# fixtures/standard_types.<library>.<kind>.txt (by compare_output.py, as the example's tests
+# compare theirs), e.g. standard_types.libstdc++.gdb-native.txt. The tests, labelled "stdlib":
+#   stdlib.gdb-native     libstdc++'s pretty printers, through gdb's own DAP support
+#   stdlib.gdb-miengine   libstdc++'s pretty printers, through OpenDebugAD7
+#   stdlib.lldb-native    lldb's formatters for the library, through lldb-dap
+#   stdlib.natvis-dbgeng  the Debugging Tools' natvis files for MSVC's STL, through dbgeng-adapter
+# Neither libc++'s gdb pretty printers nor natvis files for MIEngine are installed by default, so
+# there are no tests of them. The output depends on the versions of the library and the debugger.
+option(CXXDEBVIS_TEST_STDLIB
+       "Test the visualizers that the debuggers load by default for the standard library" OFF)
+if(CXXDEBVIS_TEST_STDLIB)
+  include(CheckCXXSymbolExists)
+  check_cxx_symbol_exists(__GLIBCXX__ utility cxxdebvis_libstdcxx)
+  check_cxx_symbol_exists(_LIBCPP_VERSION utility cxxdebvis_libcxx)
+  check_cxx_symbol_exists(_MSVC_STL_VERSION utility cxxdebvis_msstl)
+  if(cxxdebvis_libstdcxx)
+    set(stdlib libstdc++)
+  elseif(cxxdebvis_libcxx)
+    set(stdlib libc++)
+  elseif(cxxdebvis_msstl)
+    set(stdlib msstl)
+  else()
+    message(FATAL_ERROR "CXXDEBVIS_TEST_STDLIB: the standard library is not libstdc++, libc++ or "
+                        "MSVC's STL")
+  endif()
+  message(STATUS "Standard library under test: ${stdlib}")
+
+  find_package(Threads REQUIRED)
+  add_executable(standard_types fixtures/standard_types.cpp)
+  target_include_directories(standard_types PRIVATE "${PROJECT_SOURCE_DIR}/include")
+  target_link_libraries(standard_types PRIVATE Threads::Threads)
+  set_target_properties(standard_types PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON
+                                                  CXX_EXTENSIONS OFF)
+
+  # Register the CTest test stdlib.<kind>, which runs standard_types for the kind of visualizers
+  # <visualizer> (gdb, lldb or natvis), under cxx-debug-visualize with the options that follow.
+  function(add_stdlib_test kind visualizer)
+    add_test(NAME stdlib.${kind}
+             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/compare_output.py"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/standard_types.${stdlib}.${kind}.txt"
+                     "${CMAKE_CURRENT_BINARY_DIR}/stdlib.${kind}.actual.txt"
+                     "${Python3_EXECUTABLE}" -m cxx_debug_visualize ${ARGN}
+                     "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/standard_types.cpp"
+                     "$<TARGET_FILE:standard_types>" ${stdlib} ${visualizer}
+             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" ${debug_only})
+    set_tests_properties(stdlib.${kind} PROPERTIES LABELS stdlib)
+  endfunction()
+
+  set(gdb --debugger gdb --debugger-path "${CXXDEBVIS_GDB_PATH}")
+  if(stdlib STREQUAL "libstdc++" AND CXXDEBVIS_GDB_PATH)
+    add_stdlib_test(gdb-native gdb --adapter native ${gdb})
+  endif()
+  if(stdlib STREQUAL "libstdc++" AND CXXDEBVIS_MIENGINE_PATH)
+    add_stdlib_test(gdb-miengine gdb --adapter miengine --miengine "${CXXDEBVIS_MIENGINE_PATH}"
+                    ${gdb})
+  endif()
+  if(CXXDEBVIS_LLDB_DAP_PATH)
+    add_stdlib_test(lldb-native lldb --debugger lldb --debugger-path "${CXXDEBVIS_LLDB_DAP_PATH}")
+  endif()
+  if(stdlib STREQUAL "msstl" AND CXXDEBVIS_DBGENG_PATH)
+    add_stdlib_test(natvis-dbgeng natvis --dbgeng "${CXXDEBVIS_DBGENG_PATH}")
+  endif()
+endif()

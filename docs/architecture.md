@@ -41,7 +41,8 @@ options. Inconsistent combinations of options are rejected with exit code `2`.
 * **Debugger** (`gdb`, `lldb` or `dbgeng`): `--debugger`, otherwise `dbgeng` with the dbgeng
   adapter (`--adapter dbgeng` or `--dbgeng`), otherwise the visualizer decides (`--gdb-printers`
   means `gdb`, `--lldb-formatters` means `lldb`). Natvis is technically debugger-independent, so
-  with `--natvis` the type is deduced from the name of `--debugger-path`, defaulting to `gdb`.
+  with `--natvis`, or without a visualizer (only the default visualizers), the type is deduced from
+  the name of `--debugger-path`, defaulting to `dbgeng` on Windows and `gdb` elsewhere.
   However, Natvis with LLDB has not yet been tested and is for now unsupported.
 * **Adapter** (`miengine`, `dbgeng` or `native`): `--adapter`, otherwise `dbgeng` for the `dbgeng`
   debugger, `miengine` for `--natvis` or when `--miengine` is given, and `native` otherwise. Natvis
@@ -154,6 +155,14 @@ executables it needs are given, and is otherwise skipped and left out of `--list
 never compile anything. CMake is used to build the fixture program and CTest to drive the test
 execution.
 
+The standard library tests (`CXXDEBVIS_TEST_STDLIB`) run `fixtures/standard_types.cpp` without a
+visualizer under test, so that only the debuggers' default visualizers for the standard library are
+active. The output is compared ahainst `fixtures/standard_types.<library>.<kind>.txt`. CMake tells
+the library apart by the macros its headers define: `__GLIBCXX__` (libstdc++),
+`_LIBCPP_VERSION` (libc++) or `_MSVC_STL_VERSION` (MSVC's STL). Only the pairings whose visualizers
+the debuggers load by default are tested: libstdc++ with GDB (natively and through `OpenDebugAD7`),
+any of the three with LLDB, and MSVC's STL with DbgEng.
+
 ## CMake
 
 ### Configuration
@@ -164,6 +173,7 @@ execution.
   is also required).
 * `CXXDEBVIS_DBGENG`: dbgeng adapter executable name or absolute path. Enables Natvis tests with
   DbgEng (Windows).
+* `CXXDEBVIS_TEST_STDLIB`: boolean (default `OFF`). Enables standard library tests.
 
 At least one debugger tool (GDB, LLDB or the dbgeng adapter) must be specified. Only the `Debug`
 configuration is supported.

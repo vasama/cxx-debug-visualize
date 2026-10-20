@@ -77,12 +77,12 @@ cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
 * `test.cpp` is the test source file. It is searched for any occurrences of `visualize(x);` and
   breakpoints are placed on each matching line. A visualization of the specified object is printed
   at each breakpoint.
-* Exactly one visualizer script must be specified using `--natvis`, `--gdb-printers`, or
-  `--lldb-formatters`.
+* The visualizer script under test is specified using at most one of `--natvis`, `--gdb-printers`,
+  or `--lldb-formatters`.
 * The visualizers that the debugger loads by default (e.g. libstdc++'s pretty printers, LLDB's C++
   formatters, or the Natvis files of the Debugging Tools for Windows) are active alongside the
-  visualizer under test. `--no-default-visualizers` disables them, so that only the visualizer under
-  test is active.
+  visualizer under test (if any). `--no-default-visualizers` disables them, so that only the
+  visualizer under test is active.
 * The debugger executable to use may be specified using `--debugger-path`. For `dbgeng`, it is the
   directory of `dbgeng.dll` (or a file in it, such as `cdb.exe`), by default that of the Debugging
   Tools for Windows.
@@ -115,6 +115,10 @@ cmake -B build . \
 cmake --build build
 ctest --test-dir build
 ```
+
+`-DCXXDEBVIS_TEST_STDLIB=ON` also tests the visualizers that the debuggers load by default for the
+standard library used by the configured compiler (libstdc++, libc++ or MSVC's STL). The expected
+output depends on the versions of the standard library and the debugger.
 
 Use `--trace` to print all DAP traffic to stderr.
 

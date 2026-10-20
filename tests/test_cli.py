@@ -80,6 +80,28 @@ class AdapterOptionTests(unittest.TestCase):
             errors, ["error: --debugger dbgeng requires --adapter dbgeng, and vice versa"]
         )
 
+    # without a visualizer under test, the debugger is gdb (except on Windows) or --debugger
+    def test_default_visualizers_only(self):
+        status, errors = run_cli("--debugger", "gdb", "--trace", "t.cpp", "t")
+        self.assertEqual(status, 2)
+        self.assertEqual(errors[:2], ["adapter: gdb -i dap", "debugger: gdb"])
+        status, errors = run_cli("--debugger", "lldb", "--trace", "t.cpp", "t")
+        self.assertEqual(status, 2)
+        self.assertEqual(errors[:2], ["adapter: lldb-dap", "debugger: lldb"])
+
+    def test_no_default_visualizers_needs_visualizer(self):
+        status, errors = run_cli("--no-default-visualizers", "t.cpp", "t")
+        self.assertEqual(status, 2)
+        self.assertEqual(
+            errors,
+            [
+                (
+                    "error: --no-default-visualizers requires --natvis, --gdb-printers or "
+                    "--lldb-formatters"
+                )
+            ],
+        )
+
     def test_dbgeng_needs_natvis(self):
         status, errors = run_cli("--dbgeng", "a", "--gdb-printers", "my.py", "t.cpp", "t.exe")
         self.assertEqual(status, 2)

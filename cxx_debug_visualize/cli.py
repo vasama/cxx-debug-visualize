@@ -69,7 +69,8 @@ def main(argv: list[str] | None = None) -> int:
         help="dbgeng debug adapter path (default: $CXX_DEBUG_VISUALIZE_DBGENG)",
     )
 
-    visualizer = parser.add_mutually_exclusive_group(required=True)
+    # Without a visualizer under test, only the default visualizers are active.
+    visualizer = parser.add_mutually_exclusive_group()
     visualizer.add_argument("--natvis", metavar="FILE", help="natvis file")
     visualizer.add_argument(
         "--gdb-printers", metavar="FILE", help="gdb pretty-printer script (Python)"
@@ -81,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         "--no-default-visualizers",
         action="store_true",
         help="disable default visualizers loaded by the debugger (e.g. libstdc++'s pretty "
-             "printers, lldb's C++ formatters, or MSSTL Natvis files)",
+        "printers, lldb's C++ formatters, or MSSTL Natvis files)",
     )
 
     parser.add_argument("source", help="test program source")
@@ -97,10 +98,18 @@ def main(argv: list[str] | None = None) -> int:
 
     ns = parser.parse_intermixed_args(argv)
 
+    if ns.no_default_visualizers and not (ns.natvis or ns.gdb_printers or ns.lldb_formatters):
+        print(
+            "error: --no-default-visualizers requires --natvis, --gdb-printers or "
+            "--lldb-formatters",
+            file=sys.stderr,
+        )
+        return 2
+
     # Without --debugger, the debugger type is dbgeng with the dbgeng adapter (--adapter dbgeng or
     # --dbgeng), and is otherwise deduced from the visualizer: gdb for --gdb-printers, lldb for
-    # --lldb-formatters. natvis files work with either, so with --natvis it is deduced from
-    # --debugger-path, and is otherwise gdb.
+    # --lldb-formatters. natvis files work with either, so with --natvis, or without a visualizer,
+    # it is deduced from --debugger-path, and is otherwise dbgeng on Windows and gdb elsewhere.
     debugger_path = ns.debugger_path and os.path.abspath(ns.debugger_path)
 
     if ns.debugger is None:
