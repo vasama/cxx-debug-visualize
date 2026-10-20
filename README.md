@@ -381,3 +381,10 @@ support; they need gdb 14 or later and g++/clang++, but no `--adapter`.
   tested by this tool.
 * Exceptions inside pretty printers pass silently (see above); only the CHECK
   lines catch them.
+
+## License
+
+cxx-vistest is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See [LICENSE.md](LICENSE.md) for the full text.
