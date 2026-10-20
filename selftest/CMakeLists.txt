@@ -7,13 +7,13 @@
 # reported as skipped.
 #
 # Cache variables:
-#   CXX_DEBUG_VISUALIZE_ADAPTER       path to OpenDebugAD7, for the tests that use it
-#   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP  fail a self-test that is skipped, e.g. because a tool is
-#                                     missing, instead of reporting it as skipped (default: OFF)
+#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, for the tests that use it
+#   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP     fail a self-test that is skipped, e.g. because a tool is
+#                                        missing, instead of reporting it as skipped (default: OFF)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
-set(CXX_DEBUG_VISUALIZE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
+set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
 option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail if any self-test is skipped" OFF)
 
 # The fixture program, without optimizations and with debug info.
@@ -24,8 +24,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 set(selftest_args --program "$<TARGET_FILE:selftest-prog>")
-if(CXX_DEBUG_VISUALIZE_ADAPTER)
-  list(APPEND selftest_args --adapter "${CXX_DEBUG_VISUALIZE_ADAPTER}")
+if(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
+  list(APPEND selftest_args --vs-code-adapter "${CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER}")
 endif()
 if(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP)
   list(APPEND selftest_args --fail-on-skip)

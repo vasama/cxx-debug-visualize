@@ -308,7 +308,7 @@ file (replace the addresses with `0x?`, e.g. with
 
 ```
 python3 -m cxx_debug_visualize [--debugger gdb|lldb] [--debugger-path PATH] \
-    [--adapter PATH | --vs-code-adapter] \
+    [--adapter native|vs-code] [--vs-code-adapter PATH] \
     (--natvis FILE.natvis | --gdb-printers FILE.py | --lldb-formatters FILE.py) [options] \
     TEST.cpp PROGRAM [--] [ARG...]
 ```
@@ -316,19 +316,20 @@ python3 -m cxx_debug_visualize [--debugger gdb|lldb] [--debugger-path PATH] \
 `TEST.cpp` is the test source: its `visualize(x);` lines get
 breakpoints. Calls in other files of the program are not breakpoints.
 
-Without a debug adapter (`--adapter`, `--vs-code-adapter` or
-`$CXX_DEBUG_VISUALIZE_ADAPTER`), cxx-debug-visualize uses the debugger's own DAP support,
-found on `PATH` unless `--debugger-path` gives its path: `gdb -i dap` (GDB 14 and
-later), or lldb-dap (called lldb-vscode before LLVM 18). natvis needs a debug
-adapter (OpenDebugAD7).
+`--adapter` chooses how cxx-debug-visualize talks to the debugger: `native`
+uses the debugger's own DAP support, found on `PATH` unless `--debugger-path`
+gives its path: `gdb -i dap` (GDB 14 and later), or lldb-dap (called
+lldb-vscode before LLVM 18). `vs-code` uses the debug adapter of VS Code's C/C++
+extension, OpenDebugAD7 (see "Getting the debug adapter"). natvis needs
+`vs-code`, lldb formatters `native`, and gdb printers work with either.
 
 | Option | Meaning |
 |---|---|
-| `--debugger gdb\|lldb` | the debugger (default: deduced from `--debugger-path`, otherwise `gdb`); `lldb` can't be used with a debug adapter |
+| `--debugger gdb\|lldb` | the debugger (default: deduced from `--debugger-path`, otherwise `gdb`); `lldb` requires `--adapter native` |
 | `--debugger-path PATH` | the debugger to run instead of the one found on `PATH`: the gdb executable, or lldb's DAP server (`lldb-dap`, `lldb-vscode`, e.g. `/usr/bin/lldb-vscode-16`). Without `--debugger`, the type is deduced from the file name: `lldb` in it means lldb, `gdb` means gdb. With OpenDebugAD7, a gdb path is passed as `miDebuggerPath` |
-| `--adapter PATH` | OpenDebugAD7 to use; by default, `$CXX_DEBUG_VISUALIZE_ADAPTER` (see below) |
-| `--vs-code-adapter` | use the OpenDebugAD7 of the newest installed VS Code C/C++ extension (see below) |
-| `--natvis FILE` | the natvis file under test; requires a debug adapter |
+| `--adapter native\|vs-code` | the debugger's own DAP support, or VS Code's debug adapter (see above). Default: `vs-code` for `--natvis`, `native` for `--lldb-formatters`, and for `--gdb-printers` `vs-code` if `--vs-code-adapter` is given, otherwise `native` |
+| `--vs-code-adapter PATH` | OpenDebugAD7 for `--adapter vs-code`; by default, `$CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`, otherwise the one of the newest installed VS Code C/C++ extension (see below). An error with `--adapter native` |
+| `--natvis FILE` | the natvis file under test; requires `--adapter vs-code` |
 | `--gdb-printers FILE` | the gdb pretty-printer script (Python) under test; requires `--debugger gdb` |
 | `--lldb-formatters FILE` | the lldb formatter script (Python, loaded with `command script import`) under test; requires `--debugger lldb`. Exactly one of `--natvis`, `--gdb-printers` and `--lldb-formatters` is required |
 | `--trace` | dump DAP traffic to stderr |
@@ -371,7 +372,7 @@ This builds the program once, with `-O0 -g`, and registers CTest tests (label
 `visualizers`): `natvis.test_containers` for the natvis file, and for the
 pretty printers both `gdb-adapter.test_containers` (through OpenDebugAD7, as in
 VS Code) and `gdb-native.test_containers` (through gdb's own DAP support, which
-needs GDB 14 or later; `$CXX_DEBUG_VISUALIZE_ADAPTER` is ignored there), and
+needs GDB 14 or later), and
 `lldb-native.test_containers` for the lldb formatters (through lldb-dap, which
 must be on `PATH` when the tests run). Each test runs cxx-debug-visualize and
 fails unless it succeeds and its output matches the expected file (see
@@ -379,7 +380,7 @@ fails unless it succeeds and its output matches the expected file (see
 `visualize` lines are breakpoints, and its expected files sit next to it
 (`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-adapter.txt`,
 `tests/test_containers.gdb-native.txt`, `tests/test_containers.lldb-native.txt`).
-The natvis and gdb-adapter tests need `CXX_DEBUG_VISUALIZE_ADAPTER`; without it, they
+The natvis and gdb-adapter tests need `CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`; without it, they
 are registered disabled (CTest reports them as "Not Run (Disabled)"), or, with
 `-DCXX_DEBUG_VISUALIZE_FAIL_ON_SKIP=ON`, configuration fails. See [`example/`][example]
 for a complete project, which tests `visualizers/mylib.natvis`,
@@ -387,19 +388,17 @@ for a complete project, which tests `visualizers/mylib.natvis`,
 same tests:
 
 ```
-cmake -S example -B build -DCXX_DEBUG_VISUALIZE_ADAPTER=/path/to/OpenDebugAD7
+cmake -S example -B build -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build && ctest --test-dir build -L visualizers
 ```
 
 ## Getting the debug adapter
 
-`--adapter` gives the path of an `OpenDebugAD7` executable (or
-`OpenDebugAD7.dll`, run with `dotnet`). Without it, `cxx-debug-visualize` uses the
-`CXX_DEBUG_VISUALIZE_ADAPTER` environment variable. Without either, and without
-`--vs-code-adapter`, the debugger's own DAP support is used (see above).
-
-`--vs-code-adapter` uses the adapter of the newest VS Code C/C++ extension
-installed in your home directory:
+With `--adapter vs-code`, `--vs-code-adapter` gives the path of an
+`OpenDebugAD7` executable (or `OpenDebugAD7.dll`, run with `dotnet`). Without
+it, `cxx-debug-visualize` uses the `CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`
+environment variable (ignored with `--adapter native`), and without that, the
+adapter of the newest VS Code C/C++ extension installed in your home directory:
 `~/.vscode`, `~/.vscode-insiders`, and `~/.vscode-server` or
 `~/.vscode-server-insiders` for remote development (e.g. Remote SSH), each
 under `extensions/ms-vscode.cpptools-<version>-<platform>/debugAdapters/bin/`.
@@ -407,8 +406,8 @@ The extension makes the adapter executable only when VS Code first activates
 it, so a version that has not been activated yet (e.g. right after an update)
 is skipped. `--trace` shows which adapter is used.
 
-* **Developer machines**: rely on the installed C/C++ extension
-  (`--vs-code-adapter`). You then test exactly the version you debug with.
+* **Developer machines**: rely on the installed C/C++ extension. You then test
+  exactly the version you debug with.
 * **CI**: the extension's license only covers use with Microsoft
   products (VS Code, Visual Studio, …). Build OpenDebugAD7 from the
   MIT-licensed [MIEngine](https://github.com/microsoft/MIEngine) sources
@@ -417,7 +416,7 @@ is skipped. `--trace` shows which adapter is used.
   ```
   git clone --depth 1 https://github.com/microsoft/MIEngine.git
   sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$PWD/miengine"
-  cxx-debug-visualize --adapter miengine/OpenDebugAD7 ...
+  cxx-debug-visualize --vs-code-adapter miengine/OpenDebugAD7 ...
   ```
 
   The build is self-contained: it includes the .NET runtime, so running it
@@ -435,7 +434,7 @@ root `CMakeLists.txt` builds their fixture program and runs them with CTest,
 together with the example project's tests; from a checkout:
 
 ```
-cmake -S . -B build -DCXX_DEBUG_VISUALIZE_ADAPTER=/path/to/OpenDebugAD7
+cmake -S . -B build -DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
@@ -454,7 +453,7 @@ build re-runs that when a file in `selftest/` changes; each test runs with
 
 The tests of the `visualize` line scanner and of the launch configurations
 always run. The integration tests need the fixture programs, and gdb and
-`CXX_DEBUG_VISUALIZE_ADAPTER` (`--adapter`). They check the printed trees for
+`CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER` (`--vs-code-adapter`). They check the printed trees for
 natvis files and pretty printers (including unexpanded children, nested
 flattened `[More...]` pages, the `map` display hint, calls in loops and calls
 never reached), how bad visualizers show in them (natvis evaluation errors,

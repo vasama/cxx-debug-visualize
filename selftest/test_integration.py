@@ -1,8 +1,9 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m selftest` (e.g. by CTest), which passes the built fixture program
-# prog.cpp (--program) and the adapter (--adapter). Each test class is skipped when what it needs
-# is missing: the program, the adapter, gdb, or lldb-dap. With --fail-on-skip, that fails the run.
+# prog.cpp (--program) and the adapter (--vs-code-adapter). Each test class is skipped when what
+# it needs is missing: the program, the adapter, gdb, or lldb-dap. With --fail-on-skip, that fails
+# the run.
 
 import contextlib
 import io
@@ -60,7 +61,7 @@ class IntegrationTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
         if not (ADAPTER and shutil.which("gdb")):
-            raise unittest.SkipTest("needs --adapter and gdb")
+            raise unittest.SkipTest("needs --vs-code-adapter and gdb")
         cls.adapter = ADAPTER
         super().setUpClass()
 

@@ -32,12 +32,12 @@
 # copy over the expected file, and a diff is printed.
 #
 # Cache variables:
-#   CXX_DEBUG_VISUALIZE_ADAPTER       path to OpenDebugAD7, passed as --adapter to the natvis and
-#                                     gdb-adapter tests (the native tests use no adapter).
-#                                     Without it, those tests are registered disabled, which
-#                                     CTest reports as "Not Run (Disabled)".
-#   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP  make a missing CXX_DEBUG_VISUALIZE_ADAPTER an error instead
-#                                     (default: OFF)
+#   CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER  path to OpenDebugAD7, passed as --vs-code-adapter to the
+#                                        natvis and gdb-adapter tests (the native tests use no
+#                                        adapter). Without it, those tests are registered
+#                                        disabled, which CTest reports as "Not Run (Disabled)".
+#   CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP     make a missing CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER an
+#                                        error instead (default: OFF)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
@@ -48,7 +48,7 @@ old = open(expected).readlines() if os.path.exists(expected) else []
 sys.stdout.writelines(difflib.unified_diff(old, open(actual).readlines(), expected, actual))")
 
 get_filename_component(CXX_DEBUG_VISUALIZE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-set(CXX_DEBUG_VISUALIZE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
+set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
 option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail instead of skipping tests that cannot run" OFF)
 
 function(cxx_debug_visualize_add_test name)
@@ -61,11 +61,12 @@ function(cxx_debug_visualize_add_test name)
     message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): NATVIS, GDB_PRINTERS or "
                         "LLDB_FORMATTERS is required")
   endif()
-  if((TV_NATVIS OR TV_GDB_PRINTERS) AND NOT CXX_DEBUG_VISUALIZE_ADAPTER
+  if((TV_NATVIS OR TV_GDB_PRINTERS) AND NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER
      AND CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP)
-    message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): set CXX_DEBUG_VISUALIZE_ADAPTER "
-                        "to the path of OpenDebugAD7, e.g. "
-                        "-DCXX_DEBUG_VISUALIZE_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7")
+    message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): set "
+                        "CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
+                        "-DCXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER="
+                        "<cpptools>/debugAdapters/bin/OpenDebugAD7")
   endif()
 
   add_executable(${name} ${TV_SOURCES})
@@ -81,25 +82,24 @@ function(cxx_debug_visualize_add_test name)
   list(GET TV_SOURCES 0 test_source)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
-  set(adapter "${CXX_DEBUG_VISUALIZE_ADAPTER}")
   if(TV_NATVIS)
-    _cxx_debug_visualize_add_run(natvis ${name} "${test_source}" "${adapter}"
+    _cxx_debug_visualize_add_run(natvis ${name} "${test_source}" vs-code
                                  --natvis "${TV_NATVIS}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS)
-    _cxx_debug_visualize_add_run(gdb-adapter ${name} "${test_source}" "${adapter}"
+    _cxx_debug_visualize_add_run(gdb-adapter ${name} "${test_source}" vs-code
                                  --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
-    _cxx_debug_visualize_add_run(gdb-native ${name} "${test_source}" ""
+    _cxx_debug_visualize_add_run(gdb-native ${name} "${test_source}" native
                                  --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
   if(TV_LLDB_FORMATTERS)
-    _cxx_debug_visualize_add_run(lldb-native ${name} "${test_source}" ""
+    _cxx_debug_visualize_add_run(lldb-native ${name} "${test_source}" native
                                  --lldb-formatters "${TV_LLDB_FORMATTERS}" --debugger lldb
                                  ${TV_ARGS})
   endif()
 
   # The natvis and gdb-adapter tests need OpenDebugAD7; without it, they never run.
-  if(NOT adapter)
+  if(NOT CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
     foreach(kind IN ITEMS natvis gdb-adapter)
       if(TEST ${kind}.${name})
         set_tests_properties(${kind}.${name} PROPERTIES DISABLED TRUE)
@@ -108,24 +108,19 @@ function(cxx_debug_visualize_add_test name)
   endif()
 endfunction()
 
-# Register the CTest test "<kind>.<name>", which runs the program <name> through
-# the debug <adapter> (empty: the debugger's own DAP support) with the
-# visualizer <option> <file>, and compares the output with
-# <test source>.<kind>.txt.  Further arguments are passed on to
-# cxx-debug-visualize.
+# Register the CTest test "<kind>.<name>", which runs the program <name> with
+# --adapter <adapter> (native or vs-code) and the visualizer <option> <file>, and
+# compares the output with <test source>.<kind>.txt.  Further arguments are
+# passed on to cxx-debug-visualize.
 function(_cxx_debug_visualize_add_run kind name test_source adapter option file)
   get_filename_component(file "${file}" ABSOLUTE)
   get_filename_component(test_dir "${test_source}" DIRECTORY)
   get_filename_component(test_name "${test_source}" NAME_WE)
   set(expected "${test_dir}/${test_name}.${kind}.txt")
   set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
-  set(run "${Python3_EXECUTABLE}" -m cxx_debug_visualize)
-  if(adapter)
-    list(APPEND run --adapter "${adapter}")
-    set(environment "")
-  else()
-    # cxx-debug-visualize would use CXX_DEBUG_VISUALIZE_ADAPTER as --adapter.
-    set(environment "unset(ENV{CXX_DEBUG_VISUALIZE_ADAPTER})\n")
+  set(run "${Python3_EXECUTABLE}" -m cxx_debug_visualize --adapter ${adapter})
+  if(adapter STREQUAL "vs-code")
+    list(APPEND run --vs-code-adapter "${CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER}")
   endif()
   list(APPEND run ${option} "${file}" ${ARGN} "${test_source}" "$<TARGET_FILE:${name}>")
 
@@ -137,7 +132,7 @@ function(_cxx_debug_visualize_add_run kind name test_source adapter option file)
   endforeach()
   set(script "${CMAKE_CURRENT_BINARY_DIR}/${kind}-${name}.cmake")
   file(GENERATE OUTPUT "${script}" CONTENT
-"${environment}execute_process(
+"execute_process(
   COMMAND${run_quoted}
   OUTPUT_VARIABLE output
   RESULT_VARIABLE result)
