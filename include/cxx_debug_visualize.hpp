@@ -12,12 +12,15 @@
 // matches and the line generates executable code, it is possible to define an
 // equivalent function or even macro directly in visualizer test source.
 
+#include <memory>
+
 template<typename T>
 #if defined(_MSC_VER)
 __declspec(noinline)
 #else
 __attribute__((noinline))
 #endif
-void visualize(T const&)
+void visualize(T const& object)
 {
+  [[maybe_unused]] void const* volatile ptr = std::addressof(object);
 }
