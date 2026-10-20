@@ -22,5 +22,6 @@ __attribute__((noinline))
 #endif
 void visualize(T const& object)
 {
-  [[maybe_unused]] void const* volatile ptr = std::addressof(object);
+  void const* volatile ptr = std::addressof(object);
+  (void)ptr;
 }

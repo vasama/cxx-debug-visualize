@@ -26,6 +26,14 @@ project(cxx-debug-visualize LANGUAGES CXX)
 
 enable_testing()
 
+# The usual warnings, as errors, for every target: in the syntax of cl's command line (MSVC and
+# clang-cl), or else of GCC's.
+if(MSVC)
+  add_compile_options(/W4 /WX)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
 # The dbgeng adapter, if DbgEng is found. The tests use its target, dbgeng-adapter, if there is
 # one, with the dbgeng.dll found (DbgEng_DLL).
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")

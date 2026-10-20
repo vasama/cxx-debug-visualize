@@ -15,8 +15,9 @@ find_package(DbgEng REQUIRED)
 
 add_executable(dbgeng-adapter engine.cpp main.cpp)
 target_compile_features(dbgeng-adapter PRIVATE cxx_std_23)
-# Without the min and max macros from windows.h, which break std::min and std::max.
-target_compile_definitions(dbgeng-adapter PRIVATE NOMINMAX)
+# Without the min and max macros from windows.h, which break std::min and std::max, nor the
+# warnings that the C runtime's standard functions are unsafe (e.g. getenv and fopen).
+target_compile_definitions(dbgeng-adapter PRIVATE NOMINMAX _CRT_SECURE_NO_WARNINGS)
 # DbgEng's headers, and those of nlohmann/json 3.12.0, whose single header is vendored in
 # third_party/.
 target_include_directories(dbgeng-adapter SYSTEM PRIVATE "${DbgEng_INCLUDE_DIR}" third_party)

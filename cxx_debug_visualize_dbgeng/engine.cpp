@@ -753,7 +753,6 @@ frame debugger::top_frame()
   frame result;
   wchar_t name[1024];
   ULONG64 displacement = 0;
-  char text[32];
   if (SUCCEEDED(m_symbols->GetNameByOffsetWide(top.InstructionOffset,
                                                name,
                                                std::size(name),

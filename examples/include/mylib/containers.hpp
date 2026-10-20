@@ -2,6 +2,7 @@
 // debugger visualizations are described in visualizers/.
 #pragma once
 
+#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <new>
@@ -21,7 +22,7 @@ class string
   unsigned m_length;
 
 public:
-  string(char const* text) : m_length(std::strlen(text))
+  string(char const* text) : m_length(static_cast<unsigned>(std::strlen(text)))
   {
     m_data = new char[m_length + 1];
     std::memcpy(m_data, text, m_length + 1);
@@ -282,16 +283,19 @@ public:
   // The array must not be full.
   void push_back(int value)
   {
+    assert(m_size < m_capacity);
     m_entries[m_size].tag = integer;
     m_entries[m_size++].i = value;
   }
   void push_back(double value)
   {
+    assert(m_size < m_capacity);
     m_entries[m_size].tag = real;
     m_entries[m_size++].d = value;
   }
   void push_back_none()
   {
+    assert(m_size < m_capacity);
     m_entries[m_size++].tag = none;
   }
 };

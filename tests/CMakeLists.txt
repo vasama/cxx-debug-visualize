@@ -78,6 +78,7 @@ endif()
 
 add_executable(test_program fixtures/test_program.cpp)
 target_include_directories(test_program PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(test_program PRIVATE cxx_std_17)
 
 # The executables to test with; --list leaves out the integration tests of those not given.
 set(selftest_tools "")
