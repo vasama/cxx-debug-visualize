@@ -8,14 +8,14 @@ from test_visualizers.session import DebugSession
 
 class LaunchConfigTests(unittest.TestCase):
     def test_natvis(self):
-        cfg = DebugSession("adapter", "prog", natvis="my.natvis").launch_config()
+        cfg = DebugSession("adapter", "prog", natvis="my.natvis")._launch_config()
         self.assertEqual(cfg["visualizerFile"], os.path.abspath("my.natvis"))
         self.assertIs(cfg["showDisplayString"], True)
         self.assertNotIn("setupCommands", cfg)
         self.assertNotIn("miDebuggerArgs", cfg)
 
     def test_printers(self):
-        cfg = DebugSession("adapter", "prog", printers="my_printers.py").launch_config()
+        cfg = DebugSession("adapter", "prog", printers="my_printers.py")._launch_config()
         self.assertNotIn("visualizerFile", cfg)
         # isolated: no gdb init files, no auto-loaded printers
         self.assertEqual(cfg["miDebuggerArgs"], "-nx")

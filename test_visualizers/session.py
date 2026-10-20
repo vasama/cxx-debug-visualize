@@ -5,6 +5,10 @@ import os
 from .adapter import adapter_argv
 from .dap import DapClient, DapError
 
+# Natvis diagnostics (bad XML, unparsable type names, ...) arrive as debug
+# console output such as "[Natvis] [Error] Error ... while reading file: ...".
+_NATVIS_PREFIX = "[Natvis]"
+
 # One row of the Variables/Watch tree.
 class Node:
     def __init__(self, name, value, type_, ref):
@@ -30,8 +34,8 @@ class DebugSession:
         self._printers = printers and os.path.abspath(printers)
         self._log = log
         self._breakpoints = {}
-
-        self.client = None
+        self._client = None
+        self._natvis_diagnostics = []
 
     # -- Lifecycle -----------------------------------------------------------
 
@@ -72,13 +76,16 @@ class DebugSession:
         match event:
             case {"event": "breakpoint", "body": {"breakpoint": {"id": bp_id} as bp}}:
                 self._breakpoints[bp_id] = bp
+            case {"event": "output", "body": {"category": "console", "output": text}}:
+                if text.startswith(_NATVIS_PREFIX):
+                    self._natvis_diagnostics.append(text)
 
     # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
     # The reply only echoes the requested lines, so "line" is cleared to keep it from being mistaken
     # for where a breakpoint really landed.
     def _set_breakpoints(self, source, lines):
-        body = self.client.request("setBreakpoints", {
+        body = self._client.request("setBreakpoints", {
             "source": {"path": source, "name": os.path.basename(source)},
             "breakpoints": [{"line": line} for line in lines],
         })
@@ -95,9 +102,9 @@ class DebugSession:
     #
     # Returns {source path: [resolved breakpoint dicts]} in request order.
     def start(self, breakpoints):
-        self.client = DapClient(adapter_argv(self._adapter), log=self._log,
+        self._client = DapClient(adapter_argv(self._adapter), log=self._log,
                                 on_event=self._handle_event)
-        self.client.request("initialize", {
+        self._client.request("initialize", {
             "clientID": "vscode",
             "clientName": "test_visualizers",
             "adapterID": "cppdbg",
@@ -109,13 +116,13 @@ class DebugSession:
             "supportsRunInTerminalRequest": False,
             "locale": "en-us",
         })
-        launch_seq = self.client.request_async("launch", self._launch_config())
-        self.client.wait_event("initialized", request_seq=launch_seq)
+        launch_seq = self._client.request_async("launch", self._launch_config())
+        self._client.wait_event("initialized", request_seq=launch_seq)
         resolved = {}
         for source, lines in breakpoints.items():
             resolved[source] = self._set_breakpoints(source, lines)
-        self.client.request("configurationDone")
-        self.client.wait_response(launch_seq)
+        self._client.request("configurationDone")
+        self._client.wait_response(launch_seq)
         return resolved
 
     # Latest state of a breakpoint returned by _set_breakpoints.
@@ -127,26 +134,32 @@ class DebugSession:
 
     # Wait for the program to stop or exit. Returns the relevant DAP event.
     def wait_stop(self):
-        return self.client.wait_event(("stopped", "terminated", "exited"))
+        return self._client.wait_event(("stopped", "terminated", "exited"))
 
     def resume(self, thread_id):
-        self.client.request("continue", {"threadId": thread_id})
+        self._client.request("continue", {"threadId": thread_id})
 
     def close(self):
-        if self.client:
-            self.client.close()
+        if self._client:
+            self._client.close()
+
+    def natvis_diagnostics(self):
+        return self._natvis_diagnostics
+
+    def stderr_output(self):
+        return self._client.stderr_output() if self._client else ""
 
     # -- Inspection ----------------------------------------------------------
 
     def top_frame(self, thread_id):
-        frames = self.client.request("stackTrace", {"threadId": thread_id, "startFrame": 0,
+        frames = self._client.request("stackTrace", {"threadId": thread_id, "startFrame": 0,
                                                     "levels": 1})["stackFrames"]
         if not frames:
             raise DapError(f"thread {thread_id} has no stack frames")
         return frames[0]
 
     def evaluate(self, expression, frame_id):
-        body = self.client.request("evaluate", {"expression": expression, "frameId": frame_id,
+        body = self._client.request("evaluate", {"expression": expression, "frameId": frame_id,
                                                 "context": "watch"})
         return Node(expression, body.get("result", ""), body.get("type"),
                     body.get("variablesReference", 0))
@@ -154,6 +167,6 @@ class DebugSession:
     def children(self, node):
         if not node.expandable:
             return []
-        body = self.client.request("variables", {"variablesReference": node.ref})
+        body = self._client.request("variables", {"variablesReference": node.ref})
         return [Node(v["name"], v.get("value", ""), v.get("type"), v.get("variablesReference", 0))
                 for v in body.get("variables", [])]

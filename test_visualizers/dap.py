@@ -43,9 +43,6 @@ class DapClient:
         self._log = log
         self._on_event = on_event
 
-        # (category, text) of every "output" event
-        self.output = []
-
     # -- Message handling ----------------------------------------------------
 
     def _handle_message(self, msg):
@@ -57,9 +54,6 @@ class DapClient:
                 self._responses[seq] = msg
 
             case {"type": "event"}:
-                match msg:
-                    case {"event": "output", "body": body}:
-                        self.output.append((body["category"], body["output"]))
                 if self._on_event:
                     self._on_event(msg)
                 self._events.append(msg)

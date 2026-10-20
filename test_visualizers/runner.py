@@ -25,10 +25,6 @@ from .session import DebugSession
 
 CALL_RE = re.compile(r"^\s*check_visualizer\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
 
-# Natvis diagnostics (bad XML, unparsable type names, ...) arrive as debug
-# console output such as "[Natvis] [Error] Error ... while reading file: ...".
-NATVIS_PREFIX = "[Natvis]"
-
 # Represents a `check_visualizer(identifier);` line in a test source.
 class TestInvocation:
     def __init__(self, line, identifier):
@@ -164,12 +160,13 @@ class Runner:
             self._error(f"debug session: {e}")
         finally:
             session.close()
-            if session.client:
-                for category, text in session.client.output:
-                    if category == "console" and text.startswith(NATVIS_PREFIX):
-                        self._report(text)
-                # anything else the adapter wrote to stderr is a failure too
-                stderr = session.client.stderr_output()
-                if stderr:
-                    self._report(stderr)
+
+            for text in session.natvis_diagnostics():
+                self._report(text)
+
+            # Anything written to stderr by the adapter is considered a failure.
+            stderr = session.stderr_output()
+            if stderr:
+                self._report(stderr)
+
         return not self._failed
