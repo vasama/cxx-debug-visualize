@@ -1,8 +1,3 @@
-# Checks the formatting of the Python code, lints it and type-checks the package, and runs the
-# self-tests and the example's CTest tests on every released Python version that is not
-# end-of-life, against OpenDebugAD7 (built from the MIEngine sources), gdb's own DAP support and
-# lldb-dap.
-
 name: test
 
 on:
@@ -10,11 +5,12 @@ on:
   pull_request:
 
 env:
-  # The MIEngine commit OpenDebugAD7 is built from: main as of 2026-09-22. MIEngine's version
-  # tags stopped at v1.19.6 (2024), while the C/C++ extension ships builds of main.
+  # The MIEngine commit OpenDebugAD7 is built from main as of 2026-09-22. MIEngine's version tags
+  # stopped at v1.19.6 (2024), while the C/C++ extension ships builds of main.
   MIENGINE_REF: fdd455222c3233daf55143b027870639e13f7108
-  # The .NET SDK that builds it (MIEngine targets .NET 8, which newer SDKs can build).
-  DOTNET_SDK: "10.0.x"
+
+  # The .NET SDK version used for building MIEngine.
+  MIENGINE_DOTNET_SDK: "10.0.x"
 
 jobs:
   # Fails if `ruff format` would change any Python code, or `ruff check` reports anything (both
@@ -50,7 +46,7 @@ jobs:
       - run: mypy cxx_debug_visualize
 
   # Builds OpenDebugAD7 (self-contained) from the MIT-licensed MIEngine sources, only when the
-  # cache has no build of MIENGINE_REF with DOTNET_SDK yet.
+  # cache has no build of MIENGINE_REF with MIENGINE_DOTNET_SDK yet.
   adapter:
     name: Build OpenDebugAD7
     runs-on: ubuntu-24.04
@@ -59,7 +55,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/miengine
-          key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.DOTNET_SDK }}
+          key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.MIENGINE_DOTNET_SDK }}
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/checkout@v7
         with:
@@ -70,7 +66,7 @@ jobs:
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ env.DOTNET_SDK }}
+          dotnet-version: ${{ env.MIENGINE_DOTNET_SDK }}
       - if: steps.cache.outputs.cache-hit != 'true'
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -78,7 +74,7 @@ jobs:
         run: sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$RUNNER_TEMP/miengine"
 
   test:
-    name: Python ${{ matrix.python }}
+    name: Linux - Python ${{ matrix.python }}
     needs: adapter
     runs-on: ubuntu-24.04
     strategy:
@@ -90,20 +86,18 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      # gdb 15 (with DAP support). lldb 18 comes with the image (with Clang 18); only its versioned
-      # commands are on PATH, so lldb-dap is given to CMake as lldb-dap-18. lldb-dap's output
-      # differs between LLVM versions, so the expected lldb outputs must be lldb 18's.
+
       - name: Install gdb
         run: |
           sudo apt-get update
           sudo apt-get install -y gdb
-      # the adapter job has made sure the cache holds the build
+
       - uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/miengine
-          key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.DOTNET_SDK }}
+          key: miengine-${{ runner.os }}-${{ env.MIENGINE_REF }}-dotnet-${{ env.MIENGINE_DOTNET_SDK }}
           fail-on-cache-miss: true
-      # The self-tests and the example's tests, of every debugger and the adapter
+
       - name: Build and run tests
         run: |
           cmake -S . -B build \
