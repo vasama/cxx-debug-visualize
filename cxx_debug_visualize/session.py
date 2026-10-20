@@ -133,6 +133,7 @@ class DebugSession:
             "externalConsole": False,
             "stopAtEntry": False,
             "logging": {"natvisDiagnostics": "warning", "moduleLoad": False},
+            "miDebuggerArgs": "-nx",
         }
 
         if self._debugger_path:
@@ -151,9 +152,8 @@ class DebugSession:
                 cfg["setupCommands"] = [{"text": "-enable-pretty-printing"}]
 
         if self._gdb_printers:
-            # gdb is instructed to read no init files (-nx). Without the default visualizers,
-            # auto-loading of printers (e.g. libstdc++'s) is disabled.
-            cfg["miDebuggerArgs"] = "-nx"
+            # Without the default visualizers, auto-loading of printers (e.g. libstdc++'s) is
+            # disabled.
             cfg["setupCommands"] = [{"text": "-enable-pretty-printing"}]
             if not self._default_visualizers:
                 cfg["setupCommands"].append({"text": "set auto-load python-scripts off"})

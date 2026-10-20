@@ -15,7 +15,8 @@ class LaunchConfigTests(unittest.TestCase):
         self.assertIs(cfg["showDisplayString"], True)
         # by default, gdb's own pretty printers show what natvis does not
         self.assertEqual([c["text"] for c in cfg["setupCommands"]], ["-enable-pretty-printing"])
-        self.assertNotIn("miDebuggerArgs", cfg)
+        # no gdb init files
+        self.assertEqual(cfg["miDebuggerArgs"], "-nx")
 
     def test_natvis_without_default_visualizers(self):
         cfg = DebugSession(
