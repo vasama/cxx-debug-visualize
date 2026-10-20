@@ -1,7 +1,7 @@
 # The self-tests, as CTest tests.
 #
-# The self-tests compile nothing themselves: CMake builds fixtures/prog.cpp and passes the program
-# to them. Each self-test is a CTest test of its own, named by its unittest ID (e.g.
+# The self-tests compile nothing themselves: CMake builds fixtures/test_program.cpp and passes the
+# program to them. Each self-test is a CTest test of its own, named by its unittest ID (e.g.
 # selftest.test_scan.DiscoverTestLinesTests.test_only_whole_line_calls). They are listed when
 # CMake configures, which a build redoes when a file in this directory changes. A skipped test is
 # reported as skipped.
@@ -17,13 +17,13 @@ set(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7"
 option(CXX_DEBUG_VISUALIZE_FAIL_ON_SKIP "Fail if any self-test is skipped" OFF)
 
 # The fixture program, without optimizations and with debug info.
-add_executable(selftest-prog fixtures/prog.cpp)
-target_include_directories(selftest-prog PRIVATE "${PROJECT_SOURCE_DIR}/include")
+add_executable(test_program fixtures/test_program.cpp)
+target_include_directories(test_program PRIVATE "${PROJECT_SOURCE_DIR}/include")
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(selftest-prog PRIVATE -O0 -g)
+  target_compile_options(test_program PRIVATE -O0 -g)
 endif()
 
-set(selftest_args --program "$<TARGET_FILE:selftest-prog>")
+set(selftest_args --program "$<TARGET_FILE:test_program>")
 if(CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER)
   list(APPEND selftest_args --vs-code-adapter "${CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER}")
 endif()

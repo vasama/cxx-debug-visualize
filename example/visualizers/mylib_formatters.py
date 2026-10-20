@@ -1,4 +1,4 @@
-# lldb formatters for the toy types in include/mylib/containers.h; the
+# lldb formatters for the toy types in include/mylib/containers.hpp; the
 # counterpart of mylib.natvis and mylib_printers.py, written so
 # that lldb shows the same trees as far as it can.
 #

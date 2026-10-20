@@ -18,7 +18,7 @@ from . import test_integration
 
 parser = argparse.ArgumentParser(prog="python3 -m selftest")
 parser.add_argument("--program", metavar="PATH",
-                    help="the built fixture program selftest/fixtures/prog.cpp")
+                    help="the built fixture program selftest/fixtures/test_program.cpp")
 parser.add_argument("--vs-code-adapter", metavar="PATH", help="path to OpenDebugAD7")
 parser.add_argument("--fail-on-skip", action="store_true",
                     help="fail if any test is skipped, e.g. because a tool is missing")

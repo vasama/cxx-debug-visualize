@@ -1,10 +1,10 @@
 # Command line interface:
 #
-#     cxx-debug-visualize test.cpp ./prog --gdb-printers my_printers.py
+#     cxx-debug-visualize test.cpp ./test_program --gdb-printers my_printers.py
 #
-#     cxx-debug-visualize test.cpp ./prog --debugger lldb --lldb-formatters my_formatters.py
+#     cxx-debug-visualize test.cpp ./test_program --debugger lldb --lldb-formatters my_formatters.py
 #
-#     cxx-debug-visualize test.cpp ./prog --adapter OpenDebugAD7 --natvis my.natvis
+#     cxx-debug-visualize test.cpp ./test_program --adapter OpenDebugAD7 --natvis my.natvis
 
 import argparse
 import os

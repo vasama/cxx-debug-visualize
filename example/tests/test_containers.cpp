@@ -1,5 +1,5 @@
-#include "mylib/containers.h"
-#include "cxx_debug_visualize.h"
+#include "mylib/containers.hpp"
+#include "cxx_debug_visualize.hpp"
 
 // Every `visualize(x);` line prints x and the children its visualizer
 // produces, headed by "visualize(x) at <file>:<line>".  The output is compared

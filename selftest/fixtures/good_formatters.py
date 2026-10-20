@@ -1,4 +1,4 @@
-# lldb formatters for the self-test fixture prog.cpp (like good_printers.py).
+# lldb formatters for the self-test fixture test_program.cpp (like good_printers.py).
 
 import lldb
 

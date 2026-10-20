@@ -1,4 +1,4 @@
-# gdb pretty printers for the toy types in include/mylib/containers.h; the
+# gdb pretty printers for the toy types in include/mylib/containers.hpp; the
 # counterpart of mylib.natvis, written so that VS Code shows the same
 # trees with either.
 

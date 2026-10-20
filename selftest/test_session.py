@@ -7,7 +7,7 @@ from cxx_debug_visualize.session import DebugSession
 
 class LaunchConfigTests(unittest.TestCase):
     def test_natvis(self):
-        cfg = DebugSession("adapter", "prog", [], debugger="gdb",
+        cfg = DebugSession("adapter", "test_program", [], debugger="gdb",
                            natvis="my.natvis")._launch_config()
         self.assertEqual(cfg["visualizerFile"], os.path.abspath("my.natvis"))
         self.assertIs(cfg["showDisplayString"], True)
@@ -15,7 +15,7 @@ class LaunchConfigTests(unittest.TestCase):
         self.assertNotIn("miDebuggerArgs", cfg)
 
     def test_printers(self):
-        cfg = DebugSession("adapter", "prog", [], debugger="gdb",
+        cfg = DebugSession("adapter", "test_program", [], debugger="gdb",
                            gdb_printers="my_printers.py")._launch_config()
         self.assertNotIn("visualizerFile", cfg)
         # isolated: no gdb init files, no auto-loaded printers
@@ -27,19 +27,19 @@ class LaunchConfigTests(unittest.TestCase):
         ])
 
     def test_debugger_path(self):
-        cfg = DebugSession("adapter", "prog", [], debugger="gdb",
+        cfg = DebugSession("adapter", "test_program", [], debugger="gdb",
                            debugger_path="/opt/gdb/bin/gdb",
                            gdb_printers="my_printers.py")._launch_config()
         self.assertEqual(cfg["miDebuggerPath"], "/opt/gdb/bin/gdb")
         # without a path, OpenDebugAD7 uses the gdb on PATH
-        cfg = DebugSession("adapter", "prog", [], debugger="gdb",
+        cfg = DebugSession("adapter", "test_program", [], debugger="gdb",
                            gdb_printers="my_printers.py")._launch_config()
         self.assertNotIn("miDebuggerPath", cfg)
 
     def test_lldb_formatters(self):
-        cfg = DebugSession(None, "prog", [], debugger="lldb",
+        cfg = DebugSession(None, "test_program", [], debugger="lldb",
                            lldb_formatters="my_formatters.py")._launch_config()
-        self.assertEqual(cfg["program"], os.path.abspath("prog"))
+        self.assertEqual(cfg["program"], os.path.abspath("test_program"))
         # isolated: lldb's built-in C++ formatters are disabled before the script is loaded
         self.assertEqual(cfg["initCommands"], [
             "type category disable -l c++",
@@ -48,13 +48,13 @@ class LaunchConfigTests(unittest.TestCase):
 
     def test_exactly_one_visualizer(self):
         with self.assertRaises(AssertionError):
-            DebugSession("adapter", "prog", [], debugger="gdb")
+            DebugSession("adapter", "test_program", [], debugger="gdb")
         with self.assertRaises(AssertionError):
-            DebugSession("adapter", "prog", [], debugger="gdb", natvis="my.natvis",
+            DebugSession("adapter", "test_program", [], debugger="gdb", natvis="my.natvis",
                          gdb_printers="my_printers.py")
 
     # gdb's own DAP support (no adapter) knows nothing about natvis
     def test_native_dap_rejects_natvis(self):
         with self.assertRaises(AssertionError):
-            DebugSession(None, "prog", [], debugger="gdb", natvis="my.natvis")
-        DebugSession(None, "prog", [], debugger="gdb", gdb_printers="my_printers.py")
+            DebugSession(None, "test_program", [], debugger="gdb", natvis="my.natvis")
+        DebugSession(None, "test_program", [], debugger="gdb", gdb_printers="my_printers.py")

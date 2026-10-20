@@ -1,4 +1,4 @@
-# gdb pretty printers for the self-test fixture prog.cpp.
+# gdb pretty printers for the self-test fixture test_program.cpp.
 
 import gdb.printing
 

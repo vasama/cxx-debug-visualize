@@ -1,5 +1,5 @@
-#include "mylib/containers.h"
-#include "cxx_debug_visualize.h"
+#include "mylib/containers.hpp"
+#include "cxx_debug_visualize.hpp"
 
 // Checks also work in other functions; references show the referee.
 static void greet(const mylib::String &name) {

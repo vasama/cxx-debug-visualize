@@ -71,7 +71,7 @@ gdb and lldb-dap are looked up on `PATH`, unless `--debugger-path` names them.
 Two optional extras are not part of the package; take them from the
 [repository](https://github.com/vasama/cxx-debug-visualize) if you want them:
 
-* [`include/cxx_debug_visualize.h`][header], which defines the `visualize()`
+* [`include/cxx_debug_visualize.hpp`][header], which defines the `visualize()`
   function tests call (a test can just as well define its own, see "Writing
   tests");
 * the CMake helper [`cmake/CxxDebugVisualize.cmake`][cmake], which builds test
@@ -203,7 +203,7 @@ just `visualize(x);` prints the tree of `x` when it runs. A line holding
 anything else as well (another statement, even a trailing comment) is not a
 breakpoint.
 
-`visualize` only has to exist. The repository's `include/cxx_debug_visualize.h`
+`visualize` only has to exist. The repository's `include/cxx_debug_visualize.hpp`
 defines it as a no-op function, but a test can define its own instead, e.g.:
 
 ```cpp
@@ -439,7 +439,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-CMake builds `selftest/fixtures/prog.cpp` and passes the program to the
+CMake builds `selftest/fixtures/test_program.cpp` and passes the program to the
 self-tests (`python3 -m selftest --program PATH …`), which compile nothing
 themselves. The program crashes after its last `visualize()` call when given
 an argument, which the crash tests pass to it.
@@ -494,12 +494,12 @@ the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
 version. See [LICENSE.md][license] for the full text.
 
-The exception is [`include/cxx_debug_visualize.h`][header], which test programs
+The exception is [`include/cxx_debug_visualize.hpp`][header], which test programs
 include: it is under the MIT No Attribution License (MIT-0, see
 [LICENSE-MIT-0.txt][license-mit-0]), so it can be used, copied and changed
 freely, without keeping any notice.
 
-[header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.h
+[header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.hpp
 [cmake]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/cmake/CxxDebugVisualize.cmake
 [example]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example
 [example-tests]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/example/tests

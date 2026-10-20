@@ -1,6 +1,6 @@
 // Fixture for the cxx-debug-visualize integration self-tests (line numbers matter: the tests
 // refer to visualize() calls by line).  Crashes at the end if given any argument.
-#include "cxx_debug_visualize.h"
+#include "cxx_debug_visualize.hpp"
 
 struct Pair { int a; int b; };
 struct Arr { int *data; int n; }; struct PairArr { Pair *data; int n; };
