@@ -35,8 +35,7 @@ NATVIS_PREFIX = "[Natvis]"
 class Call:
     """A `check_visualizer(identifier);` line in a test source."""
 
-    def __init__(self, file, line, identifier):
-        self.file = file
+    def __init__(self, line, identifier):
         self.line = line
         self.identifier = identifier
 
@@ -47,7 +46,7 @@ def find_calls(path):
         for lineno, text in enumerate(f, 1):
             m = CALL_RE.match(text)
             if m:
-                calls.append(Call(path, lineno, m.group(1)))
+                calls.append(Call(lineno, m.group(1)))
     return calls
 
 
@@ -59,6 +58,7 @@ class Runner:
         self.natvis = os.path.abspath(natvis)
         self.log = log
         self.failed = False
+        self.breakpoints = {}
 
     def _error(self, message):
         """Report an error found by natvistest itself."""
@@ -96,40 +96,41 @@ class Runner:
             return True   # nothing to print, so no need to run the program
 
         session = DebugSession(self.adapter, self.program, self.natvis, log=self.log)
-        by_location = {}   # (realpath, resolved line) -> Call
         try:
             resolved = session.start({self.source: [call.line for call in calls]})
-            for call, bp in zip(calls, resolved.get(self.source, [])):
-                if not bp.get("verified"):
+
+            breakpoints = {}
+            for call, bp in zip(calls, resolved[self.source]):
+                if bp.get("verified"):
+                    breakpoints[bp["line"]] = call
+                else:
                     self.failed = True
                     if bp.get("message"):
                         self._report(bp["message"])
-                    continue
-                by_location[(os.path.realpath(self.source), bp.get("line", call.line))] = call
 
             while True:
-                ev = session.wait_stop()
-                if ev["event"] != "stopped":
+                event = session.wait_stop()
+                if event["event"] != "stopped":
                     break
-                thread_id = ev["body"].get("threadId")
+
+                body = event["body"]
+                thread_id = body["threadId"]
                 frame = session.top_frame(thread_id)
-                src = (frame.get("source") or {}).get("path")
-                call = by_location.get((os.path.realpath(src) if src else None,
-                                        frame.get("line")))
-                if call is None:
-                    if ev["body"].get("reason") in ("exception", "signal"):
-                        text = (ev["body"].get("text") or ev["body"].get("description")
-                                or ev["body"].get("reason"))
-                        location = f"{src or self.program}:{frame.get('line') or 0}"
-                        self._error(f"{location}: program stopped unexpectedly ({text}) "
-                                    f"in {frame.get('name')}")
-                        break
-                else:
-                    print(f"check_visualizer({call.identifier}) at {os.path.basename(call.file)}:{call.line}")
+                source = frame.get("source", {}).get("path", self.program)
+
+                if body["reason"] == "breakpoint" and frame["line"] in breakpoints:
+                    call = breakpoints[frame["line"]]
+                    print(f"check_visualizer({call.identifier}) at "
+                          f"{os.path.basename(source)}:{call.line}")
                     node = session.evaluate(call.identifier, frame["id"])
                     self._write_node(node, 1)
                     self._write_children(session, node, 2)
                     sys.stdout.flush()
+                else:
+                    text = (body.get("text") or body.get("description") or body.get("reason"))
+                    self._error(f"{source}:{frame['line']}: program stopped unexpectedly ({text}) "
+                                f"in {frame['name']}")
+
                 session.resume(thread_id)
         except AdapterError as e:
             self._report(str(e))
