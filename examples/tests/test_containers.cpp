@@ -72,7 +72,7 @@ int main()
   {
     mylib::vector<int> big;
     for (int i = 0; i < 60; ++i)
-      big.push_back(i);
+      big.push_back(100 + i);
     visualize(big);
   }
 
