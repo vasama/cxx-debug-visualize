@@ -5,12 +5,35 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cxx-debug-visualize"
 version = "0.1.0"
-description = "Unit tests for natvis files and gdb pretty printers, run through VS Code's C/C++ debug adapter"
+description = "Unit tests for C++ debugger visualizers (natvis files, gdb pretty printers, lldb formatters), run through the Debug Adapter Protocol as in VS Code"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE.md"]
+authors = [{ name = "Lauri Ojell-Vasama" }]
+keywords = ["c++", "dap", "debug-adapter-protocol", "debugger", "gdb", "lldb",
+            "natvis", "pretty-printer", "unit-testing", "visualizer", "vscode"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Testing :: Unit",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/vasama/cxx-debug-visualize"
+Repository = "https://github.com/vasama/cxx-debug-visualize"
+Issues = "https://github.com/vasama/cxx-debug-visualize/issues"
 
 [project.scripts]
 cxx-debug-visualize = "cxx_debug_visualize.cli:main"

@@ -407,3 +407,8 @@ cxx-debug-visualize is free software: you can redistribute it and/or modify it u
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
 version. See [LICENSE.md](LICENSE.md) for the full text.
+
+The exception is `include/cxx_debug_visualize.h`, which test programs include:
+it is under the MIT No Attribution License (MIT-0, see
+[LICENSE-MIT-0.txt](LICENSE-MIT-0.txt)), so it can be used, copied and changed
+freely, without keeping any notice.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT-0
+
 #pragma once
 
 // Helper for visualizer test programs.
