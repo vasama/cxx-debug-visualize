@@ -18,7 +18,7 @@ struct point
 class string
 {
   char* m_data;
-  std::size_t m_length;
+  unsigned m_length;
 
 public:
   string(char const* text) : m_length(std::strlen(text))
@@ -33,7 +33,7 @@ public:
     delete[] m_data;
   }
 
-  std::size_t size() const
+  unsigned size() const
   {
     return m_length;
   }
@@ -43,8 +43,8 @@ template<typename T>
 class vector
 {
   T* m_begin = nullptr;
-  std::size_t m_size = 0;
-  std::size_t m_capacity = 0;
+  unsigned m_size = 0;
+  unsigned m_capacity = 0;
 
 public:
   vector() = default;
@@ -52,7 +52,7 @@ public:
   vector& operator=(vector const&) = delete;
   ~vector()
   {
-    for (std::size_t i = 0; i < m_size; ++i)
+    for (unsigned i = 0; i < m_size; ++i)
       m_begin[i].~T();
     ::operator delete(m_begin);
   }
@@ -63,7 +63,7 @@ public:
       grow();
     new (&m_begin[m_size++]) T(std::move(value));
   }
-  std::size_t size() const
+  unsigned size() const
   {
     return m_size;
   }
@@ -71,9 +71,9 @@ public:
 private:
   void grow()
   {
-    std::size_t new_capacity = m_capacity ? m_capacity * 2 : 4;
+    unsigned new_capacity = m_capacity ? m_capacity * 2 : 4;
     T* new_begin = static_cast<T*>(::operator new(new_capacity * sizeof(T)));
-    for (std::size_t i = 0; i < m_size; ++i)
+    for (unsigned i = 0; i < m_size; ++i)
     {
       new (&new_begin[i]) T(std::move(m_begin[i]));
       m_begin[i].~T();
@@ -115,7 +115,7 @@ class list
   };
 
   node* m_head = nullptr;
-  std::size_t m_count = 0;
+  unsigned m_count = 0;
 
 public:
   list() = default;
@@ -151,7 +151,7 @@ class int_map
   };
 
   node* m_root = nullptr;
-  std::size_t m_count = 0;
+  unsigned m_count = 0;
 
 public:
   int_map() = default;
@@ -202,11 +202,11 @@ class hash_map
   };
 
   node** m_buckets;
-  std::size_t m_bucket_count;
-  std::size_t m_count = 0;
+  unsigned m_bucket_count;
+  unsigned m_count = 0;
 
 public:
-  explicit hash_map(std::size_t bucket_count)
+  explicit hash_map(unsigned bucket_count)
     : m_buckets(new node*[bucket_count]()), m_bucket_count(bucket_count)
   {
   }
@@ -214,7 +214,7 @@ public:
   hash_map& operator=(hash_map const&) = delete;
   ~hash_map()
   {
-    for (std::size_t i = 0; i < m_bucket_count; ++i)
+    for (unsigned i = 0; i < m_bucket_count; ++i)
     {
       while (node* n = m_buckets[i])
       {
@@ -228,7 +228,7 @@ public:
   // `key` must not be negative.
   void insert(int key, V value)
   {
-    node** bucket = &m_buckets[static_cast<std::size_t>(key) % m_bucket_count];
+    node** bucket = &m_buckets[static_cast<unsigned>(key) % m_bucket_count];
     for (node* n = *bucket; n; n = n->next)
     {
       if (n->key == key)
@@ -265,11 +265,11 @@ private:
   };
 
   entry* m_entries;
-  std::size_t m_capacity;
-  std::size_t m_size = 0;
+  unsigned m_capacity;
+  unsigned m_size = 0;
 
 public:
-  explicit variant_array(std::size_t capacity)
+  explicit variant_array(unsigned capacity)
     : m_entries(new entry[capacity]), m_capacity(capacity)
   {
   }

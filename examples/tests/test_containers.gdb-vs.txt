@@ -4,19 +4,19 @@ visualize(p) at test_containers.cpp:17
     y = -4 [int]
 visualize(empty) at test_containers.cpp:23
   { size=0 } [mylib::vector<int>]
-    [size] = 0 [std::size_t]
-    [capacity] = 0 [std::size_t]
+    [size] = 0 [unsigned int]
+    [capacity] = 0 [unsigned int]
 visualize(v) at test_containers.cpp:31
   { size=3 } [mylib::vector<int>]
-    [size] = 3 [std::size_t]
-    [capacity] = 4 [std::size_t]
+    [size] = 3 [unsigned int]
+    [capacity] = 4 [unsigned int]
     [0] = 10 [int]
     [1] = 20 [int]
     [2] = 30 [int]
 visualize(points) at test_containers.cpp:38
   { size=1 } [mylib::vector<mylib::point>]
-    [size] = 1 [std::size_t]
-    [capacity] = 4 [std::size_t]
+    [size] = 1 [unsigned int]
+    [capacity] = 4 [unsigned int]
     [0] = (1, 2) [mylib::point]
 visualize(list) at test_containers.cpp:47
   { size=3 } [mylib::list<int>]
@@ -35,8 +35,8 @@ visualize(map) at test_containers.cpp:68
     [2] = 300 [int]
 visualize(big) at test_containers.cpp:76
   { size=60 } [mylib::vector<int>]
-    [size] = 60 [std::size_t]
-    [capacity] = 64 [std::size_t]
+    [size] = 60 [unsigned int]
+    [capacity] = 64 [unsigned int]
     [0] = 100 [int]
     [1] = 101 [int]
     [2] = 102 [int]
