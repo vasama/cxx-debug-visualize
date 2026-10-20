@@ -1,0 +1,3 @@
+# The self-tests are not part of the package (setuptools would otherwise put part of them into the
+# sdist).
+prune tests
