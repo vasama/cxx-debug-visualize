@@ -31,3 +31,11 @@ add_visualizer_test(
     LLDB_FORMATTERS ${MYLIB_FORMATTERS}
     LINK_LIBRARIES mylib
 )
+
+# natvis only: CustomListItems have no counterpart in the printers and formatters
+add_visualizer_test(
+  test_custom_list
+    SOURCES tests/test_custom_list.cpp
+    NATVIS ${MYLIB_NATVIS}
+    LINK_LIBRARIES mylib
+)

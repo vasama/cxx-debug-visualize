@@ -58,4 +58,53 @@
     </Expand>
   </Type>
 
+  <!-- Walks the buckets, and each bucket's chain. Children are named by their keys. -->
+  <Type Name="mylib::hash_map&lt;*&gt;">
+    <DisplayString>{{ size={count_} }}</DisplayString>
+    <Expand>
+      <Item Name="[bucket_count]">bucket_count_</Item>
+      <CustomListItems>
+        <Variable Name="bucket" InitialValue="0" />
+        <Variable Name="node" InitialValue="buckets_[bucket]" />
+        <Size>count_</Size>
+        <Loop>
+          <Loop Condition="node != 0">
+            <Item Name="[{node->key}]">node->value</Item>
+            <Exec>node = node->next</Exec>
+          </Loop>
+          <Exec>++bucket</Exec>
+          <Break Condition="bucket == bucket_count_" />
+          <Exec>node = buckets_[bucket]</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
+  <!-- Shows each entry as its value; tags: 0 none, 1 integer, 2 real. -->
+  <Type Name="mylib::variant_array">
+    <DisplayString>{{ size={size_} }}</DisplayString>
+    <Expand>
+      <CustomListItems Condition="size_ != 0">
+        <Variable Name="i" InitialValue="0" />
+        <Variable Name="e" InitialValue="entries_" />
+        <Size Condition="size_ &lt;= capacity_">size_</Size>
+        <Loop>
+          <If Condition="i == size_">
+            <Break />
+          </If>
+          <If Condition="e->tag == 1">
+            <Item>e->i</Item>
+          </If>
+          <Elseif Condition="e->tag == 2">
+            <Item>e->d</Item>
+          </Elseif>
+          <Else>
+            <Item Name="[{$i}] none" Condition="e->tag == 0">e->tag</Item>
+          </Else>
+          <Exec>++i, ++e</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
 </AutoVisualizer>

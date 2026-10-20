@@ -149,4 +149,83 @@ private:
   std::size_t count_ = 0;
 };
 
+// Hash table with separate chaining, mapping int keys to values, with a fixed number of buckets.
+// New keys go to the front of their bucket's chain.
+template <typename V> class hash_map {
+  struct node {
+    int key;
+    V value;
+    node *next;
+  };
+
+public:
+  explicit hash_map(std::size_t bucket_count)
+      : buckets_(new node *[bucket_count]()), bucket_count_(bucket_count) {}
+  ~hash_map() {
+    for (std::size_t i = 0; i < bucket_count_; ++i) {
+      while (node *n = buckets_[i]) {
+        buckets_[i] = n->next;
+        delete n;
+      }
+    }
+    delete[] buckets_;
+  }
+  hash_map(const hash_map &) = delete;
+  hash_map &operator=(const hash_map &) = delete;
+
+  // `key` must not be negative.
+  void insert(int key, V value) {
+    node **bucket = &buckets_[static_cast<std::size_t>(key) % bucket_count_];
+    for (node *n = *bucket; n; n = n->next) {
+      if (n->key == key) {
+        n->value = std::move(value);
+        return;
+      }
+    }
+    *bucket = new node{key, std::move(value), *bucket};
+    ++count_;
+  }
+
+private:
+  node **buckets_;
+  std::size_t bucket_count_;
+  std::size_t count_ = 0;
+};
+
+// Fixed-capacity array of values that are each an integer, a real or nothing.
+class variant_array {
+public:
+  enum kind : unsigned char { none, integer, real };
+
+  explicit variant_array(std::size_t capacity)
+      : entries_(new entry[capacity]), capacity_(capacity) {}
+  ~variant_array() { delete[] entries_; }
+  variant_array(const variant_array &) = delete;
+  variant_array &operator=(const variant_array &) = delete;
+
+  // The array must not be full.
+  void push_back(int value) {
+    entries_[size_].tag = integer;
+    entries_[size_++].i = value;
+  }
+  void push_back(double value) {
+    entries_[size_].tag = real;
+    entries_[size_++].d = value;
+  }
+  void push_back_none() { entries_[size_++].tag = none; }
+
+private:
+  struct entry {
+    kind tag;
+    union {
+      int i;
+      double d;
+    };
+  };
+
+  entry *entries_;
+  std::size_t capacity_;
+  std::size_t size_ = 0;
+};
+
 } // namespace mylib
