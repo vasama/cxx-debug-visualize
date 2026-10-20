@@ -15,7 +15,7 @@
 # "gdb.<name>", labelled "visualizers".  Each runs <name> under the VS Code
 # C/C++ debug adapter and pipes the printed Variables trees into FileCheck.
 # The first file in SOURCES is the test source: cxx-vistest breaks on its
-# check_visualizer() lines, and FileCheck reads its CHECK lines.  A test fails
+# visualize() lines, and FileCheck reads its CHECK lines.  A test fails
 # if either cxx-vistest or FileCheck fails.
 #
 # With both NATVIS and PRINTERS, lines where the two outputs differ use the

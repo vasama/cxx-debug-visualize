@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="cxx-vistest",
                                      description="Unit tests for natvis files and gdb pretty "
                                                  "printers: visualizes the variable named at each"
-                                                 "call to a function named `check_visualizers`")
+                                                 "call to a function named `visualize`")
 
     debugger = parser.add_mutually_exclusive_group()
     debugger.add_argument("--adapter", metavar="PATH",

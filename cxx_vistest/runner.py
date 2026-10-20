@@ -1,11 +1,11 @@
-# Running visualizer tests: break on check_visualizer() invocations, print variable visualization.
+# Running visualizer tests: break on visualize() invocations, print variable visualization.
 #
-# A breakpoint is set on each line of the test source consisting of exactly `check_visualizer(x);`
-# (with any identifier accepted in place of `x`). Each time a breakpoint is hit, a visualization of
-# `x` is written to stdout.
+# A breakpoint is set on each line of the test source consisting of exactly `visualize(x);` (with
+# any identifier accepted in place of `x`). Each time a breakpoint is hit, a visualization of `x` is
+# written to stdout.
 #
 # Example output:
-#     check_visualizer(v) at test_vector.cpp:12
+#     visualize(v) at test_vector.cpp:12
 #       { size=2 } [mylib::Vector<int>]
 #         [size] = 2 [std::size_t]
 #         [0] = 10 [int]
@@ -24,9 +24,9 @@ from collections.abc import Callable
 from .dap import AdapterError, DapError
 from .session import DebugSession, VisualizationNode
 
-CALL_RE = re.compile(r"^\s*check_visualizer\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
+INVOCATION_RE = re.compile(r"^\s*visualize\(\s*([A-Za-z_]\w*)\s*\)\s*;\s*$")
 
-# Represents a `check_visualizer(identifier);` line in a test source.
+# Represents a `visualize(identifier);` line in a test source.
 class TestInvocation:
     def __init__(self, line: int, identifier: str) -> None:
         self.line = line
@@ -37,7 +37,7 @@ def discover_test_lines(path: str) -> list[TestInvocation]:
     invocations: list[TestInvocation] = []
     with open(path, encoding="utf-8", errors="replace") as f:
         for lineno, text in enumerate(f, 1):
-            m = CALL_RE.match(text)
+            m = INVOCATION_RE.match(text)
             if m:
                 invocations.append(TestInvocation(lineno, m.group(1)))
     return invocations
@@ -148,7 +148,7 @@ class Runner:
 
                 if body["reason"] == "breakpoint" and frame["line"] in breakpoints_by_line:
                     invocation = breakpoints_by_line[frame["line"]]
-                    print(f"check_visualizer({invocation.identifier}) at "
+                    print(f"visualize({invocation.identifier}) at "
                           f"{os.path.basename(source)}:{invocation.line}")
                     node = session.evaluate(invocation.identifier, frame["id"])
                     self._write_node(node, 1)

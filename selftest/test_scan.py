@@ -16,15 +16,15 @@ class DiscoverTestLinesTests(unittest.TestCase):
 
     def test_only_whole_line_calls(self):
         self.assertEqual(self.scan("int main() {\n"
-                                   "  check_visualizer(v);\n"
-                                   "\tcheck_visualizer( m_2 ) ;  \n"
-                                   "  check_visualizer(v); // comment\n"
-                                   "  if (x) check_visualizer(v);\n"
-                                   "  check_visualizer(v.x);\n"
-                                   "  check_visualizer(a, b);\n"
-                                   "  // check_visualizer(v);\n"
-                                   "  my_check_visualizer(v);\n"
-                                   "  check_visualizer(v)\n"
+                                   "  visualize(v);\n"
+                                   "\tvisualize( m_2 ) ;  \n"
+                                   "  visualize(v); // comment\n"
+                                   "  if (x) visualize(v);\n"
+                                   "  visualize(v.x);\n"
+                                   "  visualize(a, b);\n"
+                                   "  // visualize(v);\n"
+                                   "  my_visualize(v);\n"
+                                   "  visualize(v)\n"
                                    "}\n"),
                          [(2, "v"), (3, "m_2")])
 

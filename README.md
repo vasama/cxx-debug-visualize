@@ -12,8 +12,8 @@ int main() {
   mylib::Vector<int> v;
   for (int i = 1; i <= 3; ++i)
     v.push_back(i * 10);
-  check_visualizer(v);
-  // CHECK: check_visualizer(v) at test_vector.cpp:[[@LINE-1]]
+  visualize(v);
+  // CHECK: visualize(v) at test_vector.cpp:[[@LINE-1]]
   // CHECK-NEXT:   { size=3 } [mylib::Vector<int>]
   // CHECK-NEXT:     [size] = 3 [std::size_t]
   // CHECK-NEXT:     [capacity] = 4 [std::size_t]
@@ -122,7 +122,7 @@ Found by running cpptools 1.34.4 with gdb 15:
 ## How cxx-vistest works
 
 1. It scans the test source for lines that consist of exactly
-   `check_visualizer(identifier);`, and sets a breakpoint on each.
+   `visualize(identifier);`, and sets a breakpoint on each.
 2. It starts OpenDebugAD7, sends `initialize`, then `launch` with a `cppdbg`
    configuration like VS Code's, sets the breakpoints and runs the program.
    The visualizer under test is either a natvis file (`visualizerFile`,
@@ -143,7 +143,7 @@ Found by running cpptools 1.34.4 with gdb 15:
      (e.g. a crash report), shown at the end;
    * cxx-vistest's own errors, prefixed with `error: `, such as an unexpected
      stop (e.g. a segfault), the adapter going away, or a breakpoint that
-     landed on a different line than its `check_visualizer` call (see below).
+     landed on a different line than its `visualize` call (see below).
      A breakpoint that is not set on its own line stops the run at once,
      before any further output.
 
@@ -158,12 +158,12 @@ is a small DAP client, and `runner.py` holds the test logic.
 ## Writing tests
 
 A test is an ordinary C++ program compiled with `-g -O0`.
-`include/cxx_vistest.h` provides `check_visualizer(object)`, a no-op call that
-keeps its argument alive. Each line holding just `check_visualizer(x);` prints
+`include/cxx_vistest.h` provides `visualize(object)`, a no-op call that
+keeps its argument alive. Each line holding just `visualize(x);` prints
 the tree of `x` when it runs. A line holding anything else as well (another
 statement, even a trailing comment) is not a breakpoint.
 
-Each `check_visualizer` line must compile to code of its own. If it doesn't,
+Each `visualize` line must compile to code of its own. If it doesn't,
 e.g. inside `if (false)` or an `#if 0` block, gdb moves its breakpoint to the
 next line with code, and cxx-vistest fails with `breakpoint landed on line N
 instead` rather than stopping somewhere else.
@@ -171,7 +171,7 @@ instead` rather than stopping somewhere else.
 ### Output format
 
 ```
-check_visualizer(v) at test_containers.cpp:39
+visualize(v) at test_containers.cpp:39
   { size=3 } [mylib::Vector<int>]
     [size] = 3 [std::size_t]
     [capacity] = 4 [std::size_t]
@@ -207,8 +207,8 @@ Put the CHECK lines right after the call and pin the header to it with
 `CHECK`):
 
 ```cpp
-check_visualizer(hello);
-// CHECK: check_visualizer(hello) at test_strings.cpp:[[@LINE-1]]
+visualize(hello);
+// CHECK: visualize(hello) at test_strings.cpp:[[@LINE-1]]
 // CHECK-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::String]
 // CHECK-NEXT:     [size] = 5 [std::size_t]
 ```
@@ -238,8 +238,8 @@ apply to both runs, and lines where the outputs differ use the prefixes
 helper does this):
 
 ```cpp
-check_visualizer(ptr);
-// CHECK: check_visualizer(ptr) at test_strings.cpp:[[@LINE-1]]
+visualize(ptr);
+// CHECK: visualize(ptr) at test_strings.cpp:[[@LINE-1]]
 // NATVIS-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::Optional<mylib::String*>]
 // GDB-NEXT:      "hello" = {[size] = 5} [mylib::Optional<mylib::String*>]
 // CHECK-NEXT:      [value] = {{0x[0-9a-f]+}} "hello" [mylib::String *]
@@ -269,7 +269,7 @@ python3 -m cxx_vistest [--adapter PATH | --vs-code-adapter | --native-dap] \
     (--natvis FILE.natvis | --printers FILE.py) [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
-`TEST.cpp` is the test source: its `check_visualizer(x);` lines get
+`TEST.cpp` is the test source: its `visualize(x);` lines get
 breakpoints. Calls in other files of the program are not breakpoints.
 
 | Option | Meaning |
@@ -313,7 +313,7 @@ This builds the program once, with `-O0 -g`, and registers a CTest test per
 visualizer: `natvis.test_containers` and `gdb.test_containers` (label
 `visualizers`). Each test pipes cxx-vistest's output into FileCheck and
 fails unless both succeed. The first file in `SOURCES` is the test source: its
-`check_visualizer` lines are breakpoints and it holds the CHECK lines. With
+`visualize` lines are breakpoints and it holds the CHECK lines. With
 both visualizers, FileCheck runs with the `NATVIS` and `GDB` prefixes described
 above; with one, it uses only `CHECK`. Both tools' paths must be set when
 configuring; configuration fails without them. See `example/` for a complete
@@ -363,7 +363,7 @@ is skipped. `--trace` shows which adapter is used.
 python3 -m selftest --adapter /path/to/OpenDebugAD7
 ```
 
-The tests of the `check_visualizer` line scanner and of the launch
+The tests of the `visualize` line scanner and of the launch
 configurations always run. The integration tests need `--adapter`, gdb and
 g++/clang++, and are skipped otherwise. They check the printed trees for
 natvis files and pretty printers (including unexpanded children, nested

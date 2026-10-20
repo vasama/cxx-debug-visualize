@@ -2,8 +2,8 @@
 #include "cxx_vistest.h"
 
 // Checked with FileCheck against the output of `cxx-vistest`: every
-// `check_visualizer(x);` line prints x and the children its visualizer
-// produces, headed by "check_visualizer(x) at <file>:<line>".
+// `visualize(x);` line prints x and the children its visualizer
+// produces, headed by "visualize(x) at <file>:<line>".
 //
 // This test runs twice, with natvis/mylib.natvis and with
 // printers/mylib_printers.py.  The printers mirror the natvis file, so the
@@ -11,8 +11,8 @@
 
 int main() {
   mylib::Point p{3, -4};
-  check_visualizer(p);
-  // CHECK: check_visualizer(p) at test_containers.cpp:[[@LINE-1]]
+  visualize(p);
+  // CHECK: visualize(p) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   (3, -4) [mylib::Point]
   // CHECK-NEXT:     x = 3 [int]
   // CHECK-NEXT:     y = -4 [int]
@@ -34,14 +34,14 @@ int main() {
   map.insert(10, 100);
   map.insert(30, 300);
 
-  check_visualizer(empty);
-  // CHECK: check_visualizer(empty) at test_containers.cpp:[[@LINE-1]]
+  visualize(empty);
+  // CHECK: visualize(empty) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   { size=0 } [mylib::Vector<int>]
   // CHECK-NEXT:     [size] = 0 [std::size_t]
   // CHECK-NEXT:     [capacity] = 0 [std::size_t]
 
-  check_visualizer(v);
-  // CHECK: check_visualizer(v) at test_containers.cpp:[[@LINE-1]]
+  visualize(v);
+  // CHECK: visualize(v) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   { size=3 } [mylib::Vector<int>]
   // CHECK-NEXT:     [size] = 3 [std::size_t]
   // CHECK-NEXT:     [capacity] = 4 [std::size_t]
@@ -49,31 +49,31 @@ int main() {
   // CHECK-NEXT:     [1] = 20 [int]
   // CHECK-NEXT:     [2] = 30 [int]
 
-  check_visualizer(points);
-  // CHECK: check_visualizer(points) at test_containers.cpp:[[@LINE-1]]
+  visualize(points);
+  // CHECK: visualize(points) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   { size=1 } [mylib::Vector<mylib::Point>]
   // CHECK:          [0] = (1, 2) [mylib::Point]
 
-  check_visualizer(list);
-  // CHECK: check_visualizer(list) at test_containers.cpp:[[@LINE-1]]
+  visualize(list);
+  // CHECK: visualize(list) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   { size=3 } [mylib::List<int>]
   // CHECK-NEXT:     [0] = 1 [int]
   // CHECK-NEXT:     [1] = 2 [int]
   // CHECK-NEXT:     [2] = 3 [int]
 
-  check_visualizer(none);
-  // CHECK: check_visualizer(none) at test_containers.cpp:[[@LINE-1]]
+  visualize(none);
+  // CHECK: visualize(none) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   empty [mylib::Optional<int>]
 
-  check_visualizer(some);
-  // CHECK: check_visualizer(some) at test_containers.cpp:[[@LINE-1]]
+  visualize(some);
+  // CHECK: visualize(some) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   42 [mylib::Optional<int>]
   // CHECK-NEXT:     [value] = 42 [int]
 
   // MIEngine ignores TreeItems' ValueNode Name, so natvis children are [0],
   // [1], ...; the printer names them the same way.
-  check_visualizer(map);
-  // CHECK: check_visualizer(map) at test_containers.cpp:[[@LINE-1]]
+  visualize(map);
+  // CHECK: visualize(map) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   { size=3 } [mylib::IntMap<int>]
   // CHECK-NEXT:     [0] = 100 [int]
   // CHECK-NEXT:     [1] = 200 [int]
@@ -84,8 +84,8 @@ int main() {
   mylib::Vector<int> big;
   for (int i = 0; i < 60; ++i)
     big.push_back(i);
-  check_visualizer(big);
-  // CHECK: check_visualizer(big) at test_containers.cpp:[[@LINE-1]]
+  visualize(big);
+  // CHECK: visualize(big) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   { size=60 } [mylib::Vector<int>]
   // CHECK:          [49] = 49 [int]
   // CHECK-NEXT:     [50] = 50 [int]

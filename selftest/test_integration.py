@@ -71,31 +71,31 @@ class IntegrationTests(FixtureTestCase):
     def test_good_natvis(self):
         output, errors = self.run_visualizer(natvis="good.natvis")
         self.assertEqual(output, "\n".join([
-            "check_visualizer(pr) at prog.cpp:17",
+            "visualize(pr) at prog.cpp:17",
             "  <1,2> [Pair]",
             "    a = 1 [int]",
             "    b = 2 [int]",
-            "check_visualizer(arr) at prog.cpp:18",
+            "visualize(arr) at prog.cpp:18",
             "  {...} [Arr]",
             "    [0] = 7 [int]",
             "    [1] = 8 [int]",
             "    [2] = 9 [int]",
             # every hit of the call in the loop is printed
-            "check_visualizer(pr) at prog.cpp:21",
+            "visualize(pr) at prog.cpp:21",
             "  <0,2> [Pair]",
             "    a = 0 [int]",
             "    b = 2 [int]",
-            "check_visualizer(pr) at prog.cpp:21",
+            "visualize(pr) at prog.cpp:21",
             "  <1,2> [Pair]",
             "    a = 1 [int]",
             "    b = 2 [int]",
             # children that are visualized objects are not expanded
-            "check_visualizer(pa) at prog.cpp:26",
+            "visualize(pa) at prog.cpp:26",
             "  {...} [PairArr]",
             "    [0] = <3,4> [Pair]",
             "    [1] = <5,6> [Pair]",
             # [More...] pages, which continue the list, are flattened into it
-            "check_visualizer(big) at prog.cpp:31",
+            "visualize(big) at prog.cpp:31",
             "  {...} [Arr]",
         ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
             "",
@@ -123,8 +123,8 @@ class IntegrationTests(FixtureTestCase):
     def test_crash(self):
         output, errors = self.run_visualizer("crash", natvis="good.natvis")
         # the crash comes after the last call, so every call has printed
-        self.assertTrue(output.startswith("check_visualizer(pr) at prog.cpp:17\n"), output)
-        self.assertIn("check_visualizer(big) at prog.cpp:31\n", output)
+        self.assertTrue(output.startswith("visualize(pr) at prog.cpp:17\n"), output)
+        self.assertIn("visualize(big) at prog.cpp:31\n", output)
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
         self.assertIn("crash", crash[0])
@@ -133,24 +133,24 @@ class IntegrationTests(FixtureTestCase):
         output, errors = self.run_visualizer(printers="good_printers.py")
         self.assertEqual(output, "\n".join([
             # a printer without children() shows no children
-            "check_visualizer(pr) at prog.cpp:17",
+            "visualize(pr) at prog.cpp:17",
             "  <1,2> [Pair]",
-            "check_visualizer(arr) at prog.cpp:18",
+            "visualize(arr) at prog.cpp:18",
             "  n=3 [Arr]",
             "    [0] = 7 [int]",
             "    [1] = 8 [int]",
             "    [2] = 9 [int]",
-            "check_visualizer(pr) at prog.cpp:21",
+            "visualize(pr) at prog.cpp:21",
             "  <0,2> [Pair]",
-            "check_visualizer(pr) at prog.cpp:21",
+            "visualize(pr) at prog.cpp:21",
             "  <1,2> [Pair]",
             # the "map" display hint names each value by its key
-            "check_visualizer(pa) at prog.cpp:26",
+            "visualize(pa) at prog.cpp:26",
             "  pairs=2 [PairArr]",
             "    [3] = 4 [int]",
             "    [5] = 6 [int]",
             # no [More...] paging
-            "check_visualizer(big) at prog.cpp:31",
+            "visualize(big) at prog.cpp:31",
             "  n=120 [Arr]",
         ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
             "",
@@ -161,9 +161,9 @@ class IntegrationTests(FixtureTestCase):
         output, errors = self.run_visualizer(printers="broken_printers.py")
         # exceptions in printers pass silently: the value stays empty and the
         # children are missing, for the CHECK lines to catch
-        self.assertIn("check_visualizer(pr) at prog.cpp:17\n   [Pair]\n", output)
-        self.assertIn("check_visualizer(arr) at prog.cpp:18\n  n=3 [Arr]\n"
-                      "check_visualizer(pr)", output)
+        self.assertIn("visualize(pr) at prog.cpp:17\n   [Pair]\n", output)
+        self.assertIn("visualize(arr) at prog.cpp:18\n  n=3 [Arr]\n"
+                      "visualize(pr)", output)
         self.assertEqual(errors, [])
 
     def test_malformed_printers(self):
@@ -188,25 +188,25 @@ class NativeDapTests(FixtureTestCase):
     def test_good_printers(self):
         output, errors = self.run_visualizer(printers="good_printers.py")
         self.assertEqual(output, "\n".join([
-            "check_visualizer(pr) at prog.cpp:17",
+            "visualize(pr) at prog.cpp:17",
             "  <1,2> [Pair]",
-            "check_visualizer(arr) at prog.cpp:18",
+            "visualize(arr) at prog.cpp:18",
             "  n=3 [Arr]",
             "    [0] = 7 [int]",
             "    [1] = 8 [int]",
             "    [2] = 9 [int]",
-            "check_visualizer(pr) at prog.cpp:21",
+            "visualize(pr) at prog.cpp:21",
             "  <0,2> [Pair]",
-            "check_visualizer(pr) at prog.cpp:21",
+            "visualize(pr) at prog.cpp:21",
             "  <1,2> [Pair]",
             # unlike OpenDebugAD7, gdb shows the "map" display hint's keys and values as children
-            "check_visualizer(pa) at prog.cpp:26",
+            "visualize(pa) at prog.cpp:26",
             "  pairs=2 [PairArr]",
             "    key0 = 3 [int]",
             "    value0 = 4 [int]",
             "    key1 = 5 [int]",
             "    value1 = 6 [int]",
-            "check_visualizer(big) at prog.cpp:31",
+            "visualize(big) at prog.cpp:31",
             "  n=120 [Arr]",
         ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
             "",
@@ -216,8 +216,8 @@ class NativeDapTests(FixtureTestCase):
     def test_crash(self):
         output, errors = self.run_visualizer("crash", printers="good_printers.py")
         # the crash comes after the last call, so every call has printed
-        self.assertTrue(output.startswith("check_visualizer(pr) at prog.cpp:17\n"), output)
-        self.assertIn("check_visualizer(big) at prog.cpp:31\n", output)
+        self.assertTrue(output.startswith("visualize(pr) at prog.cpp:17\n"), output)
+        self.assertIn("visualize(big) at prog.cpp:31\n", output)
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
         self.assertIn("crash", crash[0])
