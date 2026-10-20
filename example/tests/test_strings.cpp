@@ -15,7 +15,6 @@ int main() {
   // NATVIS-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::String]
   // GDB-NEXT:      "hello" [mylib::String]
   // NATVIS-NEXT:     [size] = 5 [std::size_t]
-  // NATVIS-NEXT:     [Raw View] = {...}
 
   mylib::String world("world");
   greet(world);
@@ -31,7 +30,6 @@ int main() {
   // CHECK: check_visualizer(ptr) at test_strings.cpp:[[@LINE-1]]
   // NATVIS-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::Optional<mylib::String*>]
   // NATVIS-NEXT:     [value] = {{0x[0-9a-f]+}} "hello" [mylib::String *]
-  // NATVIS-NEXT:     [Raw View] = {...}
   // GDB-NEXT:      {{0x[0-9a-f]+}} [mylib::Optional<mylib::String*>]
   // GDB-NEXT:        [value] = {{0x[0-9a-f]+}} [mylib::String *]
   return 0;

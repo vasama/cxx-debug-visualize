@@ -77,7 +77,7 @@ Found by probing cpptools 1.34.4 with gdb 15 and confirmed in the MIEngine sourc
 | `,s8` on `char*` / `,na` | the address is still shown before the string (`0x5555… "text"`) |
 | `Item`, `ArrayItems`, `IndexListItems`, `LinkedListItems`, `TreeItems`, `ExpandedItem`, `Intrinsic` | work |
 | More than 50 children | paged: children 50 and up sit under a `[More...]` node |
-| `Expand` present | a `[Raw View]` child is added, unless `HideRawView="true"` |
+| `Expand` present | a `[Raw View]` child is added, unless `HideRawView="true"` (test_visualizers leaves it out of its output) |
 | `Synthetic`, `CustomListItems` | parsed, but **silently ignored** (no children) |
 | `TreeItems` `ValueNode Name="[{Key}]"` | name ignored; children are `[0]`, `[1]`, … |
 | `{p,[n]s8}` string length | `[n]` ignored; the whole C string is shown, prefixed by its address |
@@ -178,7 +178,6 @@ check_visualizer(v) at test_containers.cpp:39
     [0] = 10 [int]
     [1] = 20 [int]
     [2] = 30 [int]
-    [Raw View] = {...}
 ```
 
 * A header line gives the identifier and the call's file name and line.
@@ -186,16 +185,16 @@ check_visualizer(v) at test_containers.cpp:39
   spaces). The first such line is the object itself, as `value [type]`,
   without a name.
 * Each child is `name = value [type]`, indented one more level. Nodes
-  without a type, such as `[Raw View]`, have no `[type]`.
+  without a type, such as `[More...]`, have no `[type]`.
 * Below the object come its children: the items its type's visualizer
   produces (with natvis, its members if the type has no `<Expand>`; with a
   pretty printer, what `children()` yields). They are not expanded further,
   since their own children come from their own types' visualizers. The one
   exception is natvis's `[More...]`, which holds children 50 and up of the same
   list; it is followed to the end, each nested page indented one more level.
-* natvis's `[Raw View]` is listed but not expanded. When a visualizer's
-  `<Expand>` is silently dropped, `[Raw View]` disappears and the plain members
-  appear instead.
+* natvis's `[Raw View]` child, which holds the object's plain members, is left
+  out. When a visualizer's `<Expand>` is silently dropped, the plain members
+  appear in place of the visualized children.
 * Values are printed exactly as the debugger shows them, including addresses.
 
 ### Writing CHECK lines

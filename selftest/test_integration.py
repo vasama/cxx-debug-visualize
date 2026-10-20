@@ -68,7 +68,6 @@ class IntegrationTests(unittest.TestCase):
             "    [0] = 7 [int]",
             "    [1] = 8 [int]",
             "    [2] = 9 [int]",
-            "    [Raw View] = {...}",
             # every hit of the call in the loop is printed
             "check_visualizer(pr) at prog.cpp:21",
             "  <0,2> [Pair]",
@@ -83,7 +82,6 @@ class IntegrationTests(unittest.TestCase):
             "  {...} [PairArr]",
             "    [0] = <3,4> [Pair]",
             "    [1] = <5,6> [Pair]",
-            "    [Raw View] = {...}",
             # [More...] nodes, which continue the list, are followed
             "check_visualizer(big) at prog.cpp:31",
             "  {...} [Arr]",
@@ -92,7 +90,6 @@ class IntegrationTests(unittest.TestCase):
         ] + [f"      [{i}] = {i} [int]" for i in range(50, 100)] + [
             "      [More...] = {...}",
         ] + [f"        [{i}] = {i} [int]" for i in range(100, 120)] + [
-            "    [Raw View] = {...}",
             "",
         ]))
         self.assertEqual(errors, [])
@@ -144,7 +141,7 @@ class IntegrationTests(unittest.TestCase):
             "  pairs=2 [PairArr]",
             "    [3] = 4 [int]",
             "    [5] = 6 [int]",
-            # no [More...] paging, and no [Raw View]
+            # no [More...] paging
             "check_visualizer(big) at prog.cpp:31",
             "  n=120 [Arr]",
         ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [

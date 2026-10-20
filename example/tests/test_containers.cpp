@@ -40,7 +40,6 @@ int main() {
   // GDB-NEXT:      size=0 [mylib::Vector<int>]
   // NATVIS-NEXT:     [size] = 0 [std::size_t]
   // NATVIS-NEXT:     [capacity] = 0 [std::size_t]
-  // NATVIS-NEXT:     [Raw View] = {...}
 
   check_visualizer(v);
   // CHECK: check_visualizer(v) at test_containers.cpp:[[@LINE-1]]
@@ -51,14 +50,12 @@ int main() {
   // CHECK-NEXT:      [0] = 10 [int]
   // CHECK-NEXT:      [1] = 20 [int]
   // CHECK-NEXT:      [2] = 30 [int]
-  // NATVIS-NEXT:     [Raw View] = {...}
 
   check_visualizer(points);
   // CHECK: check_visualizer(points) at test_containers.cpp:[[@LINE-1]]
   // NATVIS-NEXT:   { size=1 } [mylib::Vector<mylib::Point>]
   // GDB-NEXT:      size=1 [mylib::Vector<mylib::Point>]
   // CHECK:           [0] = (1, 2) [mylib::Point]
-  // NATVIS-NEXT:     [Raw View] = {...}
 
   check_visualizer(list);
   // CHECK: check_visualizer(list) at test_containers.cpp:[[@LINE-1]]
@@ -67,18 +64,15 @@ int main() {
   // CHECK-NEXT:      [0] = 1 [int]
   // CHECK-NEXT:      [1] = 2 [int]
   // CHECK-NEXT:      [2] = 3 [int]
-  // NATVIS-NEXT:     [Raw View] = {...}
 
   check_visualizer(none);
   // CHECK: check_visualizer(none) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   empty [mylib::Optional<int>]
-  // NATVIS-NEXT:    [Raw View] = {...}
 
   check_visualizer(some);
   // CHECK: check_visualizer(some) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   42 [mylib::Optional<int>]
   // CHECK-NEXT:     [value] = 42 [int]
-  // NATVIS-NEXT:    [Raw View] = {...}
 
   // MIEngine ignores TreeItems' ValueNode Name, so natvis children are [0],
   // [1], ...; gdb's "map" display hint names them by key.
@@ -88,7 +82,6 @@ int main() {
   // NATVIS-NEXT:     [0] = 100 [int]
   // NATVIS-NEXT:     [1] = 200 [int]
   // NATVIS-NEXT:     [2] = 300 [int]
-  // NATVIS-NEXT:     [Raw View] = {...}
   // GDB-NEXT:      size=3 [mylib::IntMap<int>]
   // GDB-NEXT:        [10] = 100 [int]
   // GDB-NEXT:        [20] = 200 [int]
@@ -107,6 +100,5 @@ int main() {
   // NATVIS-NEXT:     [More...] = {...}
   // CHECK-NEXT:        [50] = 50 [int]
   // CHECK:             [59] = 59 [int]
-  // NATVIS-NEXT:     [Raw View] = {...}
   return 0;
 }
