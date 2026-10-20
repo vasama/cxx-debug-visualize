@@ -5,7 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cxx-debug-visualize"
 version = "0.1.0"
-description = "Unit tests for C++ debugger visualizers (natvis files, gdb pretty printers, lldb formatters), run through the Debug Adapter Protocol as in VS Code"
+description = """Unit tests for C++ debugger visualizers (natvis files, gdb \
+                pretty printers, lldb formatters), run through the Debug \
+                Adapter Protocol as in VS Code"""
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
