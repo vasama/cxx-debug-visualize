@@ -1,13 +1,13 @@
 # Run the self-tests:
 #
-#   python3 -m selftest [--program PATH] [--vs-code-adapter PATH] [--no-vs-code] [--no-gdb]
+#   python3 -m selftest [--program PATH] [--vs-adapter PATH] [--no-vs] [--no-gdb]
 #                       [--no-lldb] [--test ID]... [unittest options]
 #   python3 -m selftest --list
 #
 # The root CMakeLists.txt builds the fixture program and registers each test --list prints as a
 # CTest test, which runs it with --test. The integration tests of the debuggers and adapter turned
-# off with --no-vs-code, --no-gdb and --no-lldb are skipped; the others fail if what they need
-# (the fixture program, --vs-code-adapter, gdb, lldb-dap) is missing.
+# off with --no-vs, --no-gdb and --no-lldb are skipped; the others fail if what they need
+# (the fixture program, --vs-adapter, gdb, lldb-dap) is missing.
 
 import argparse
 import os
@@ -20,11 +20,11 @@ parser = argparse.ArgumentParser(prog="python3 -m selftest")
 parser.add_argument(
     "--program", metavar="PATH", help="the built fixture program selftest/fixtures/test_program.cpp"
 )
-parser.add_argument("--vs-code-adapter", metavar="PATH", help="path to OpenDebugAD7")
+parser.add_argument("--vs-adapter", metavar="PATH", help="path to OpenDebugAD7")
 parser.add_argument(
-    "--no-vs-code",
+    "--no-vs",
     action="store_true",
-    help="skip the integration tests through the VS Code C/C++ debug adapter",
+    help="skip the integration tests through the Visual Studio debug adapter",
 )
 parser.add_argument("--no-gdb", action="store_true", help="skip the integration tests with gdb")
 parser.add_argument("--no-lldb", action="store_true", help="skip the integration tests with lldb")
@@ -42,11 +42,11 @@ if ns.program:
     if not os.path.isfile(ns.program):
         parser.error(f"fixture program not found: {ns.program}")
     test_integration.PROGRAM = os.path.abspath(ns.program)
-if ns.vs_code_adapter:
-    if not os.path.isfile(ns.vs_code_adapter):
-        parser.error(f"debug adapter not found: {ns.vs_code_adapter}")
-    test_integration.ADAPTER = os.path.abspath(ns.vs_code_adapter)
-test_integration.VS_CODE = not ns.no_vs_code
+if ns.vs_adapter:
+    if not os.path.isfile(ns.vs_adapter):
+        parser.error(f"debug adapter not found: {ns.vs_adapter}")
+    test_integration.ADAPTER = os.path.abspath(ns.vs_adapter)
+test_integration.VS = not ns.no_vs
 test_integration.GDB = not ns.no_gdb
 test_integration.LLDB = not ns.no_lldb
 

@@ -5,9 +5,10 @@ test can compare it with the expected output and check your visualizers:
 `.natvis` files, gdb pretty printers and lldb formatters. It talks to the
 debugger through the Debug Adapter Protocol (DAP), as VS Code does, either:
 
-* through the debug adapter of VS Code's C/C++ extension (OpenDebugAD7, the
-  `cppdbg` debug type), so a passing test means the object shows up that way
-  in VS Code's Variables, Watch and hover views; natvis files are only
+* through the Visual Studio debug adapter: OpenDebugAD7, the `cppdbg` debug
+  type of VS Code's C/C++ extension. It runs MIEngine, which Visual Studio
+  also uses to debug with gdb. A passing test means the object shows up that
+  way in VS Code's Variables, Watch and hover views; natvis files are only
   supported this way;
 * or through the debugger's own DAP support: `gdb -i dap` (GDB 14 and later)
   or lldb-dap, as used by other editors and VS Code extensions.
@@ -61,7 +62,7 @@ Running tests also needs, depending on what you test:
 * a C++ compiler, to build the test programs with debug information;
 * for gdb pretty printers: gdb 14 or later (for its own DAP support), and/or
   gdb with OpenDebugAD7 (see "Getting the debug adapter"), to test them as
-  VS Code's C/C++ extension shows them;
+  Visual Studio's debug adapter shows them;
 * for lldb formatters: lldb-dap (called lldb-vscode before LLVM 18; some
   distributions only install a versioned name such as `lldb-vscode-16`);
 * for natvis files: OpenDebugAD7 and gdb.
@@ -305,7 +306,7 @@ file (replace the addresses with `0x?`, e.g. with
 
 ```
 python3 -m cxx_debug_visualize [--debugger gdb|lldb] [--debugger-path PATH] \
-    [--adapter native|vs-code] [--vs-code-adapter PATH] \
+    [--adapter native|vs] [--vs-adapter PATH] \
     (--natvis FILE.natvis | --gdb-printers FILE.py | --lldb-formatters FILE.py) [options] \
     TEST.cpp PROGRAM [--] [ARG...]
 ```
@@ -316,17 +317,17 @@ breakpoints. Calls in other files of the program are not breakpoints.
 `--adapter` chooses how cxx-debug-visualize talks to the debugger: `native`
 uses the debugger's own DAP support, found on `PATH` unless `--debugger-path`
 gives its path: `gdb -i dap` (GDB 14 and later), or lldb-dap (called
-lldb-vscode before LLVM 18). `vs-code` uses the debug adapter of VS Code's C/C++
-extension, OpenDebugAD7 (see "Getting the debug adapter"). natvis needs
-`vs-code`, lldb formatters `native`, and gdb printers work with either.
+lldb-vscode before LLVM 18). `vs` uses the Visual Studio debug adapter,
+OpenDebugAD7 (see "Getting the debug adapter"). natvis needs
+`vs`, lldb formatters `native`, and gdb printers work with either.
 
 | Option | Meaning |
 |---|---|
 | `--debugger gdb\|lldb` | the debugger (default: deduced from `--debugger-path`, otherwise `gdb`); `lldb` requires `--adapter native` |
 | `--debugger-path PATH` | the debugger to run instead of the one found on `PATH`: the gdb executable, or lldb's DAP server (`lldb-dap`, `lldb-vscode`, e.g. `/usr/bin/lldb-vscode-16`). Without `--debugger`, the type is deduced from the file name: `lldb` in it means lldb, `gdb` means gdb. With OpenDebugAD7, a gdb path is passed as `miDebuggerPath` |
-| `--adapter native\|vs-code` | the debugger's own DAP support, or VS Code's debug adapter (see above). Default: `vs-code` for `--natvis`, `native` for `--lldb-formatters`, and for `--gdb-printers` `vs-code` if `--vs-code-adapter` is given, otherwise `native` |
-| `--vs-code-adapter PATH` | OpenDebugAD7 for `--adapter vs-code`; by default, `$CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`, otherwise the one of the newest installed VS Code C/C++ extension (see below). An error with `--adapter native` |
-| `--natvis FILE` | the natvis file under test; requires `--adapter vs-code` |
+| `--adapter native\|vs` | the debugger's own DAP support, or the Visual Studio debug adapter (see above). Default: `vs` for `--natvis`, `native` for `--lldb-formatters`, and for `--gdb-printers` `vs` if `--vs-adapter` is given, otherwise `native` |
+| `--vs-adapter PATH` | OpenDebugAD7 for `--adapter vs`; by default, `$CXX_DEBUG_VISUALIZE_VS_ADAPTER`, otherwise the one of the newest installed VS Code C/C++ extension (see below). An error with `--adapter native` |
+| `--natvis FILE` | the natvis file under test; requires `--adapter vs` |
 | `--gdb-printers FILE` | the gdb pretty-printer script (Python) under test; requires `--debugger gdb` |
 | `--lldb-formatters FILE` | the lldb formatter script (Python, loaded with `command script import`) under test; requires `--debugger lldb`. Exactly one of `--natvis`, `--gdb-printers` and `--lldb-formatters` is required |
 | `--trace` | dump DAP traffic to stderr |
@@ -382,7 +383,7 @@ add_visualizer_test(test_containers
 
 This registers `natvis.test_containers` for the natvis file, and for the
 pretty printers both `gdb-adapter.test_containers` (through OpenDebugAD7, as in
-VS Code) and `gdb-native.test_containers` (through gdb's own DAP support, which
+Visual Studio) and `gdb-native.test_containers` (through gdb's own DAP support, which
 needs GDB 14 or later), and `lldb-native.test_containers` for the lldb
 formatters (through lldb-dap, which must be on `PATH` when the tests run). Each
 test runs cxx-debug-visualize and fails unless it succeeds and its output
@@ -396,7 +397,7 @@ tests `visualizers/mylib.natvis`, `visualizers/mylib_printers.py` and
 
 ```
 cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug \
-  -DCXXDV_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
+  -DCXXDV_VS_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build && ctest --test-dir build
 ```
 
@@ -405,7 +406,7 @@ both the example's tests and the self-tests (see "Self-tests"):
 
 | Option | Tests |
 |---|---|
-| `CXXDV_TEST_VS_CODE` | through OpenDebugAD7 (natvis, gdb-adapter), if `CXXDV_TEST_GDB` is also on, as OpenDebugAD7 runs gdb; needs `CXXDV_VS_CODE_ADAPTER`, or configuration fails |
+| `CXXDV_TEST_VS` | through OpenDebugAD7 (natvis, gdb-adapter), if `CXXDV_TEST_GDB` is also on, as OpenDebugAD7 runs gdb; needs `CXXDV_VS_ADAPTER`, or configuration fails |
 | `CXXDV_TEST_GDB` | through gdb's own DAP support (gdb-native) |
 | `CXXDV_TEST_LLDB` | through lldb-dap (lldb-native) |
 
@@ -413,7 +414,7 @@ The tests of an enabled debugger or adapter fail if it is missing, so a passing
 run means everything enabled was tested. To test without OpenDebugAD7, e.g.:
 
 ```
-cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug -DCXXDV_TEST_VS_CODE=OFF
+cmake -S example -B build -DCMAKE_BUILD_TYPE=Debug -DCXXDV_TEST_VS=OFF
 ```
 
 The repository's root project builds and runs them too, along with the
@@ -421,9 +422,9 @@ self-tests.
 
 ## Getting the debug adapter
 
-With `--adapter vs-code`, `--vs-code-adapter` gives the path of an
+With `--adapter vs`, `--vs-adapter` gives the path of an
 `OpenDebugAD7` executable (or `OpenDebugAD7.dll`, run with `dotnet`). Without
-it, `cxx-debug-visualize` uses the `CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER`
+it, `cxx-debug-visualize` uses the `CXX_DEBUG_VISUALIZE_VS_ADAPTER`
 environment variable (ignored with `--adapter native`), and without that, the
 adapter of the newest VS Code C/C++ extension installed in your home directory:
 `~/.vscode`, `~/.vscode-insiders`, and `~/.vscode-server` or
@@ -443,7 +444,7 @@ is skipped. `--trace` shows which adapter is used.
   ```
   git clone --depth 1 https://github.com/microsoft/MIEngine.git
   sh MIEngine/PublishOpenDebugAD7.sh -c Release -o "$PWD/miengine"
-  cxx-debug-visualize --vs-code-adapter miengine/OpenDebugAD7 ...
+  cxx-debug-visualize --vs-adapter miengine/OpenDebugAD7 ...
   ```
 
   The build is self-contained: it includes the .NET runtime, so running it
@@ -462,7 +463,7 @@ together with the example project's tests; from a checkout:
 
 ```
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
-  -DCXXDV_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
+  -DCXXDV_VS_ADAPTER=/path/to/OpenDebugAD7
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
@@ -481,7 +482,7 @@ build re-runs that when a file in `selftest/` changes; each test runs with
 
 The tests of the `visualize` line scanner and of the launch configurations
 always run. The integration tests need the fixture programs, and gdb and
-`CXXDV_VS_CODE_ADAPTER` (`--vs-code-adapter`), and run with `CXXDV_TEST_VS_CODE`
+`CXXDV_VS_ADAPTER` (`--vs-adapter`), and run with `CXXDV_TEST_VS`
 and `CXXDV_TEST_GDB`. They check the printed trees for natvis files and pretty
 printers (including unexpanded children, nested flattened `[More...]` pages, the
 `map` display hint, calls in loops and calls never reached), how bad visualizers
@@ -498,7 +499,7 @@ with `CXXDV_TEST_LLDB`. Both a formatter that raises and a script that doesn't
 load pass silently there, and only show in the output.
 
 The integration tests of a debugger or adapter turned off (`python3 -m selftest
---no-vs-code`, `--no-gdb`, `--no-lldb`) are skipped, and CTest reports them as
+--no-vs`, `--no-gdb`, `--no-lldb`) are skipped, and CTest reports them as
 skipped. The others fail if what they need is missing, saying why.
 
 The [GitHub Actions workflow][workflow] runs the self-tests and the example's

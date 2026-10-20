@@ -14,7 +14,7 @@
 # Builds the program <name> with the repository's include/ directory, for cxx_debug_visualize.hpp,
 # and registers CTest tests labelled
 # "visualizers", which run <name> under cxx-debug-visualize:
-#   natvis.<name>       NATVIS, through the VS Code C/C++ debug adapter (OpenDebugAD7)
+#   natvis.<name>       NATVIS, through the Visual Studio debug adapter (OpenDebugAD7)
 #   gdb-adapter.<name>  GDB_PRINTERS, through OpenDebugAD7
 #   gdb-native.<name>   GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
 #   lldb-native.<name>  LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18),
@@ -30,12 +30,11 @@
 # review or to copy over the expected file, and a diff is printed.
 #
 # Cache variables, which select the tests registered:
-#   CXXDV_TEST_VS_CODE     test through the VS Code C/C++ debug adapter, OpenDebugAD7
-#                          (default: ON); these tests also need CXXDV_TEST_GDB, as the
-#                          adapter runs gdb
-#   CXXDV_VS_CODE_ADAPTER  path to OpenDebugAD7, required with CXXDV_TEST_VS_CODE
-#   CXXDV_TEST_GDB         test with gdb (default: ON)
-#   CXXDV_TEST_LLDB        test with lldb (default: ON)
+#   CXXDV_TEST_VS     test through the Visual Studio debug adapter, OpenDebugAD7 (default: ON);
+#                     these tests also need CXXDV_TEST_GDB, as the adapter runs gdb
+#   CXXDV_VS_ADAPTER  path to OpenDebugAD7, required with CXXDV_TEST_VS
+#   CXXDV_TEST_GDB    test with gdb (default: ON)
+#   CXXDV_TEST_LLDB   test with lldb (default: ON)
 # The tests of each enabled debugger and adapter fail if it is missing.
 #
 # The test programs need debug info and no optimizations, so that each `visualize(x);` line
@@ -50,14 +49,14 @@ set(CXX_DEBUG_VISUALIZE_COMMAND
     "${CMAKE_COMMAND}" -E env "PYTHONPATH=${CXX_DEBUG_VISUALIZE_ROOT}"
     "${Python3_EXECUTABLE}" -m cxx_debug_visualize)
 
-set(CXXDV_VS_CODE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
-option(CXXDV_TEST_VS_CODE "Test through the VS Code C/C++ debug adapter" ON)
+set(CXXDV_VS_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
+option(CXXDV_TEST_VS "Test through the Visual Studio debug adapter" ON)
 option(CXXDV_TEST_GDB "Test with gdb" ON)
 option(CXXDV_TEST_LLDB "Test with lldb" ON)
-if(CXXDV_TEST_VS_CODE AND NOT CXXDV_VS_CODE_ADAPTER)
-  message(FATAL_ERROR "set CXXDV_VS_CODE_ADAPTER to the path of OpenDebugAD7, e.g. "
-                      "-DCXXDV_VS_CODE_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7, "
-                      "or turn CXXDV_TEST_VS_CODE off")
+if(CXXDV_TEST_VS AND NOT CXXDV_VS_ADAPTER)
+  message(FATAL_ERROR "set CXXDV_VS_ADAPTER to the path of OpenDebugAD7, e.g. "
+                      "-DCXXDV_VS_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7, "
+                      "or turn CXXDV_TEST_VS off")
 endif()
 
 get_property(_visualizer_test_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -95,16 +94,16 @@ function(add_visualizer_test name)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
 
   # OpenDebugAD7 runs gdb.
-  set(vs_code OFF)
-  if(CXXDV_TEST_VS_CODE AND CXXDV_TEST_GDB)
-    set(vs_code ON)
+  set(vs OFF)
+  if(CXXDV_TEST_VS AND CXXDV_TEST_GDB)
+    set(vs ON)
   endif()
-  if(TV_NATVIS AND vs_code)
-    _add_visualizer_run(natvis ${name} "${test_source}" vs-code
+  if(TV_NATVIS AND vs)
+    _add_visualizer_run(natvis ${name} "${test_source}" vs
                         --natvis "${TV_NATVIS}" ${TV_ARGS})
   endif()
-  if(TV_GDB_PRINTERS AND vs_code)
-    _add_visualizer_run(gdb-adapter ${name} "${test_source}" vs-code
+  if(TV_GDB_PRINTERS AND vs)
+    _add_visualizer_run(gdb-adapter ${name} "${test_source}" vs
                         --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS AND CXXDV_TEST_GDB)
@@ -118,7 +117,7 @@ function(add_visualizer_test name)
 endfunction()
 
 # Register the CTest test "<kind>.<name>", which runs the program <name> with --adapter <adapter>
-# (native or vs-code) and the visualizer <option> <file>, and compares the output with
+# (native or vs) and the visualizer <option> <file>, and compares the output with
 # <test source>.<kind>.txt.  Further arguments are passed on to cxx-debug-visualize.
 function(_add_visualizer_run kind name test_source adapter option file)
   get_filename_component(file "${file}" ABSOLUTE)
@@ -127,8 +126,8 @@ function(_add_visualizer_run kind name test_source adapter option file)
   set(expected "${test_dir}/${test_name}.${kind}.txt")
   set(actual "${CMAKE_CURRENT_BINARY_DIR}/${kind}.${name}.actual.txt")
   set(run ${CXX_DEBUG_VISUALIZE_COMMAND} --adapter ${adapter})
-  if(adapter STREQUAL "vs-code")
-    list(APPEND run --vs-code-adapter "${CXXDV_VS_CODE_ADAPTER}")
+  if(adapter STREQUAL "vs")
+    list(APPEND run --vs-adapter "${CXXDV_VS_ADAPTER}")
   endif()
   list(APPEND run ${option} "${file}" ${ARGN} "${test_source}")
 

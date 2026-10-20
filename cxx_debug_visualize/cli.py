@@ -48,17 +48,16 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.add_argument(
         "--adapter",
-        choices=("native", "vs-code"),
-        help="the debugger's native DAP support, or the debug adapter of used by "
-        "VS Code's C/C++ extension (OpenDebugAD7) (default: vs-code if either "
-        "--natvis or --vs-code-adapter is specified, otherwise native)",
+        choices=("native", "vs"),
+        help="the debugger's native DAP support, or the Visual Studio debug adapter (OpenDebugAD7) "
+        "(default: vs if either --natvis or --vs-adapter is specified, otherwise native)",
     )
     parser.add_argument(
-        "--vs-code-adapter",
+        "--vs-adapter",
         metavar="PATH",
-        help="VS Code debug adapter path (e.g. a build of MIEngine) "
-        "(default: $CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER, otherwise the user's "
-        "home directory is searched for an installed VS Code C/C++ extension)",
+        help="Visual Studio debug adapter path (e.g. a build of MIEngine) (default: "
+        "$CXX_DEBUG_VISUALIZE_VS_ADAPTER, otherwise the user's home directory is searched for an "
+        "installed VS Code C/C++ extension)",
     )
 
     visualizer = parser.add_mutually_exclusive_group(required=True)
@@ -94,25 +93,25 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 2
 
-    # If --adapter was not specified explicitly, deduce it as "vs-code" if --natvis or
-    # --vs-code-adapter were specified, and as "native" otherwise.
+    # If --adapter was not specified explicitly, deduce it as "vs" if --natvis or --vs-adapter were
+    # specified, and as "native" otherwise.
     if ns.adapter is None:
-        if ns.natvis or ns.vs_code_adapter:
-            ns.adapter = "vs-code"
+        if ns.natvis or ns.vs_adapter:
+            ns.adapter = "vs"
         else:
             ns.adapter = "native"
 
-    if ns.adapter == "vs-code" and ns.debugger == "lldb":
+    if ns.adapter == "vs" and ns.debugger == "lldb":
         print(
-            "error: using lldb via the vs-code debug adapter is is not currently supported",
+            "error: using lldb via the Visual Studio debug adapter is not currently supported",
             file=sys.stderr,
         )
         return 2
-    if ns.adapter == "native" and ns.vs_code_adapter is not None:
-        print("error: --vs-code-adapter requires --adapter vs-code", file=sys.stderr)
+    if ns.adapter == "native" and ns.vs_adapter is not None:
+        print("error: --vs-adapter requires --adapter vs", file=sys.stderr)
         return 2
-    if ns.natvis and ns.adapter != "vs-code":
-        print("error: --natvis requires --adapter vs-code", file=sys.stderr)
+    if ns.natvis and ns.adapter != "vs":
+        print("error: --natvis requires --adapter vs", file=sys.stderr)
         return 2
     if ns.gdb_printers and ns.debugger != "gdb":
         print("error: --gdb-printers requires --debugger=gdb", file=sys.stderr)
@@ -121,19 +120,17 @@ def main(argv: list[str] | None = None) -> int:
         print("error: --lldb-formatters requires --debugger=lldb", file=sys.stderr)
         return 2
 
-    # VS Code's adapter: --vs-code-adapter, $CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER, or the one of
-    # an installed VS Code C/C++ extension. None for native DAP support.
+    # The Visual Studio debug adapter: --vs-adapter, $CXX_DEBUG_VISUALIZE_VS_ADAPTER, or a debug
+    # adapter found in an installed VS Code C/C++ extension. None for native DAP support.
     adapter_path = None
-    if ns.adapter == "vs-code":
+    if ns.adapter == "vs":
         adapter_path = (
-            ns.vs_code_adapter
-            or os.environ.get("CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER")
-            or find_adapter()
+            ns.vs_adapter or os.environ.get("CXX_DEBUG_VISUALIZE_VS_ADAPTER") or find_adapter()
         )
         if adapter_path is None:
             print(
-                "error: VS Code debug adapter not found; pass --vs-code-adapter, set "
-                "CXX_DEBUG_VISUALIZE_VS_CODE_ADAPTER, or install VS Code's C/C++ extension",
+                "error: Visual Studio debug adapter not found; pass --vs-adapter, set "
+                "CXX_DEBUG_VISUALIZE_VS_ADAPTER, or install VS Code's C/C++ extension",
                 file=sys.stderr,
             )
             return 2

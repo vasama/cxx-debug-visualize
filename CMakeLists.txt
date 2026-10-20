@@ -2,11 +2,11 @@
 # (see example/CMakeLists.txt) with CTest:
 #
 #   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
-#         -DCXXDV_VS_CODE_ADAPTER=/path/to/OpenDebugAD7
+#         -DCXXDV_VS_ADAPTER=/path/to/OpenDebugAD7
 #   cmake --build build
 #   ctest --test-dir build --output-on-failure
 #
-# CXXDV_TEST_VS_CODE, CXXDV_TEST_GDB and CXXDV_TEST_LLDB (all ON by default) select the debuggers
+# CXXDV_TEST_VS, CXXDV_TEST_GDB and CXXDV_TEST_LLDB (all ON by default) select the debuggers
 # and adapter tested; OpenDebugAD7 is only needed with the first.
 
 cmake_minimum_required(VERSION 3.15)

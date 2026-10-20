@@ -1,8 +1,8 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m selftest` (e.g. by CTest), which passes the built fixture program
-# test_program.cpp (--program) and the adapter (--vs-code-adapter). A test class is skipped if
-# the debugger or adapter it tests is turned off (--no-vs-code, --no-gdb, --no-lldb), and otherwise
+# test_program.cpp (--program) and the adapter (--vs-adapter). A test class is skipped if
+# the debugger or adapter it tests is turned off (--no-vs, --no-gdb, --no-lldb), and otherwise
 # fails if what it needs is missing: the program, the adapter, gdb, or lldb-dap.
 
 import contextlib
@@ -21,10 +21,10 @@ SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 
 
 # Set from the command line by selftest/__main__.py: the paths of OpenDebugAD7 and of the built
-# fixture program, and whether to test the VS Code adapter, gdb and lldb.
+# fixture program, and whether to test the Visual Studio debug adapter, gdb and lldb.
 ADAPTER = None
 PROGRAM = None
-VS_CODE = True
+VS = True
 GDB = True
 LLDB = True
 
@@ -68,10 +68,10 @@ class FixtureTestCase(unittest.TestCase):
 class IntegrationTests(FixtureTestCase):
     @classmethod
     def setUpClass(cls):
-        if not (VS_CODE and GDB):
-            raise unittest.SkipTest("--no-vs-code or --no-gdb")
+        if not (VS and GDB):
+            raise unittest.SkipTest("--no-vs or --no-gdb")
         if not (ADAPTER and shutil.which("gdb")):
-            raise AssertionError("needs --vs-code-adapter and gdb")
+            raise AssertionError("needs --vs-adapter and gdb")
         cls.adapter = ADAPTER
         super().setUpClass()
 
