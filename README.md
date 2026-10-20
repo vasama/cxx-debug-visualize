@@ -76,7 +76,7 @@ Found by probing cpptools 1.34.4 with gdb 15 and confirmed in the MIEngine sourc
 | `DisplayString`, `Condition`, format specifiers `,x` `,b` `,o` | work |
 | `,s8` on `char*` / `,na` | the address is still shown before the string (`0x5555… "text"`) |
 | `Item`, `ArrayItems`, `IndexListItems`, `LinkedListItems`, `TreeItems`, `ExpandedItem`, `Intrinsic` | work |
-| More than 50 children | paged: children 50 and up sit under a `[More...]` node |
+| More than 50 children | paged: children 50 and up sit under a `[More...]` node (test_visualizers flattens the pages into the list) |
 | `Expand` present | a `[Raw View]` child is added, unless `HideRawView="true"` (test_visualizers leaves it out of its output) |
 | `Synthetic`, `CustomListItems` | parsed, but **silently ignored** (no children) |
 | `TreeItems` `ValueNode Name="[{Key}]"` | name ignored; children are `[0]`, `[1]`, … |
@@ -115,7 +115,7 @@ Found by running cpptools 1.34.4 with gdb 15:
 | no `children()` | no children at all (not the plain members) |
 | `display_hint()` `"map"` | pairs of children become one child each, named by the key (`[10] = 100`) |
 | many children | all listed at once; no `[More...]` paging |
-| a pointer to a printed type | the pointer is shown as an address (unlike natvis) |
+| a pointer to a printed type | the pointer is shown as an address (unlike natvis), unless a lookup function also handles the pointer type, as the example's printers do for `mylib::String *` |
 | exception in `to_string()` / `children()` | **no diagnostic**; the value is empty, or the children are missing |
 | error while loading the script (e.g. a syntax error) | the launch fails: `Unable to start debugging. ... Error occurred in Python: ...` |
 
@@ -185,13 +185,16 @@ check_visualizer(v) at test_containers.cpp:39
   spaces). The first such line is the object itself, as `value [type]`,
   without a name.
 * Each child is `name = value [type]`, indented one more level. Nodes
-  without a type, such as `[More...]`, have no `[type]`.
+  without a type (e.g. a natvis `<Item>` whose expression failed) have no
+  `[type]`.
 * Below the object come its children: the items its type's visualizer
   produces (with natvis, its members if the type has no `<Expand>`; with a
   pretty printer, what `children()` yields). They are not expanded further,
-  since their own children come from their own types' visualizers. The one
-  exception is natvis's `[More...]`, which holds children 50 and up of the same
-  list; it is followed to the end, each nested page indented one more level.
+  since their own children come from their own types' visualizers.
+* natvis's `[More...]` pages, which hold children 50 and up of a list, are
+  flattened: their children are printed in place, at the list's level, and
+  the `[More...]` lines are left out, so the output looks as if the list were
+  not paged (as with a pretty printer).
 * natvis's `[Raw View]` child, which holds the object's plain members, is left
   out. When a visualizer's `<Expand>` is silently dropped, the plain members
   appear in place of the visualized children.
@@ -230,23 +233,29 @@ check_visualizer(hello);
 A test source can be checked against both a natvis file and a pretty-printer
 script for the same types, e.g. when a library ships both. `CHECK` lines then
 apply to both runs, and lines where the outputs differ use the prefixes
-`NATVIS` and `GDB`, with FileCheck run as `FileCheck
---check-prefixes=CHECK,NATVIS` and `--check-prefixes=CHECK,GDB` (the CMake
+`NATVIS` and `GDB`, with FileCheck run as `FileCheck --allow-unused-prefixes
+--check-prefixes=CHECK,NATVIS` and `... --check-prefixes=CHECK,GDB` (the CMake
 helper does this):
 
 ```cpp
-check_visualizer(v);
-// CHECK: check_visualizer(v) at test_containers.cpp:[[@LINE-1]]
-// NATVIS-NEXT:   { size=3 } [mylib::Vector<int>]
-// GDB-NEXT:      size=3 [mylib::Vector<int>]
-// NATVIS-NEXT:     [size] = 3 [std::size_t]
-// NATVIS-NEXT:     [capacity] = 4 [std::size_t]
-// CHECK-NEXT:      [0] = 10 [int]
+check_visualizer(ptr);
+// CHECK: check_visualizer(ptr) at test_strings.cpp:[[@LINE-1]]
+// NATVIS-NEXT:   {{0x[0-9a-f]+}} "hello" [mylib::Optional<mylib::String*>]
+// GDB-NEXT:      "hello" = {[size] = 5} [mylib::Optional<mylib::String*>]
+// CHECK-NEXT:      [value] = {{0x[0-9a-f]+}} "hello" [mylib::String *]
 ```
 
 FileCheck reads the lines of all given prefixes as one sequence and ignores
-the others, so `-NEXT` lines chain across prefixes. It also requires every
-given prefix to be used in the file. See `example/tests/` for complete tests.
+the others, so `-NEXT` lines chain across prefixes. `--allow-unused-prefixes`
+lets a test use only one of the prefixes, or neither, when the outputs don't
+differ; the flip side is that a misspelt prefix goes unnoticed.
+
+The less the two outputs differ, the more `CHECK` lines the runs share. The
+example's printers (`example/printers/mylib_printers.py`) mirror
+`example/natvis/mylib.natvis` (same display strings and children, the members
+of `Point`, `[0]`, `[1]`, ... for the map), so its tests need a `NATVIS`/`GDB`
+pair only where gdb formats a value in its own way. See `example/tests/` for
+complete tests.
 
 ### Finding out what the debugger shows
 
@@ -348,7 +357,7 @@ The tests of the `check_visualizer` line scanner and of the launch
 configurations always run. The integration tests need `--adapter`, gdb and
 g++/clang++, and are skipped otherwise. They check the printed trees for
 natvis files and pretty printers (including unexpanded children, nested
-`[More...]` pages, the `map` display hint, calls in loops and calls never
+flattened `[More...]` pages, the `map` display hint, calls in loops and calls never
 reached), how broken visualizers show in them (natvis evaluation errors, a
 dropped `Expand`, raising printers), and the errors test_visualizers reports
 (malformed XML, a printer script that doesn't load, crashes).

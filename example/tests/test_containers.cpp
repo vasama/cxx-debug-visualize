@@ -6,16 +6,16 @@
 // produces, headed by "check_visualizer(x) at <file>:<line>".
 //
 // This test runs twice, with natvis/mylib.natvis and with
-// printers/mylib_printers.py: CHECK lines apply to both, NATVIS and GDB lines
-// only to the natvis and the gdb pretty-printer run.
+// printers/mylib_printers.py.  The printers mirror the natvis file, so the
+// same CHECK lines hold for both.
 
 int main() {
   mylib::Point p{3, -4};
   check_visualizer(p);
   // CHECK: check_visualizer(p) at test_containers.cpp:[[@LINE-1]]
   // CHECK-NEXT:   (3, -4) [mylib::Point]
-  // NATVIS-NEXT:    x = 3 [int]
-  // NATVIS-NEXT:    y = -4 [int]
+  // CHECK-NEXT:     x = 3 [int]
+  // CHECK-NEXT:     y = -4 [int]
 
   mylib::Vector<int> empty;
   mylib::Vector<int> v;
@@ -36,34 +36,30 @@ int main() {
 
   check_visualizer(empty);
   // CHECK: check_visualizer(empty) at test_containers.cpp:[[@LINE-1]]
-  // NATVIS-NEXT:   { size=0 } [mylib::Vector<int>]
-  // GDB-NEXT:      size=0 [mylib::Vector<int>]
-  // NATVIS-NEXT:     [size] = 0 [std::size_t]
-  // NATVIS-NEXT:     [capacity] = 0 [std::size_t]
+  // CHECK-NEXT:   { size=0 } [mylib::Vector<int>]
+  // CHECK-NEXT:     [size] = 0 [std::size_t]
+  // CHECK-NEXT:     [capacity] = 0 [std::size_t]
 
   check_visualizer(v);
   // CHECK: check_visualizer(v) at test_containers.cpp:[[@LINE-1]]
-  // NATVIS-NEXT:   { size=3 } [mylib::Vector<int>]
-  // GDB-NEXT:      size=3 [mylib::Vector<int>]
-  // NATVIS-NEXT:     [size] = 3 [std::size_t]
-  // NATVIS-NEXT:     [capacity] = 4 [std::size_t]
-  // CHECK-NEXT:      [0] = 10 [int]
-  // CHECK-NEXT:      [1] = 20 [int]
-  // CHECK-NEXT:      [2] = 30 [int]
+  // CHECK-NEXT:   { size=3 } [mylib::Vector<int>]
+  // CHECK-NEXT:     [size] = 3 [std::size_t]
+  // CHECK-NEXT:     [capacity] = 4 [std::size_t]
+  // CHECK-NEXT:     [0] = 10 [int]
+  // CHECK-NEXT:     [1] = 20 [int]
+  // CHECK-NEXT:     [2] = 30 [int]
 
   check_visualizer(points);
   // CHECK: check_visualizer(points) at test_containers.cpp:[[@LINE-1]]
-  // NATVIS-NEXT:   { size=1 } [mylib::Vector<mylib::Point>]
-  // GDB-NEXT:      size=1 [mylib::Vector<mylib::Point>]
-  // CHECK:           [0] = (1, 2) [mylib::Point]
+  // CHECK-NEXT:   { size=1 } [mylib::Vector<mylib::Point>]
+  // CHECK:          [0] = (1, 2) [mylib::Point]
 
   check_visualizer(list);
   // CHECK: check_visualizer(list) at test_containers.cpp:[[@LINE-1]]
-  // NATVIS-NEXT:   { size=3 } [mylib::List<int>]
-  // GDB-NEXT:      size=3 [mylib::List<int>]
-  // CHECK-NEXT:      [0] = 1 [int]
-  // CHECK-NEXT:      [1] = 2 [int]
-  // CHECK-NEXT:      [2] = 3 [int]
+  // CHECK-NEXT:   { size=3 } [mylib::List<int>]
+  // CHECK-NEXT:     [0] = 1 [int]
+  // CHECK-NEXT:     [1] = 2 [int]
+  // CHECK-NEXT:     [2] = 3 [int]
 
   check_visualizer(none);
   // CHECK: check_visualizer(none) at test_containers.cpp:[[@LINE-1]]
@@ -75,30 +71,24 @@ int main() {
   // CHECK-NEXT:     [value] = 42 [int]
 
   // MIEngine ignores TreeItems' ValueNode Name, so natvis children are [0],
-  // [1], ...; gdb's "map" display hint names them by key.
+  // [1], ...; the printer names them the same way.
   check_visualizer(map);
   // CHECK: check_visualizer(map) at test_containers.cpp:[[@LINE-1]]
-  // NATVIS-NEXT:   { size=3 } [mylib::IntMap<int>]
-  // NATVIS-NEXT:     [0] = 100 [int]
-  // NATVIS-NEXT:     [1] = 200 [int]
-  // NATVIS-NEXT:     [2] = 300 [int]
-  // GDB-NEXT:      size=3 [mylib::IntMap<int>]
-  // GDB-NEXT:        [10] = 100 [int]
-  // GDB-NEXT:        [20] = 200 [int]
-  // GDB-NEXT:        [30] = 300 [int]
+  // CHECK-NEXT:   { size=3 } [mylib::IntMap<int>]
+  // CHECK-NEXT:     [0] = 100 [int]
+  // CHECK-NEXT:     [1] = 200 [int]
+  // CHECK-NEXT:     [2] = 300 [int]
 
-  // With natvis, elements past the first 50 are paged under a "[More...]"
-  // node; gdb lists them all.
+  // natvis pages elements past the first 50 under a "[More...]" node, which
+  // test_visualizers flattens into the list.
   mylib::Vector<int> big;
   for (int i = 0; i < 60; ++i)
     big.push_back(i);
   check_visualizer(big);
   // CHECK: check_visualizer(big) at test_containers.cpp:[[@LINE-1]]
-  // NATVIS-NEXT:   { size=60 } [mylib::Vector<int>]
-  // GDB-NEXT:      size=60 [mylib::Vector<int>]
-  // CHECK:           [49] = 49 [int]
-  // NATVIS-NEXT:     [More...] = {...}
-  // CHECK-NEXT:        [50] = 50 [int]
-  // CHECK:             [59] = 59 [int]
+  // CHECK-NEXT:   { size=60 } [mylib::Vector<int>]
+  // CHECK:          [49] = 49 [int]
+  // CHECK-NEXT:     [50] = 50 [int]
+  // CHECK:          [59] = 59 [int]
   return 0;
 }

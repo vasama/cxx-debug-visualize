@@ -82,14 +82,10 @@ class IntegrationTests(unittest.TestCase):
             "  {...} [PairArr]",
             "    [0] = <3,4> [Pair]",
             "    [1] = <5,6> [Pair]",
-            # [More...] nodes, which continue the list, are followed
+            # [More...] pages, which continue the list, are flattened into it
             "check_visualizer(big) at prog.cpp:31",
             "  {...} [Arr]",
-        ] + [f"    [{i}] = {i} [int]" for i in range(50)] + [
-            "    [More...] = {...}",
-        ] + [f"      [{i}] = {i} [int]" for i in range(50, 100)] + [
-            "      [More...] = {...}",
-        ] + [f"        [{i}] = {i} [int]" for i in range(100, 120)] + [
+        ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
             "",
         ]))
         self.assertEqual(errors, [])

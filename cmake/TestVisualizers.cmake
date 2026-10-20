@@ -20,8 +20,8 @@
 #
 # With both NATVIS and PRINTERS, lines where the two outputs differ use the
 # FileCheck prefixes NATVIS and GDB instead of CHECK: the tests run FileCheck
-# with --check-prefixes=CHECK,NATVIS and CHECK,GDB.  FileCheck requires each of
-# those prefixes to be used in the test source.
+# with --check-prefixes=CHECK,NATVIS and CHECK,GDB.  Either prefix may go
+# unused, e.g. when both visualizers produce the same output.
 #
 # Cache variables (both required):
 #   TEST_VISUALIZERS_ADAPTER    path to OpenDebugAD7, passed as --adapter
@@ -70,8 +70,8 @@ function(test_visualizers_add_test name)
   set(natvis_prefixes "")
   set(printers_prefixes "")
   if(TV_NATVIS AND TV_PRINTERS)
-    set(natvis_prefixes "--check-prefixes=CHECK,NATVIS")
-    set(printers_prefixes "--check-prefixes=CHECK,GDB")
+    set(natvis_prefixes --allow-unused-prefixes --check-prefixes=CHECK,NATVIS)
+    set(printers_prefixes --allow-unused-prefixes --check-prefixes=CHECK,GDB)
   endif()
   if(TV_NATVIS)
     _test_visualizers_add_run(natvis ${name} "${test_source}" --natvis "${TV_NATVIS}"

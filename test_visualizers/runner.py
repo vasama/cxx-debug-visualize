@@ -80,16 +80,18 @@ class Runner:
     # Write the children of `node`, i.e. what its type's visualizer produces.
     #
     # Children are not expanded further (their own children come from their own
-    # types' visualizers), except "[More...]", which continues the same list.
+    # types' visualizers).  natvis's "[More...]" pages continue the same list,
+    # so their children are written in its place, as if the list were unpaged.
     #
     # natvis's "[Raw View]" (the object's plain members) is left out.
     def _write_children(self, session, node, indent):
         for kid in session.children(node):
             if kid.name == "[Raw View]":
                 continue
-            self._write_node(kid, indent, kid.name)
             if kid.name == "[More...]":
-                self._write_children(session, kid, indent + 1)
+                self._write_children(session, kid, indent)
+                continue
+            self._write_node(kid, indent, kid.name)
 
     # Report and return False unless every breakpoint sits on its requested line.
     def _verify_breakpoints(self, session, calls):
