@@ -31,7 +31,7 @@ int main()
   // more than 50 items, which MIEngine pages under "[More...]"
   mylib::variant_array many(60);
   for (int i = 0; i < 60; ++i)
-    many.push_back(i);
+    many.push_back(100 + i);
   visualize(many);
   return 0;
 }

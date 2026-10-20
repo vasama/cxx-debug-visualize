@@ -64,17 +64,17 @@
     <Expand>
       <Item Name="[bucket_count]">m_bucket_count</Item>
       <CustomListItems>
-        <Variable Name="bucket" InitialValue="0" />
-        <Variable Name="node" InitialValue="m_buckets[bucket]" />
+        <Variable Name="natvis_bucket" InitialValue="0" />
+        <Variable Name="natvis_node" InitialValue="m_buckets[natvis_bucket]" />
         <Size>m_count</Size>
         <Loop>
-          <Loop Condition="node != 0">
-            <Item Name="[{node->key}]">node->value</Item>
-            <Exec>node = node->next</Exec>
+          <Loop Condition="natvis_node != 0">
+            <Item Name="[{natvis_node->key}]">natvis_node->value</Item>
+            <Exec>natvis_node = natvis_node->next</Exec>
           </Loop>
-          <Exec>++bucket</Exec>
-          <Break Condition="bucket == m_bucket_count" />
-          <Exec>node = m_buckets[bucket]</Exec>
+          <Exec>++natvis_bucket</Exec>
+          <Break Condition="natvis_bucket == m_bucket_count" />
+          <Exec>natvis_node = m_buckets[natvis_bucket]</Exec>
         </Loop>
       </CustomListItems>
     </Expand>
@@ -85,23 +85,23 @@
     <DisplayString>{{ size={m_size} }}</DisplayString>
     <Expand>
       <CustomListItems Condition="m_size != 0">
-        <Variable Name="i" InitialValue="0" />
-        <Variable Name="e" InitialValue="m_entries" />
+        <Variable Name="natvis_i" InitialValue="0" />
+        <Variable Name="natvis_e" InitialValue="m_entries" />
         <Size Condition="m_size &lt;= m_capacity">m_size</Size>
         <Loop>
-          <If Condition="i == m_size">
+          <If Condition="natvis_i == m_size">
             <Break />
           </If>
-          <If Condition="e->tag == 1">
-            <Item>e->i</Item>
+          <If Condition="natvis_e->tag == 1">
+            <Item>natvis_e->i</Item>
           </If>
-          <Elseif Condition="e->tag == 2">
-            <Item>e->d</Item>
+          <Elseif Condition="natvis_e->tag == 2">
+            <Item>natvis_e->d</Item>
           </Elseif>
           <Else>
-            <Item Name="[{$i}] none" Condition="e->tag == 0">e->tag</Item>
+            <Item Name="[{$i}] none" Condition="natvis_e->tag == 0">natvis_e->tag</Item>
           </Else>
-          <Exec>++i, ++e</Exec>
+          <Exec>++natvis_i, ++natvis_e</Exec>
         </Loop>
       </CustomListItems>
     </Expand>
