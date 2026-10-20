@@ -39,3 +39,8 @@ add_visualizer_test(
     NATVIS ${MYLIB_NATVIS}
     LINK_LIBRARIES mylib
 )
+
+# Released versions of MIEngine ignore CustomListItems: they need microsoft/MIEngine#1580.
+if(TEST natvis-miengine.test_custom_list)
+  set_tests_properties(natvis-miengine.test_custom_list PROPERTIES DISABLED TRUE)
+endif()
