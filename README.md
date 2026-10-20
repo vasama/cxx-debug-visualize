@@ -274,7 +274,7 @@ breakpoints. Calls in other files of the program are not breakpoints.
 
 | Option | Meaning |
 |---|---|
-| `--adapter PATH` | OpenDebugAD7 to use; by default, the one of the newest installed VS Code C/C++ extension (see below) |
+| `--adapter PATH` | OpenDebugAD7 to use; by default, `$TEST_VISUALIZERS_ADAPTER` if set, else the one of the newest installed VS Code C/C++ extension (see below) |
 | `--natvis FILE` | the natvis file under test |
 | `--printers FILE` | the gdb pretty-printer script (Python) under test; exactly one of `--natvis` and `--printers` is required |
 | `--trace` | dump DAP traffic to stderr |
@@ -329,6 +329,7 @@ cmake --build build && ctest --test-dir build -L visualizers
 
 `--adapter` gives the path of an `OpenDebugAD7` executable (or
 `OpenDebugAD7.dll`, run with `dotnet`). Without it, `test_visualizers` uses the
+`TEST_VISUALIZERS_ADAPTER` environment variable if it is set, and otherwise the
 adapter of the newest VS Code C/C++ extension installed in your home directory:
 `~/.vscode`, `~/.vscode-insiders`, and `~/.vscode-server` or
 `~/.vscode-server-insiders` for remote development (e.g. Remote SSH), each

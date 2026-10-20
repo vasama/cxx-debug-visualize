@@ -21,9 +21,10 @@ def main(argv=None):
                                      "check_visualizer() call, for FileCheck, using the same "
                                      "debug adapter VS Code uses (OpenDebugAD7/MIEngine).")
     parser.add_argument("--adapter", metavar="PATH",
-                        help="path to OpenDebugAD7, e.g. a build of MIEngine (default: the "
-                        "one of the newest VS Code C/C++ extension installed in "
-                        "~/.vscode*/extensions)")
+                        default=os.environ.get("TEST_VISUALIZERS_ADAPTER"),
+                        help="path to OpenDebugAD7, e.g. a build of MIEngine (default: "
+                        "$TEST_VISUALIZERS_ADAPTER if set, else the one of the newest VS Code "
+                        "C/C++ extension installed in ~/.vscode*/extensions)")
     visualizer = parser.add_mutually_exclusive_group(required=True)
     visualizer.add_argument("--natvis", metavar="FILE", help="natvis file to test")
     visualizer.add_argument("--printers", metavar="FILE",
@@ -40,7 +41,8 @@ def main(argv=None):
         ns.adapter = find_adapter()
         if ns.adapter is None:
             print("error: no OpenDebugAD7 found: install the VS Code C/C++ extension "
-                  "(ms-vscode.cpptools), or pass --adapter", file=sys.stderr)
+                  "(ms-vscode.cpptools), set TEST_VISUALIZERS_ADAPTER, or pass --adapter",
+                  file=sys.stderr)
             return 2
 
     if ns.trace:
