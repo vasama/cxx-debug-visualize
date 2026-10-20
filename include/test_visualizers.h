@@ -1,4 +1,4 @@
-// Helper for natvis test programs.
+// Helper for visualizer test programs.
 //
 // test_visualizers sets a breakpoint on every line that consists of exactly
 // `check_visualizer(identifier);` and prints the Variables tree of that object

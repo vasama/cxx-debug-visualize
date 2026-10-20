@@ -20,10 +20,16 @@ class Node:
 
 
 class DebugSession:
-    def __init__(self, adapter, program, natvis, log=None):
+    # The visualizer under test is either a natvis file (`natvis`) or a gdb
+    # pretty-printer script (`printers`); exactly one must be given.
+    def __init__(self, adapter, program, *, natvis=None, printers=None, log=None):
+        if (natvis is None) == (printers is None):
+            raise ValueError("exactly one of natvis or printers is required")
+
         self.adapter = adapter
         self.program = os.path.abspath(program)
-        self.natvis = os.path.abspath(natvis)
+        self.natvis = natvis and os.path.abspath(natvis)
+        self.printers = printers and os.path.abspath(printers)
         # the program runs in its own directory
         self.cwd = os.path.dirname(self.program)
         self.log = log
@@ -46,12 +52,26 @@ class DebugSession:
             "MIMode": "gdb",
             "externalConsole": False,
             "stopAtEntry": False,
+            "logging": {"natvisDiagnostics": "warning", "moduleLoad": False},
+        }
+
+        if self.natvis:
+            cfg["visualizerFile"] = self.natvis
             # VS Code's default (false) hides display strings and moves the
             # visualized children under a "[Visualized View]" node
-            "showDisplayString": True,
-            "logging": {"natvisDiagnostics": "warning", "moduleLoad": False},
-            "visualizerFile": self.natvis,
-        }
+            cfg["showDisplayString"] = True
+
+        if self.printers:
+            # gdb pretty printers, which don't mix with natvis.  Only the
+            # printers under test are active: gdb reads no init files (-nx), and
+            # auto-loaded printers (e.g. libstdc++'s) stay off.
+            cfg["miDebuggerArgs"] = "-nx"
+            cfg["setupCommands"] = [
+                {"text": "-enable-pretty-printing"},
+                {"text": "set auto-load python-scripts off"},
+                {"text": f"source {self.printers}"},
+            ]
+
         return cfg
 
     # Launch the program with `breakpoints` = {source path: [lines]}.

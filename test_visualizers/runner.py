@@ -1,4 +1,4 @@
-# Running natvis tests: break on check_visualizer() calls, print snapshots.
+# Running visualizer tests: break on check_visualizer() calls, print snapshots.
 #
 # Every line of the test source that consists of exactly `check_visualizer(x);`
 # gets a breakpoint. Each time one is hit, the Variables tree of `x` is written
@@ -51,11 +51,13 @@ def find_calls(path):
 
 
 class Runner:
-    def __init__(self, adapter, program, source, natvis, log=None):
+    # The visualizer under test is a natvis file or a gdb pretty-printer
+    # script; see DebugSession.
+    def __init__(self, adapter, program, source, *, natvis=None, printers=None, log=None):
         self.adapter = adapter
         self.program = program
         self.source = os.path.abspath(source)
-        self.natvis = os.path.abspath(natvis)
+        self.visualizer = {"natvis": natvis, "printers": printers}
         self.log = log
         self.failed = False
 
@@ -120,7 +122,7 @@ class Runner:
         if not calls:
             return True
 
-        session = DebugSession(self.adapter, self.program, self.natvis, log=self.log)
+        session = DebugSession(self.adapter, self.program, **self.visualizer, log=self.log)
         try:
             resolved = session.start({self.source: [call.line for call in calls]})
 

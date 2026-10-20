@@ -2,19 +2,26 @@
 #
 #   include(TestVisualizers)
 #   test_visualizers_add_test(<name>
-#     SOURCES <test.cpp>...            # the first one is the test source
-#     NATVIS <file.natvis>             # the natvis file under test
+#     SOURCES <test.cpp>...              # the first one is the test source
+#     [NATVIS <file.natvis>]             # natvis file under test
+#     [PRINTERS <printers.py>]           # gdb pretty-printer script under test
 #     [LINK_LIBRARIES <lib>...]
 #     [INCLUDE_DIRECTORIES <dir>...]
 #     [ARGS <test_visualizers run option>...]  # e.g. --trace
 #   )
 #
-# Builds <name> without optimizations and with debug info, and registers a
-# CTest test "natvis.<name>" that runs it under the VS Code C/C++ debug adapter
-# and pipes the printed Variables trees into FileCheck.  The first file in
-# SOURCES is the test source: test_visualizers breaks on its check_visualizer()
-# lines, and FileCheck reads its CHECK lines.  The test fails if either
-# test_visualizers or FileCheck fails.
+# Builds <name> once, without optimizations and with debug info, and registers
+# a CTest test for each visualizer given (at least one): "natvis.<name>" and
+# "gdb.<name>", labelled "visualizers".  Each runs <name> under the VS Code
+# C/C++ debug adapter and pipes the printed Variables trees into FileCheck.
+# The first file in SOURCES is the test source: test_visualizers breaks on its
+# check_visualizer() lines, and FileCheck reads its CHECK lines.  A test fails
+# if either test_visualizers or FileCheck fails.
+#
+# With both NATVIS and PRINTERS, lines where the two outputs differ use the
+# FileCheck prefixes NATVIS and GDB instead of CHECK: the tests run FileCheck
+# with --check-prefixes=CHECK,NATVIS and CHECK,GDB.  FileCheck requires each of
+# those prefixes to be used in the test source.
 #
 # Cache variables (both required):
 #   TEST_VISUALIZERS_ADAPTER    path to OpenDebugAD7, passed as --adapter
@@ -25,62 +32,96 @@ find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 get_filename_component(TEST_VISUALIZERS_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(TEST_VISUALIZERS_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
 if(NOT TEST_VISUALIZERS_ADAPTER)
-  message(FATAL_ERROR "TestVisualizers: set TEST_VISUALIZERS_ADAPTER to the path of OpenDebugAD7, "
-                      "e.g. -DTEST_VISUALIZERS_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7")
+  message(FATAL_ERROR "TestVisualizers: set TEST_VISUALIZERS_ADAPTER to the path of "
+                      "OpenDebugAD7, e.g. "
+                      "-DTEST_VISUALIZERS_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7")
 endif()
 set(TEST_VISUALIZERS_FILECHECK "" CACHE FILEPATH "Path to LLVM's FileCheck")
 if(NOT TEST_VISUALIZERS_FILECHECK)
-  message(FATAL_ERROR "TestVisualizers: set TEST_VISUALIZERS_FILECHECK to the path of FileCheck, "
-                      "e.g. -DTEST_VISUALIZERS_FILECHECK=/usr/lib/llvm-18/bin/FileCheck")
+  message(FATAL_ERROR "TestVisualizers: set TEST_VISUALIZERS_FILECHECK to the path of "
+                      "FileCheck, e.g. "
+                      "-DTEST_VISUALIZERS_FILECHECK=/usr/lib/llvm-18/bin/FileCheck")
 endif()
 
 function(test_visualizers_add_test name)
-  cmake_parse_arguments(PARSE_ARGV 1 NT "" "NATVIS"
+  cmake_parse_arguments(PARSE_ARGV 1 TV "" "NATVIS;PRINTERS"
                         "SOURCES;LINK_LIBRARIES;INCLUDE_DIRECTORIES;ARGS")
-  if(NOT NT_SOURCES)
+  if(NOT TV_SOURCES)
     message(FATAL_ERROR "test_visualizers_add_test(${name}): SOURCES is required")
   endif()
-  if(NOT NT_NATVIS)
-    message(FATAL_ERROR "test_visualizers_add_test(${name}): NATVIS is required")
+  if(NOT TV_NATVIS AND NOT TV_PRINTERS)
+    message(FATAL_ERROR "test_visualizers_add_test(${name}): NATVIS or PRINTERS is required")
   endif()
 
-  add_executable(${name} ${NT_SOURCES})
-  target_include_directories(${name} PRIVATE "${TEST_VISUALIZERS_ROOT}/include" ${NT_INCLUDE_DIRECTORIES})
-  if(NT_LINK_LIBRARIES)
-    target_link_libraries(${name} PRIVATE ${NT_LINK_LIBRARIES})
+  add_executable(${name} ${TV_SOURCES})
+  target_include_directories(${name} PRIVATE "${TEST_VISUALIZERS_ROOT}/include"
+                             ${TV_INCLUDE_DIRECTORIES})
+  if(TV_LINK_LIBRARIES)
+    target_link_libraries(${name} PRIVATE ${TV_LINK_LIBRARIES})
   endif()
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${name} PRIVATE -O0 -g)
   endif()
 
-  list(GET NT_SOURCES 0 test_source)
+  list(GET TV_SOURCES 0 test_source)
   get_filename_component(test_source "${test_source}" ABSOLUTE)
-  get_filename_component(natvis "${NT_NATVIS}" ABSOLUTE)
-  set(run "${Python3_EXECUTABLE}" -m test_visualizers run --adapter "${TEST_VISUALIZERS_ADAPTER}"
-      --natvis "${natvis}")
-  list(APPEND run ${NT_ARGS} "${test_source}" "$<TARGET_FILE:${name}>")
+
+  # Only a test source checked against both visualizers needs their prefixes.
+  set(natvis_prefixes "")
+  set(printers_prefixes "")
+  if(TV_NATVIS AND TV_PRINTERS)
+    set(natvis_prefixes "--check-prefixes=CHECK,NATVIS")
+    set(printers_prefixes "--check-prefixes=CHECK,GDB")
+  endif()
+  if(TV_NATVIS)
+    _test_visualizers_add_run(natvis ${name} "${test_source}" --natvis "${TV_NATVIS}"
+                              "${natvis_prefixes}" ${TV_ARGS})
+  endif()
+  if(TV_PRINTERS)
+    _test_visualizers_add_run(gdb ${name} "${test_source}" --printers "${TV_PRINTERS}"
+                              "${printers_prefixes}" ${TV_ARGS})
+  endif()
+endfunction()
+
+# Register the CTest test "<kind>.<name>", which runs the program <name> with
+# the visualizer <option> <file> and FileCheck with <prefixes> (may be empty).
+# Further arguments are passed on to `test_visualizers run`.
+function(_test_visualizers_add_run kind name test_source option file prefixes)
+  get_filename_component(file "${file}" ABSOLUTE)
+  set(run "${Python3_EXECUTABLE}" -m test_visualizers run
+      --adapter "${TEST_VISUALIZERS_ADAPTER}" ${option} "${file}"
+      ${ARGN} "${test_source}" "$<TARGET_FILE:${name}>")
+  set(filecheck "${TEST_VISUALIZERS_FILECHECK}")
+  if(prefixes)
+    list(APPEND filecheck "${prefixes}")
+  endif()
+  list(APPEND filecheck "${test_source}")
 
   # A CTest test is a single command, so the pipeline runs from a generated
   # script, which checks the exit codes of both processes.
-  set(quoted "")
+  set(run_quoted "")
   foreach(arg IN LISTS run)
-    string(APPEND quoted " \"${arg}\"")
+    string(APPEND run_quoted " \"${arg}\"")
   endforeach()
-  set(script "${CMAKE_CURRENT_BINARY_DIR}/natvis-${name}.cmake")
+  set(filecheck_quoted "")
+  foreach(arg IN LISTS filecheck)
+    string(APPEND filecheck_quoted " \"${arg}\"")
+  endforeach()
+  set(script "${CMAKE_CURRENT_BINARY_DIR}/${kind}-${name}.cmake")
   file(GENERATE OUTPUT "${script}" CONTENT
 "execute_process(
-  COMMAND${quoted}
-  COMMAND \"${TEST_VISUALIZERS_FILECHECK}\" \"${test_source}\"
+  COMMAND${run_quoted}
+  COMMAND${filecheck_quoted}
   RESULTS_VARIABLE results)
 if(NOT results STREQUAL \"0;0\")
   message(FATAL_ERROR \"test_visualizers / FileCheck exit codes: \${results}\")
 endif()
 ")
 
-  add_test(NAME natvis.${name} COMMAND "${CMAKE_COMMAND}" -P "${script}")
-  set_tests_properties(natvis.${name} PROPERTIES
+  add_test(NAME ${kind}.${name} COMMAND "${CMAKE_COMMAND}" -P "${script}")
+  set_tests_properties(${kind}.${name} PROPERTIES
     ENVIRONMENT "PYTHONPATH=${TEST_VISUALIZERS_ROOT}"
-    LABELS natvis)
-  # Report a missing natvis file as "not run" instead of running the test.
-  set_property(TEST natvis.${name} APPEND PROPERTY REQUIRED_FILES "${natvis}")
+    LABELS visualizers)
+  # Report a missing visualizer file as "not run" instead of running the test.
+  set_property(TEST ${kind}.${name} APPEND PROPERTY REQUIRED_FILES "${file}")
 endfunction()

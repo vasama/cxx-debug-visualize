@@ -1,10 +1,11 @@
-# test_visualizers — unit tests for natvis files in VS Code
+# test_visualizers — unit tests for natvis files and gdb pretty printers in VS Code
 
 `test_visualizers` prints what VS Code's debugger shows for your C++ objects, so
 [FileCheck](https://llvm.org/docs/CommandGuide/FileCheck.html) can check your
-`.natvis` visualizers. It uses the same debug adapter that VS Code's C/C++
-extension uses (`cppdbg`), so a passing test means the object shows up that
-way in VS Code's Variables, Watch and hover views.
+visualizers: `.natvis` files, or gdb pretty printers written in Python. It uses
+the same debug adapter that VS Code's C/C++ extension uses (`cppdbg`), so a
+passing test means the object shows up that way in VS Code's Variables, Watch
+and hover views.
 
 ```cpp
 int main() {
@@ -88,13 +89,46 @@ Found by probing cpptools 1.34.4 with gdb 15 and confirmed in the MIEngine sourc
 Most mistakes fail silently. That is why natvis files need tests, and why
 `test_visualizers` also looks for the symptoms it can detect itself.
 
+## How gdb pretty printers work in VS Code
+
+Found by running cpptools 1.34.4 with gdb 15:
+
+* gdb's own [pretty printers](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Pretty-Printing.html)
+  (Python classes with `to_string()`, `children()` and `display_hint()`) are
+  applied by gdb itself; MIEngine shows what gdb's `-var-create` and
+  `-var-list-children` return. They are enabled through `setupCommands`:
+  `-enable-pretty-printing`, plus a command that loads the printers (e.g.
+  `source printers.py`), or gdb's auto-loading. Without
+  `-enable-pretty-printing`, gdb ignores printers and shows plain members.
+* They don't mix with natvis (`visualizerFile` is documented as not
+  compatible with them), so a launch uses one or the other.
+* gdb also loads printers from its init files (`~/.gdbinit`) and auto-loads
+  installed ones, e.g. libstdc++'s for `std::` types. `test_visualizers`
+  switches both off (`-nx`, `set auto-load python-scripts off`), so only the
+  printers under test are active, and results don't depend on the machine.
+
+| Printer feature | Behaviour in VS Code (`cppdbg`) |
+|---|---|
+| `to_string()` | the value; a lazy string with the `"string"` display hint is shown quoted |
+| `to_string()` returning `None` | MIEngine shows a summary of the children, e.g. `{[value] = 42}` |
+| `children()` | the children, with the names the printer yields; no `[Raw View]` |
+| no `children()` | no children at all (not the plain members) |
+| `display_hint()` `"map"` | pairs of children become one child each, named by the key (`[10] = 100`) |
+| many children | all listed at once; no `[More...]` paging |
+| a pointer to a printed type | the pointer is shown as an address (unlike natvis) |
+| exception in `to_string()` / `children()` | **no diagnostic**; the value is empty, or the children are missing |
+| error while loading the script (e.g. a syntax error) | the launch fails: `Unable to start debugging. ... Error occurred in Python: ...` |
+
 ## How test_visualizers works
 
 1. It scans the test source for lines that consist of exactly
    `check_visualizer(identifier);`, and sets a breakpoint on each.
 2. It starts OpenDebugAD7, sends `initialize`, then `launch` with a `cppdbg`
-   configuration like VS Code's (`visualizerFile`, `showDisplayString`,
-   `MIMode`, …), sets the breakpoints and runs the program.
+   configuration like VS Code's, sets the breakpoints and runs the program.
+   The visualizer under test is either a natvis file (`visualizerFile`,
+   `showDisplayString`) or a pretty-printer script (`setupCommands` that
+   enable pretty printing and `source` the script, isolated as described
+   above).
 3. **Every time** a breakpoint is hit, it evaluates the identifier with the DAP
    `evaluate` request (context `watch`, as in the Watch window), walks the tree
    with `variables`, and prints it to stdout. A call in a loop prints once per
@@ -154,14 +188,14 @@ check_visualizer(v) at test_containers.cpp:39
 * Each child is `name = value [type]`, indented one more level. Nodes
   without a type, such as `[Raw View]`, have no `[type]`.
 * Below the object come its children: the items its type's visualizer
-  produces (or its members, if the type has no `<Expand>`). They are not
-  expanded further, since their own children come from their own types'
-  visualizers. The one exception is `[More...]`, which holds children 50 and
-  up of the same list; it is followed to the end, each nested page indented
-  one more level.
-* `[Raw View]` is listed but not expanded. When a visualizer's `<Expand>` is
-  silently dropped, `[Raw View]` disappears and the plain members appear
-  instead.
+  produces (with natvis, its members if the type has no `<Expand>`; with a
+  pretty printer, what `children()` yields). They are not expanded further,
+  since their own children come from their own types' visualizers. The one
+  exception is natvis's `[More...]`, which holds children 50 and up of the same
+  list; it is followed to the end, each nested page indented one more level.
+* natvis's `[Raw View]` is listed but not expanded. When a visualizer's
+  `<Expand>` is silently dropped, `[Raw View]` disappears and the plain members
+  appear instead.
 * Values are printed exactly as the debugger shows them, including addresses.
 
 ### Writing CHECK lines
@@ -182,14 +216,38 @@ check_visualizer(hello);
 * Match addresses with a regex: `{{0x[0-9a-f]+}}`.
 * test_visualizers doesn't flag evaluation errors or unreached calls itself. A failed
   natvis expression shows as `-var-create: unable to create variable object` in
-  place of the value, and an unreached call prints nothing, so give every call
-  CHECK lines that pin the values you care about. Avoid patterns such as
+  place of the value, a pretty printer that raises leaves the value empty or
+  the children missing, and an unreached call prints nothing, so give every
+  call CHECK lines that pin the values you care about. Avoid patterns such as
   `{{.*}}` on values, which would also match the error text.
 * FileCheck ignores differences in amounts of whitespace, so indentation is
   not checked exactly; `CHECK-NEXT` chains still pin the order of the lines.
 * Calls in other functions print when that function runs, so their CHECK
   lines go in execution order, which may not be source order. See `greet()` in
   `example/tests/test_strings.cpp`.
+
+### Testing natvis and pretty printers together
+
+A test source can be checked against both a natvis file and a pretty-printer
+script for the same types, e.g. when a library ships both. `CHECK` lines then
+apply to both runs, and lines where the outputs differ use the prefixes
+`NATVIS` and `GDB`, with FileCheck run as `FileCheck
+--check-prefixes=CHECK,NATVIS` and `--check-prefixes=CHECK,GDB` (the CMake
+helper does this):
+
+```cpp
+check_visualizer(v);
+// CHECK: check_visualizer(v) at test_containers.cpp:[[@LINE-1]]
+// NATVIS-NEXT:   { size=3 } [mylib::Vector<int>]
+// GDB-NEXT:      size=3 [mylib::Vector<int>]
+// NATVIS-NEXT:     [size] = 3 [std::size_t]
+// NATVIS-NEXT:     [capacity] = 4 [std::size_t]
+// CHECK-NEXT:      [0] = 10 [int]
+```
+
+FileCheck reads the lines of all given prefixes as one sequence and ignores
+the others, so `-NEXT` lines chain across prefixes. It also requires every
+given prefix to be used in the file. See `example/tests/` for complete tests.
 
 ### Finding out what the debugger shows
 
@@ -199,8 +257,8 @@ CHECK lines against.
 ## Running
 
 ```
-python3 -m test_visualizers run --adapter PATH --natvis FILE.natvis [options] TEST.cpp PROGRAM \
-    | FileCheck TEST.cpp
+python3 -m test_visualizers run --adapter PATH (--natvis FILE.natvis | --printers FILE.py) \
+    [options] TEST.cpp PROGRAM | FileCheck TEST.cpp
 ```
 
 `TEST.cpp` is the test source: its `check_visualizer(x);` lines get
@@ -209,7 +267,8 @@ breakpoints. Calls in other files of the program are not breakpoints.
 | Option | Meaning |
 |---|---|
 | `--adapter PATH` | **required**: OpenDebugAD7 to use (see below) |
-| `--natvis FILE` | **required**: the natvis file under test (if repeated, the last one is used) |
+| `--natvis FILE` | the natvis file under test |
+| `--printers FILE` | the gdb pretty-printer script (Python) under test; exactly one of `--natvis` and `--printers` is required |
 | `--trace` | dump DAP traffic to stderr |
 
 Use `set -o pipefail` (or check both exit codes) when piping by hand, so an
@@ -235,23 +294,27 @@ enable_testing()
 
 test_visualizers_add_test(test_containers
   SOURCES tests/test_containers.cpp
-  NATVIS natvis/mylib.natvis
+  NATVIS natvis/mylib.natvis                  # at least one of NATVIS and PRINTERS
+  PRINTERS printers/mylib_printers.py
   LINK_LIBRARIES mylib)
 ```
 
-This builds the program with `-O0 -g` and registers a CTest test
-`natvis.test_containers` (label `natvis`). The test pipes test_visualizers's
-output into FileCheck and fails unless both succeed. The first file in
-`SOURCES` is the test source: its `check_visualizer` lines are breakpoints and
-it holds the CHECK lines. Both tools' paths must be set
-when configuring; configuration fails without them. See `example/` for a
-complete project:
+This builds the program once, with `-O0 -g`, and registers a CTest test per
+visualizer: `natvis.test_containers` and `gdb.test_containers` (label
+`visualizers`). Each test pipes test_visualizers's output into FileCheck and
+fails unless both succeed. The first file in `SOURCES` is the test source: its
+`check_visualizer` lines are breakpoints and it holds the CHECK lines. With
+both visualizers, FileCheck runs with the `NATVIS` and `GDB` prefixes described
+above; with one, it uses only `CHECK`. Both tools' paths must be set when
+configuring; configuration fails without them. See `example/` for a complete
+project, which tests `natvis/mylib.natvis` and `printers/mylib_printers.py`
+against the same tests:
 
 ```
 cmake -S example -B build \
     -DTEST_VISUALIZERS_ADAPTER=/path/to/OpenDebugAD7 \
     -DTEST_VISUALIZERS_FILECHECK=/usr/lib/llvm-18/bin/FileCheck
-cmake --build build && ctest --test-dir build -L natvis
+cmake --build build && ctest --test-dir build -L visualizers
 ```
 
 ## Getting the debug adapter
@@ -282,15 +345,19 @@ an `OpenDebugAD7` executable (or `OpenDebugAD7.dll`, run with `dotnet`).
 python3 -m selftest --adapter /path/to/OpenDebugAD7
 ```
 
-The tests of the `check_visualizer` line scanner always run. The
-integration tests need `--adapter`, gdb and g++/clang++, and are skipped
-otherwise. They check the printed trees (including unexpanded children,
-nested `[More...]` pages, calls in loops and calls never reached), how broken
-natvis shows in them (evaluation errors, a dropped `Expand`), and the errors
-test_visualizers reports (malformed XML, crashes).
+The tests of the `check_visualizer` line scanner and of the launch
+configurations always run. The integration tests need `--adapter`, gdb and
+g++/clang++, and are skipped otherwise. They check the printed trees for
+natvis files and pretty printers (including unexpanded children, nested
+`[More...]` pages, the `map` display hint, calls in loops and calls never
+reached), how broken visualizers show in them (natvis evaluation errors, a
+dropped `Expand`, raising printers), and the errors test_visualizers reports
+(malformed XML, a printer script that doesn't load, crashes).
 
 ## Limitations
 
 * The debugger is always the `gdb` found on `PATH`; lldb is not supported.
 * Windows' `cppvsdbg` / Visual Studio natvis is a different engine and is not
   tested by this tool.
+* Exceptions inside pretty printers pass silently (see above); only the CHECK
+  lines catch them.

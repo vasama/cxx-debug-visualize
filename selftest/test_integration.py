@@ -42,9 +42,12 @@ class IntegrationTests(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def run_natvis(self, natvis, variant="plain"):
+    # Run the fixture with a natvis file or a pretty-printer script from
+    # fixtures/; return (stdout, stderr lines).
+    def run_visualizer(self, variant="plain", *, natvis=None, printers=None):
         runner = Runner(ADAPTER, self.programs[variant], SOURCE,
-                        os.path.join(FIXTURES, natvis))
+                        natvis=natvis and os.path.join(FIXTURES, natvis),
+                        printers=printers and os.path.join(FIXTURES, printers))
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             ok = runner.run()
@@ -54,7 +57,7 @@ class IntegrationTests(unittest.TestCase):
         return out.getvalue(), errors
 
     def test_good_natvis(self):
-        output, errors = self.run_natvis("good.natvis")
+        output, errors = self.run_visualizer(natvis="good.natvis")
         self.assertEqual(output, "\n".join([
             "check_visualizer(pr) at prog.cpp:17",
             "  <1,2> [Pair]",
@@ -95,7 +98,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_evaluation_errors(self):
-        output, errors = self.run_natvis("bad_expr.natvis")
+        output, errors = self.run_visualizer(natvis="bad_expr.natvis")
         # the DisplayString refers to a missing member: the engine's error text
         # appears in place of the value, for the CHECK lines to catch
         self.assertIn("<1,-var-create: unable to create variable object> [Pair]", output)
@@ -106,20 +109,65 @@ class IntegrationTests(unittest.TestCase):
 
     def test_malformed_natvis(self):
         # the engine ignores the file and reports it on the debug console
-        output, errors = self.run_natvis("malformed.natvis")
+        output, errors = self.run_visualizer(natvis="malformed.natvis")
         self.assertIn("{...} [Pair]", output)
         # passed on verbatim, as the adapter reported it
         self.assertTrue(any(e.startswith("[Natvis] [Error]") and "error in XML document" in e
                             for e in errors), errors)
 
     def test_crash(self):
-        output, errors = self.run_natvis("good.natvis", variant="crash")
+        output, errors = self.run_visualizer("crash", natvis="good.natvis")
         # the crash comes after the last call, so every call has printed
         self.assertTrue(output.startswith("check_visualizer(pr) at prog.cpp:17\n"), output)
         self.assertIn("check_visualizer(big) at prog.cpp:31\n", output)
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
         self.assertIn("crash", crash[0])
+
+    def test_good_printers(self):
+        output, errors = self.run_visualizer(printers="good_printers.py")
+        self.assertEqual(output, "\n".join([
+            # a printer without children() shows no children
+            "check_visualizer(pr) at prog.cpp:17",
+            "  <1,2> [Pair]",
+            "check_visualizer(arr) at prog.cpp:18",
+            "  n=3 [Arr]",
+            "    [0] = 7 [int]",
+            "    [1] = 8 [int]",
+            "    [2] = 9 [int]",
+            "check_visualizer(pr) at prog.cpp:21",
+            "  <0,2> [Pair]",
+            "check_visualizer(pr) at prog.cpp:21",
+            "  <1,2> [Pair]",
+            # the "map" display hint names each value by its key
+            "check_visualizer(pa) at prog.cpp:26",
+            "  pairs=2 [PairArr]",
+            "    [3] = 4 [int]",
+            "    [5] = 6 [int]",
+            # no [More...] paging, and no [Raw View]
+            "check_visualizer(big) at prog.cpp:31",
+            "  n=120 [Arr]",
+        ] + [f"    [{i}] = {i} [int]" for i in range(120)] + [
+            "",
+        ]))
+        self.assertEqual(errors, [])
+
+    def test_printer_errors(self):
+        output, errors = self.run_visualizer(printers="broken_printers.py")
+        # exceptions in printers pass silently: the value stays empty and the
+        # children are missing, for the CHECK lines to catch
+        self.assertIn("check_visualizer(pr) at prog.cpp:17\n   [Pair]\n", output)
+        self.assertIn("check_visualizer(arr) at prog.cpp:18\n  n=3 [Arr]\n"
+                      "check_visualizer(pr)", output)
+        self.assertEqual(errors, [])
+
+    def test_malformed_printers(self):
+        # sourcing the script fails, so the launch fails with gdb's message
+        output, errors = self.run_visualizer(printers="malformed_printers.py")
+        self.assertEqual(output, "")
+        self.assertTrue(any(e.startswith("Unable to start debugging.") and "invalid syntax" in e
+                            for e in errors), errors)
+
 
 if __name__ == "__main__":
     unittest.main()
