@@ -252,7 +252,7 @@ visualize(v) at test_containers.cpp:34
 A test's expected output is a text file holding exactly what cxx-debug-visualize
 prints, one per visualizer and debug adapter: the example project's tests (see
 "CMake / CTest") compare the output of `tests/test_containers.cpp` with
-`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-adapter.txt`
+`tests/test_containers.natvis.txt`, `tests/test_containers.gdb-vs.txt`
 (pretty printers through OpenDebugAD7), `tests/test_containers.gdb-native.txt`
 (pretty printers through gdb's own DAP support) and
 `tests/test_containers.lldb-native.txt` (lldb formatters through lldb-dap).
@@ -382,7 +382,7 @@ add_visualizer_test(test_containers
 ```
 
 This registers `natvis.test_containers` for the natvis file, and for the
-pretty printers both `gdb-adapter.test_containers` (through OpenDebugAD7, as in
+pretty printers both `gdb-vs.test_containers` (through OpenDebugAD7, as in
 Visual Studio) and `gdb-native.test_containers` (through gdb's own DAP support, which
 needs GDB 14 or later), and `lldb-native.test_containers` for the lldb
 formatters (through lldb-dap, which must be on `PATH` when the tests run). Each
@@ -390,7 +390,7 @@ test runs cxx-debug-visualize and fails unless it succeeds and its output
 matches the expected file (see "Expected output" above). The first file in
 `SOURCES` is the test source: its `visualize` lines are breakpoints, and its
 expected files sit next to it (`tests/test_containers.natvis.txt`,
-`tests/test_containers.gdb-adapter.txt`, `tests/test_containers.gdb-native.txt`,
+`tests/test_containers.gdb-vs.txt`, `tests/test_containers.gdb-native.txt`,
 `tests/test_containers.lldb-native.txt`). The example
 tests `visualizers/mylib.natvis`, `visualizers/mylib_printers.py` and
 `visualizers/mylib_formatters.py` against the same tests:
@@ -406,7 +406,7 @@ both the example's tests and the self-tests (see "Self-tests"):
 
 | Option | Tests |
 |---|---|
-| `CXXDV_TEST_VS` | through OpenDebugAD7 (natvis, gdb-adapter), if `CXXDV_TEST_GDB` is also on, as OpenDebugAD7 runs gdb; needs `CXXDV_VS_ADAPTER`, or configuration fails |
+| `CXXDV_TEST_VS` | through OpenDebugAD7 (natvis, gdb-vs), if `CXXDV_TEST_GDB` is also on, as OpenDebugAD7 runs gdb; needs `CXXDV_VS_ADAPTER`, or configuration fails |
 | `CXXDV_TEST_GDB` | through gdb's own DAP support (gdb-native) |
 | `CXXDV_TEST_LLDB` | through lldb-dap (lldb-native) |
 

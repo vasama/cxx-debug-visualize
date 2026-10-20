@@ -15,13 +15,13 @@
 # and registers CTest tests labelled
 # "visualizers", which run <name> under cxx-debug-visualize:
 #   natvis.<name>       NATVIS, through the Visual Studio debug adapter (OpenDebugAD7)
-#   gdb-adapter.<name>  GDB_PRINTERS, through OpenDebugAD7
+#   gdb-vs.<name>       GDB_PRINTERS, through OpenDebugAD7
 #   gdb-native.<name>   GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
 #   lldb-native.<name>  LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18),
 #                       which must be on PATH when the tests run
 # Each compares the printed Variables trees with an expected output file next to the test
 # source, the first file in SOURCES: <test>.<kind>.txt, e.g. <test>.natvis.txt,
-# <test>.gdb-adapter.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
+# <test>.gdb-vs.txt, <test>.gdb-native.txt and <test>.lldb-native.txt for tests/<test>.cpp.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the output is
 # replaced by "0x?" before comparing; expected files contain "0x?" in their place.  A test fails
@@ -103,7 +103,7 @@ function(add_visualizer_test name)
                         --natvis "${TV_NATVIS}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS AND vs)
-    _add_visualizer_run(gdb-adapter ${name} "${test_source}" vs
+    _add_visualizer_run(gdb-vs ${name} "${test_source}" vs
                         --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
   endif()
   if(TV_GDB_PRINTERS AND CXXDV_TEST_GDB)
