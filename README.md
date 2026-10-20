@@ -6,8 +6,9 @@ as defined by the provided visualization script (Natvis, GDB pretty printer, or 
 `cxx-debug-visualize` relies on the now widely supported
 [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol).
 * Natvis support is implemented using Visual Studio's open source debug adapter
-([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)).
-* GDB pretty printers can be tested either via the Visual Studio adapter, or using GDB's native
+([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)). On Windows, Natvis can instead be tested
+with the Windows debug engine (DbgEng), through the debug adapter in [`dbgeng-adapter/`][dbgeng].
+* GDB pretty printers can be tested either via the MIEngine adapter, or using GDB's native
   DAP support (GDB 14 or later), although the output between the two adapters may vary.
 * LLDB formatters can be tested using LLDB's DAP server (`lldb-dap`, or `lldb-vscode` prior to LLVM
   18).
@@ -62,7 +63,8 @@ pipx install cxx-debug-visualize
 ```
 
 Python 3.10 or later is required, but otherwise only the standard library is used. Usage requires
-`gdb` or `lldb-dap` and optionally `OpenDebugAD7` (for testing Natvis visualizers, only via GDB).
+`gdb` or `lldb-dap` and optionally `OpenDebugAD7` (for testing Natvis visualizers, only via GDB), or
+on Windows the dbgeng adapter (for testing Natvis visualizers with DbgEng).
 
 ## Usage
 
@@ -77,21 +79,27 @@ cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
   at each breakpoint.
 * Exactly one visualizer script must be specified using `--natvis`, `--gdb-printers`, or
   `--lldb-formatters`.
-* The debugger executable to use may be specified using `--debugger-path`.
-* The type of debugger to use may be specified using `--debugger` (`gdb` or `lldb`), but in most
-  cases it can be selected automatically.
-* The type of debug adapter to use may be specified using `--adapter` (`native` or `miengine`), but
-  in most cases it can be selected automatically. Only the `miengine` adapter supports Natvis.
+* The debugger executable to use may be specified using `--debugger-path`. For `dbgeng`, it is the
+  directory of `dbgeng.dll` (or a file in it, such as `cdb.exe`), by default that of the Debugging
+  Tools for Windows.
+* The type of debugger to use may be specified using `--debugger` (`gdb`, `lldb` or `dbgeng`), but
+  in most cases it can be selected automatically.
+* The type of debug adapter to use may be specified using `--adapter` (`native`, `miengine` or
+  `dbgeng`), but in most cases it can be selected automatically. Only the `miengine` and `dbgeng`
+  adapters support Natvis, and `dbgeng` supports only Natvis.
 * `--miengine` (or `$CXX_DEBUG_VISUALIZE_MIENGINE`) may be used to specify the `OpenDebugAD7`
   executable path. If neither is specified, the user's home directory is searched for an installed
   VS Code C/C++ extension.
+* `--dbgeng` (or `$CXX_DEBUG_VISUALIZE_DBGENG`) specifies the dbgeng adapter executable path, and
+  selects the `dbgeng` adapter and debugger. It cannot be combined with `--miengine`.
 * Unparsed arguments are passed to the test program. Use `--` to escape options.
 
 ## Development
 
 Building and running the test suite requires `CMake`, a C++ compiler, either `gdb` or `lldb-dap`,
-and optionally `OpenDebugAD7`. Only the tests that can be executed using the specified set of tools
-are configured. Due to the need for debug information, only debug builds are supported.
+and optionally `OpenDebugAD7`, or on Windows the dbgeng adapter (`-DCXXDEBVIS_DBGENG`). Only the
+tests that can be executed using the specified set of tools are configured. Due to the need for
+debug information, only debug builds are supported.
 
 ```bash
 cmake -B build . \
@@ -125,11 +133,25 @@ Use `--trace` to print all DAP traffic to stderr.
   installation. Give `-o` an absolute path, since the script changes to its own directory. See the
   [test workflow][test_workflow] for a full CI example.
 
+## Building the dbgeng adapter
+
+The dbgeng adapter is built from [`dbgeng-adapter/`][dbgeng] with CMake 3.24 or later and the
+Windows SDK (e.g. from Visual Studio's C++ workload), and uses
+[nlohmann/json](https://github.com/nlohmann/json), found installed or downloaded. At run time it
+needs the Debugging Tools for Windows, whose `dbgeng.dll` it loads.
+
+```powershell
+cmake -S dbgeng-adapter -B build-dbgeng
+cmake --build build-dbgeng --config Release
+cxx-debug-visualize --dbgeng build-dbgeng\Release\dbgeng-adapter.exe --natvis my.natvis ...
+```
+
 ## Limitations
 
 * `lldb` with the MIEngine debug adapter is currently unsupported (VS Code on macOS).
 * `cppvsdbg` uses a different engine and is currently unsupported (Visual Studio Natvis).
-* `cxx-debug-visualize` has thus far only been tested on Linux.
+* `cxx-debug-visualize` has thus far only been tested on Linux. The dbgeng adapter is a prototype,
+  and has not yet been tested.
 
 ## License
 
@@ -144,6 +166,7 @@ without any attribution requirements.
 
 [header]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/include/cxx_debug_visualize.hpp
 [examples]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/examples/
+[dbgeng]: https://github.com/vasama/cxx-debug-visualize/tree/HEAD/dbgeng-adapter/
 [license]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE.md
 [license-mit-0]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/LICENSE-MIT-0
 [test_workflow]: https://github.com/vasama/cxx-debug-visualize/blob/HEAD/.github/workflows/test.yml

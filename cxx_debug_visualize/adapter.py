@@ -42,11 +42,11 @@ def find_lldb_dap() -> str | None:
     return shutil.which("lldb-dap") or shutil.which("lldb-vscode")
 
 
-# Command line used to start the adapter.
+# Command line used to start OpenDebugAD7.
 #
-# The extension ships a self-contained executable. A .NET framework-dependent build of MIEngine
-# produces OpenDebugAD7.dll, which runs via `dotnet`.
-def adapter_argv(path: str) -> list[str]:
+# The VS Code C/C++ extension ships a self-contained executable. A .NET framework-dependent build of
+# MIEngine produces OpenDebugAD7.dll, which runs via `dotnet`.
+def miengine_argv(path: str) -> list[str]:
     if path.endswith(".dll"):
         return ["dotnet", path]
 

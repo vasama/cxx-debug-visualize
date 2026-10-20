@@ -51,6 +51,7 @@ class Runner:
     def __init__(
         self,
         adapter: str | None,
+        adapter_path: str | None,
         source: str,
         program: str,
         program_args: list[str],
@@ -63,6 +64,7 @@ class Runner:
         log: Callable[[str], None] | None = None,
     ) -> None:
         self._adapter = adapter
+        self._adapter_path = adapter_path
         self._program = program
         self._source = os.path.abspath(source)
         self._debugger = debugger
@@ -147,6 +149,7 @@ class Runner:
 
         session = DebugSession(
             self._adapter,
+            self._adapter_path,
             self._program,
             self._program_args,
             debugger=self._debugger,

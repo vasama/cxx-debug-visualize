@@ -1,9 +1,9 @@
 # End-to-end tests of cxx-debug-visualize against the real debug adapter.
 #
 # Run through `python3 -m tests` (e.g. by CTest), which passes the built fixture program
-# test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --miengine).
-# A test class is skipped, and left out of --list, unless every executable it uses was given, and
-# fails without the fixture program.
+# test_program.cpp (--program) and the executables to test with (--gdb, --lldb-dap, --miengine,
+# --dbgeng). A test class is skipped, and left out of --list, unless every executable it uses was
+# given, and fails without the fixture program.
 
 import contextlib
 import io
@@ -22,14 +22,16 @@ SOURCE = os.path.join(FIXTURES, "test_program.cpp")
 # Set from the command line by tests/__main__.py: the path of the built fixture program, and
 # the full paths of the executables to test with, by option name (None if not given).
 PROGRAM = None
-TOOLS = {"gdb": None, "lldb-dap": None, "miengine": None}
+TOOLS = {"gdb": None, "lldb-dap": None, "miengine": None, "dbgeng": None}
 
 
 # Runs cxx-debug-visualize on the fixture program; the test classes below say which debug adapter
 # to use.
 class FixtureTestCase(unittest.TestCase):
-    # path of OpenDebugAD7, or None for the debugger's own DAP support (the default)
+    # the debug adapter, "miengine" or "dbgeng", and its path; None for the debugger's own DAP
+    # support (the default)
     adapter = None
+    adapter_path = None
     debugger = "gdb"
     # the executables the tests use, as keys of TOOLS
     tools = ()
@@ -53,11 +55,13 @@ class FixtureTestCase(unittest.TestCase):
         fixture = lambda name: name and os.path.join(FIXTURES, name)
         runner = Runner(
             self.adapter,
+            self.adapter_path,
             SOURCE,
             PROGRAM,
             list(program_args),
             debugger=self.debugger,
-            debugger_path=TOOLS["gdb" if self.debugger == "gdb" else "lldb-dap"],
+            # dbgeng's adapter finds DbgEng itself
+            debugger_path={"gdb": TOOLS["gdb"], "lldb": TOOLS["lldb-dap"]}.get(self.debugger),
             natvis=fixture(natvis),
             gdb_printers=fixture(gdb_printers),
             lldb_formatters=fixture(lldb_formatters),
@@ -72,12 +76,13 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class IntegrationTests(FixtureTestCase):
+    adapter = "miengine"
     tools = ("miengine", "gdb")
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.adapter = TOOLS["miengine"]
+        cls.adapter_path = TOOLS["miengine"]
 
     def test_good_natvis(self):
         output, errors = self.run_visualizer(natvis="good.natvis")
@@ -375,6 +380,77 @@ class LldbTests(FixtureTestCase):
 
     def test_crash(self):
         output, errors = self.run_visualizer("crash", lldb_formatters="good_formatters.py")
+        # the crash comes before any call, so nothing has printed
+        self.assertEqual(output, "")
+        crash = [e for e in errors if "program stopped unexpectedly" in e]
+        self.assertEqual(len(crash), 1, errors)
+        self.assertIn("crash", crash[0])
+
+
+# natvis through the dbgeng debug adapter (dbgeng-adapter/), with the Windows debug engine, whose
+# data model applies the natvis file.
+class DbgengTests(FixtureTestCase):
+    adapter = "dbgeng"
+    debugger = "dbgeng"
+    tools = ("dbgeng",)
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.adapter_path = TOOLS["dbgeng"]
+
+    def test_good_natvis(self):
+        output, errors = self.run_visualizer(natvis="good.natvis")
+        self.assertEqual(
+            output,
+            "\n".join(
+                [
+                    "visualize(pr) at test_program.cpp:44",
+                    "  <1,2> [pair]",
+                    "    a = 1 [int]",
+                    "    b = 2 [int]",
+                    "visualize(arr) at test_program.cpp:51",
+                    "  {...} [int_array]",
+                    "    [0] = 7 [int]",
+                    "    [1] = 8 [int]",
+                    "    [2] = 9 [int]",
+                    "visualize(pr) at test_program.cpp:60",
+                    "  <0,2> [pair]",
+                    "    a = 0 [int]",
+                    "    b = 2 [int]",
+                    "visualize(pr) at test_program.cpp:60",
+                    "  <1,2> [pair]",
+                    "    a = 1 [int]",
+                    "    b = 2 [int]",
+                    "visualize(pa) at test_program.cpp:74",
+                    "  {...} [pair_array]",
+                    "    [0] = <3,4> [pair]",
+                    "    [1] = <5,6> [pair]",
+                    "visualize(big) at test_program.cpp:83",
+                    "  {...} [int_array]",
+                ]
+                + [f"    [{i}] = {i} [int]" for i in range(120)]
+                + [
+                    # a call in another function, on a reference, which the adapter shows as the
+                    # object it refers to
+                    "visualize(ref) at test_program.cpp:32",
+                    "  <1,2> [pair const &]",
+                    "    a = 1 [int]",
+                    "    b = 2 [int]",
+                    "",
+                ]
+            ),
+        )
+        self.assertEqual(errors, [])
+
+    def test_malformed_natvis(self):
+        # the engine does not load the file, which the adapter reports as natvis diagnostics
+        output, errors = self.run_visualizer(natvis="malformed.natvis")
+        self.assertIn("{...} [pair]", output)
+        self.assertTrue(any(e.startswith("[Natvis]") for e in errors), errors)
+
+    def test_crash(self):
+        output, errors = self.run_visualizer("crash", natvis="good.natvis")
         # the crash comes before any call, so nothing has printed
         self.assertEqual(output, "")
         crash = [e for e in errors if "program stopped unexpectedly" in e]

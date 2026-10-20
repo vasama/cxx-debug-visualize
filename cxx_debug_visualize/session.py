@@ -4,7 +4,7 @@ import os
 from collections.abc import Callable
 from typing import Any
 
-from .adapter import adapter_argv, find_lldb_dap
+from .adapter import miengine_argv, find_lldb_dap
 from .dap import DapClient, DapError
 
 # Natvis diagnostics (bad XML, unparsable type names, ...) arrive as debug
@@ -29,14 +29,15 @@ class DebugSession:
     # The visualizer under test is a natvis file, a gdb pretty-printer script or an lldb formatter
     # script. Exactly one must be specified.
     #
-    # With `adapter` None, the debugger's native DAP support is used instead of OpenDebugAD7
-    # (`gdb -i dap`, or lldb-dap). In this mode natvis is not supported. lldb is only supported
-    # this way.
+    # `adapter_path` is the path of the debug adapter executable (e.g. OpenDebugAD7). When
+    # `adapter_path` is None, the debugger's native DAP support is used instead (`gdb -i dap`, or
+    # lldb-dap).
     #
     # `debugger_path` is the debugger to use instead of the one found on PATH.
     def __init__(
         self,
         adapter: str | None,
+        adapter_path: str | None,
         program: str,
         program_args: list[str],
         *,
@@ -51,15 +52,25 @@ class DebugSession:
         assert [natvis, gdb_printers, lldb_formatters].count(None) == 2, (
             "exactly one of natvis, gdb_printers or lldb_formatters is required"
         )
-        assert debugger in ("gdb", "lldb"), f"unknown debugger: {debugger}"
-        assert adapter is not None or natvis is None, "native DAP does not support natvis"
+        assert (adapter is None) == (adapter_path is None), (
+            "adapter type and path must be specified together"
+        )
+        assert debugger in ("gdb", "lldb", "dbgeng"), f"unknown debugger: {debugger}"
+        assert natvis is None or adapter is not None, "native DAP does not support natvis"
+        assert debugger != "dbgeng" or (adapter is not None and natvis is not None), (
+            "dbgeng is only supported through an adapter, with a natvis visualizer"
+        )
         assert debugger != "lldb" or adapter is None, (
             "lldb is only supported through its native DAP support"
+        )
+        assert natvis is None or adapter == "miengine" or debugger == "dbgeng", (
+            "natvis needs MIEngine or dbgeng"
         )
         assert gdb_printers is None or debugger == "gdb", "gdb_printers needs gdb"
         assert lldb_formatters is None or debugger == "lldb", "lldb_formatters needs lldb"
 
         self._adapter = adapter
+        self._adapter_path = adapter_path
         self._debugger = debugger
         self._debugger_path = debugger_path
         self._program = os.path.abspath(program)
@@ -81,6 +92,17 @@ class DebugSession:
     # -- Lifecycle -----------------------------------------------------------
 
     def _launch_config(self) -> dict[str, Any]:
+        if self._debugger == "dbgeng":
+            config: dict[str, Any] = {
+                "program": self._program,
+                "args": self._program_args,
+                "cwd": os.path.dirname(self._program),
+                "visualizerFile": self._natvis,
+            }
+            if self._debugger_path:
+                config["debuggerPath"] = self._debugger_path
+            return config
+
         if self._debugger == "lldb":
             # Only the formatters under test are active. lldb-dap is instructed to read no init
             # files and to disable any built-in C++ formatters (e.g. for libstdc++).
@@ -141,8 +163,8 @@ class DebugSession:
     # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
     # OpenDebugAD7's reply only echoes the requested lines, so "line" is cleared to keep it from
-    # being mistaken for where a breakpoint really landed. gdb's and lldb-dap's replies have the
-    # real lines.
+    # being mistaken for where a breakpoint really landed. Otherwise, the reply is expected to
+    # contain the actual line.
     def _set_breakpoints(self, source: str, lines: list[int]) -> list[int]:
         body = self._client.request(
             "setBreakpoints",
@@ -154,7 +176,7 @@ class DebugSession:
 
         breakpoints = body.get("breakpoints", [])
         for bp in breakpoints:
-            if self._adapter is not None:
+            if self._adapter == "miengine":
                 bp["line"] = None
 
             # Events are handled while waiting for the reply, so a more recent entry may already
@@ -168,7 +190,10 @@ class DebugSession:
     # Returns {source path: [resolved breakpoint dicts]} in request order.
     def start(self, breakpoints: dict[str, list[int]]) -> dict[str, list[int]]:
         if self._adapter is not None:
-            argv = adapter_argv(self._adapter)
+            if self._adapter == "miengine":
+                argv = miengine_argv(self._adapter_path)
+            else:
+                argv = [self._adapter_path]
         elif self._debugger == "lldb":
             lldb_dap = self._debugger_path or find_lldb_dap()
             if lldb_dap is None:
@@ -209,16 +234,14 @@ class DebugSession:
         resolved: dict[str, list[int]] = {}
 
         if self._adapter is None and self._debugger == "gdb":
-            # OpenDebugAD7 and lldb-dap send "initialized" in response to "launch", and only run the
-            # program after "configurationDone", as the DAP specification intends. gdb 14 and 15
-            # instead send "initialized" right after "initialize", and run the program as soon as
-            # "launch" arrives, after which "configurationDone" fails with "notStopped" because the
-            # program is running. So gdb is configured first and launched last.
+            # Correctly functioning adapters send "initialized" in response to "launch", and only
+            # run the program after "configurationDone", as the DAP specification intends. GDB 14
+            # and 15 instead send "initialized" right after "initialize", and run the program as
+            # soon as "launch" arrives, after which "configurationDone" fails with "notStopped"
+            # because the program is running. So gdb is configured first and launched last.
             #
             # GDB 16 fixed this: "launch" may be sent at any time after "initialized", but does not
-            # take effect (or send its response) until "configurationDone" has been sent (see
-            # "Changes in GDB 16" in gdb/NEWS). Once GDB 16 is the minimum, gdb can use the same
-            # order as the other adapters below, and this branch can go.
+            # take effect (or send its response) until "configurationDone" has been sent.
             self._client.wait_event("initialized")
             for source, lines in breakpoints.items():
                 resolved[source] = self._set_breakpoints(source, lines)
