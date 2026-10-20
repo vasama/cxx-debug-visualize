@@ -213,8 +213,9 @@ A test's expected output is a text file holding exactly what cxx-debug-visualize
 prints, one per visualizer and debug adapter: the CMake helper below compares
 the output of `tests/test_containers.cpp` with
 `tests/test_containers.natvis.txt`, `tests/test_containers.gdb.txt` (pretty
-printers through OpenDebugAD7) and `tests/test_containers.gdb-dap.txt` (pretty
-printers through gdb's own DAP support). Before comparing, it replaces every
+printers through OpenDebugAD7), `tests/test_containers.gdb-dap.txt` (pretty
+printers through gdb's own DAP support) and `tests/test_containers.lldb-dap.txt`
+(lldb formatters through lldb-dap). Before comparing, it replaces every
 hexadecimal number (`0x...`) with `0x?`, because addresses differ between
 machines; the expected files contain `0x?` in their place:
 
@@ -240,15 +241,19 @@ When a test fails, the helper prints a diff and writes the actual output to
 `<kind>.<name>.actual.txt` in the build directory. To create or update an
 expected file, check that output and copy it over the expected file.
 
-### Testing natvis and pretty printers together
+### Testing several visualizers together
 
-A test source can be checked against both a natvis file and a pretty-printer
-script for the same types, e.g. when a library ships both; each run has its
-own expected file. The example's printers (`example/printers/mylib_printers.py`)
-mirror `example/natvis/mylib.natvis` (same display strings and children, the
-members of `Point`, `[0]`, `[1]`, ... for the map), so its expected files are
-the same except where gdb formats a value in its own way. See `example/tests/`
-for complete tests.
+A test source can be checked against a natvis file, a pretty-printer script
+and an lldb formatter script for the same types, e.g. when a library ships
+all of them; each run has its own expected file. The example's printers
+(`example/printers/mylib_printers.py`) and formatters
+(`example/formatters/mylib_formatters.py`) mirror `example/natvis/mylib.natvis`
+(same display strings and children, the members of `Point`, `[0]`, `[1]`, ...
+for the map), so its expected files are the same except where a debugger
+formats a value in its own way: gdb for `Optional<String*>`, and lldb-dap,
+which puts a space before summaries and shows a reference's or pointer's
+address before the summary of what it points to. See `example/tests/` for
+complete tests.
 
 ### Finding out what the debugger shows
 
@@ -305,8 +310,9 @@ enable_testing()
 
 cxx_debug_visualize_add_test(test_containers
   SOURCES tests/test_containers.cpp
-  NATVIS natvis/mylib.natvis                  # at least one of NATVIS and GDB_PRINTERS
+  NATVIS natvis/mylib.natvis                  # at least one of these three
   GDB_PRINTERS printers/mylib_printers.py
+  LLDB_FORMATTERS formatters/mylib_formatters.py
   LINK_LIBRARIES mylib)
 ```
 
@@ -314,16 +320,19 @@ This builds the program once, with `-O0 -g`, and registers CTest tests (label
 `visualizers`): `natvis.test_containers` for the natvis file, and for the
 pretty printers both `gdb.test_containers` (through OpenDebugAD7, as in VS
 Code) and `gdb-dap.test_containers` (through gdb's own DAP support, which needs
-GDB 14 or later; `$CXX_DEBUG_VISUALIZE_ADAPTER` is ignored there). Each test
-runs cxx-debug-visualize and fails unless it succeeds and its output matches
-the expected file (see "Expected output" above). The first
-file in `SOURCES` is the test source: its `visualize` lines are breakpoints,
-and its expected files sit next to it (`tests/test_containers.natvis.txt`,
-`tests/test_containers.gdb.txt`, `tests/test_containers.gdb-dap.txt`).
-`CXX_DEBUG_VISUALIZE_ADAPTER` must be set when
-configuring; configuration fails without it. See `example/` for a complete
-project, which tests `natvis/mylib.natvis` and `printers/mylib_printers.py`
-against the same tests:
+GDB 14 or later; `$CXX_DEBUG_VISUALIZE_ADAPTER` is ignored there), and
+`lldb-dap.test_containers` for the lldb formatters (through lldb-dap, which
+must be on `PATH` when the tests run). Each test runs cxx-debug-visualize and
+fails unless it succeeds and its output matches the expected file (see
+"Expected output" above). The first file in `SOURCES` is the test source: its
+`visualize` lines are breakpoints, and its expected files sit next to it
+(`tests/test_containers.natvis.txt`, `tests/test_containers.gdb.txt`,
+`tests/test_containers.gdb-dap.txt`, `tests/test_containers.lldb-dap.txt`).
+With `NATVIS` or `GDB_PRINTERS`, `CXX_DEBUG_VISUALIZE_ADAPTER` must be set
+when configuring; configuration fails without it. See `example/` for a
+complete project, which tests `natvis/mylib.natvis`,
+`printers/mylib_printers.py` and `formatters/mylib_formatters.py` against the
+same tests:
 
 ```
 cmake -S example -B build -DCXX_DEBUG_VISUALIZE_ADAPTER=/path/to/OpenDebugAD7

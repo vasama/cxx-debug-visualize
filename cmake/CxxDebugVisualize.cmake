@@ -5,6 +5,7 @@
 #     SOURCES <test.cpp>...              # the first one is the test source
 #     [NATVIS <file.natvis>]             # natvis file under test
 #     [GDB_PRINTERS <printers.py>]       # gdb pretty-printer script under test
+#     [LLDB_FORMATTERS <formatters.py>]  # lldb formatter script under test
 #     [LINK_LIBRARIES <lib>...]
 #     [INCLUDE_DIRECTORIES <dir>...]
 #     [ARGS <option>...]                 # cxx-debug-visualize options, e.g. --trace
@@ -15,9 +16,12 @@
 #   natvis.<name>   NATVIS, through the VS Code C/C++ debug adapter (OpenDebugAD7)
 #   gdb.<name>      GDB_PRINTERS, through OpenDebugAD7
 #   gdb-dap.<name>  GDB_PRINTERS, through gdb's own DAP support (GDB 14 and later)
+#   lldb-dap.<name> LLDB_FORMATTERS, through lldb-dap (lldb-vscode before LLVM 18),
+#                   which must be on PATH when the tests run
 # Each compares the printed Variables trees with an expected output file next
 # to the test source, the first file in SOURCES: <test>.<kind>.txt, e.g.
-# <test>.natvis.txt, <test>.gdb.txt and <test>.gdb-dap.txt for tests/<test>.cpp.
+# <test>.natvis.txt, <test>.gdb.txt, <test>.gdb-dap.txt and <test>.lldb-dap.txt
+# for tests/<test>.cpp.
 # cxx-debug-visualize breaks on the test source's visualize() lines.
 #
 # Addresses differ between machines, so every hexadecimal number (0x...) in the
@@ -27,9 +31,9 @@
 # written to <kind>.<name>.actual.txt in the build directory, for review or to
 # copy over the expected file, and a diff is printed.
 #
-# Cache variable (required):
+# Cache variable (required for NATVIS and GDB_PRINTERS):
 #   CXX_DEBUG_VISUALIZE_ADAPTER    path to OpenDebugAD7, passed as --adapter
-#                                  (gdb-dap tests use no adapter)
+#                                  (gdb-dap and lldb-dap tests use no adapter)
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
@@ -41,20 +45,21 @@ sys.stdout.writelines(difflib.unified_diff(old, open(actual).readlines(), expect
 
 get_filename_component(CXX_DEBUG_VISUALIZE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(CXX_DEBUG_VISUALIZE_ADAPTER "" CACHE FILEPATH "Path to OpenDebugAD7")
-if(NOT CXX_DEBUG_VISUALIZE_ADAPTER)
-  message(FATAL_ERROR "CxxDebugVisualize: set CXX_DEBUG_VISUALIZE_ADAPTER to the path of "
-                      "OpenDebugAD7, e.g. "
-                      "-DCXX_DEBUG_VISUALIZE_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7")
-endif()
 
 function(cxx_debug_visualize_add_test name)
-  cmake_parse_arguments(PARSE_ARGV 1 TV "" "NATVIS;GDB_PRINTERS"
+  cmake_parse_arguments(PARSE_ARGV 1 TV "" "NATVIS;GDB_PRINTERS;LLDB_FORMATTERS"
                         "SOURCES;LINK_LIBRARIES;INCLUDE_DIRECTORIES;ARGS")
   if(NOT TV_SOURCES)
     message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): SOURCES is required")
   endif()
-  if(NOT TV_NATVIS AND NOT TV_GDB_PRINTERS)
-    message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): NATVIS or GDB_PRINTERS is required")
+  if(NOT TV_NATVIS AND NOT TV_GDB_PRINTERS AND NOT TV_LLDB_FORMATTERS)
+    message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): NATVIS, GDB_PRINTERS or "
+                        "LLDB_FORMATTERS is required")
+  endif()
+  if((TV_NATVIS OR TV_GDB_PRINTERS) AND NOT CXX_DEBUG_VISUALIZE_ADAPTER)
+    message(FATAL_ERROR "cxx_debug_visualize_add_test(${name}): set CXX_DEBUG_VISUALIZE_ADAPTER "
+                        "to the path of OpenDebugAD7, e.g. "
+                        "-DCXX_DEBUG_VISUALIZE_ADAPTER=<cpptools>/debugAdapters/bin/OpenDebugAD7")
   endif()
 
   add_executable(${name} ${TV_SOURCES})
@@ -80,6 +85,11 @@ function(cxx_debug_visualize_add_test name)
                                  --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
     _cxx_debug_visualize_add_run(gdb-dap ${name} "${test_source}" ""
                                  --gdb-printers "${TV_GDB_PRINTERS}" ${TV_ARGS})
+  endif()
+  if(TV_LLDB_FORMATTERS)
+    _cxx_debug_visualize_add_run(lldb-dap ${name} "${test_source}" ""
+                                 --lldb-formatters "${TV_LLDB_FORMATTERS}" --debugger lldb
+                                 ${TV_ARGS})
   endif()
 endfunction()
 
