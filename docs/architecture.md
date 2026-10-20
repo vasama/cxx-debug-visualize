@@ -48,7 +48,7 @@ options. Inconsistent combinations of options are rejected with exit code `2`.
   debugger, `miengine` for `--natvis` or when `--miengine` is given, and `native` otherwise.
   * Natvis requires `miengine` or `dbgeng`, and the `dbgeng` debugger and adapter require each other.
   * `miengine` requires debugger `gdb` or `lldb` (`lldb-mi`).
-  * `native` requires debugger `gdb` (15 or later) or `lldb` (`lldb-dap`).
+  * `native` requires debugger `gdb` (14 or later) or `lldb` (`lldb-dap`).
   * `dbgeng` requires debugger `dbgeng`.
 * **OpenDebugAD7** (only required with `--adapter=miengine`): `--miengine`, then
   `$CXX_DEBUG_VISUALIZE_MIENGINE`, then the newest VS Code C/C++ extension found by

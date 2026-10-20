@@ -1,18 +1,19 @@
-# `cxx-debug-visualize`: debugger visualizers testing utility
+# `cxx-debug-visualize`: debugger visualizer testing tool
 
 `cxx-debug-visualize` runs a test program under a debugger, and prints visualizations of C++ objects
 as defined by the provided visualization script (Natvis, GDB pretty printer, or LLDB formatter).
 
 `cxx-debug-visualize` relies on the now widely supported
 [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol).
-* Natvis support is implemented using Visual Studio's open source debug adapter
-([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)), with GDB or with LLDB (through `lldb-mi`,
-as VS Code does on macOS). On Windows, Natvis can instead be tested with the Windows debug engine
-(DbgEng), through the debug adapter in [`cxx_debug_visualize_dbgeng/`][dbgeng].
-* GDB pretty printers can be tested either via the MIEngine adapter, or using GDB's native
-  DAP support (GDB 14 or later), although the output between the two adapters may vary.
-* LLDB formatters can be tested using LLDB's DAP server (`lldb-dap`, or `lldb-vscode` prior to LLVM
-  18), or via the MIEngine adapter with `lldb-mi`.
+* Natvis visualizers can be tested using two adapters:
+  * On Linux or macOS, using Visual Studio's open source debug adapter
+    ([`OpenDebugAD7`](https://github.com/microsoft/MIEngine)), with GDB or with LLDB
+    ([`lldb-mi`](https://github.com/lldb-tools/lldb-mi)).
+  * On Windows, using the Windows debug engine (DbgEng), via
+    [`cxx_debug_visualize_dbgeng/`][dbgeng].
+* GDB pretty printers can be tested using GDB's native DAP support (GDB 14 or later).
+* LLDB pretty printers can be tested using LLDB's native DAP support (`lldb-dap`, or `lldb-vscode`
+  prior to LLVM 18).
 
 ## Quick Example
 
@@ -70,7 +71,7 @@ Python 3.10 or later is required, but otherwise only the standard library is use
 * DbgEng - supports Natvis visualizers.
 
 #### A compatible debug adapter (Debug Adapter Protocol)
-* GDB's native DAP support (15 or later).
+* GDB's native DAP support (14 or later).
 * LLDB's native DAP support (lldb-dap, previously lldb-vscode).
 * [MIEngine](https://github.com/microsoft/miengine) debug adapter (`OpenDebugAD7`)
   * Requires GDB or LLDB via [`lldb-mi`](https://github.com/lldb-tools/lldb-mi).
@@ -114,12 +115,7 @@ cxx-debug-visualize test.cpp test_program --lldb-formatters my_formatters.py
 ### Requirements
 * CMake
 * C++ compiler
-* At least one of:
-  * GDB (14 or later for builtin DAP support)
-  * LLDB DAP server (`lldb-dap`, previously `lldb-vscode`)
-  * Debugging Tools for Windows (DbgEng)
-* Optional: [MIEngine](https://github.com/microsoft/miengine) debug adapter (`OpenDebugAD7`)
-* Optional: [`lldb-mi`](https://github.com/lldb-tools/lldb-mi)
+* Debug adapter (see [above](#installation))
 
 ### Example commands
 
