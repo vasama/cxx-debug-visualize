@@ -1,5 +1,5 @@
 // Fixture for the cxx-debug-visualize integration self-tests (line numbers matter: the tests
-// refer to visualize() calls by line).  Crashes at the end if given any argument.
+// refer to visualize() calls by line).  Crashes at the start if given any argument.
 #include "cxx_debug_visualize.hpp"
 
 struct pair
@@ -26,8 +26,18 @@ static void crash()
   *p = 0;
 }
 
+// Visualizes an object through a reference, from outside main.
+static void show(pair const& ref)
+{
+  visualize(ref);
+}
+
 int main(int argc, char**)
 {
+  // Any argument makes the program crash, before any visualize call.
+  if (argc > 1)
+    crash();
+
   // A type with only a display string.
   {
     pair pr{1, 2};
@@ -73,8 +83,11 @@ int main(int argc, char**)
     visualize(big);
   }
 
-  // every visualize call above is reached before the optional crash
-  if (argc > 1)
-    crash();
+  // A call in another function, on a reference.
+  {
+    pair pr{1, 2};
+    show(pr);
+  }
+
   return 0;
 }
