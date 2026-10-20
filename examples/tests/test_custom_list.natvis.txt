@@ -1,22 +1,22 @@
-visualize(map) at test_custom_list.cpp:15
+visualize(map) at test_custom_list.cpp:16
   { size=4 } [mylib::hash_map<int>]
     [bucket_count] = 4 [std::size_t]
     [9] = 90 [int]
     [5] = 50 [int]
     [1] = 10 [int]
     [2] = 20 [int]
-visualize(empty_map) at test_custom_list.cpp:18
+visualize(empty_map) at test_custom_list.cpp:19
   { size=0 } [mylib::hash_map<int>]
     [bucket_count] = 4 [std::size_t]
-visualize(values) at test_custom_list.cpp:25
+visualize(values) at test_custom_list.cpp:26
   { size=4 } [mylib::variant_array]
     [0] = 1 [int]
     [1] = 2.5 [double]
     [2] none = mylib::variant_array::none [mylib::variant_array::kind]
     [3] = -3 [int]
-visualize(empty_values) at test_custom_list.cpp:28
+visualize(empty_values) at test_custom_list.cpp:29
   { size=0 } [mylib::variant_array]
-visualize(many) at test_custom_list.cpp:34
+visualize(many) at test_custom_list.cpp:35
   { size=60 } [mylib::variant_array]
     [0] = 0 [int]
     [1] = 1 [int]

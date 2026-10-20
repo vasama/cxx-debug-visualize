@@ -1,11 +1,12 @@
-#include "mylib/containers.hpp"
 #include "cxx_debug_visualize.hpp"
+#include "mylib/containers.hpp"
 
 // natvis CustomListItems: loops over a data structure with local variables, as Visual Studio
 // evaluates them. MIEngine supports them with microsoft/MIEngine#1580. The output is compared with
 // test_custom_list.natvis.txt.
 
-int main() {
+int main()
+{
   // Four buckets: keys 1, 5 and 9 share bucket 1, key 2 is in bucket 2, buckets 0 and 3 are empty.
   mylib::hash_map<int> map(4);
   map.insert(1, 10);

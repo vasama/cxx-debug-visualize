@@ -6,39 +6,39 @@
   </Type>
 
   <Type Name="mylib::string">
-    <DisplayString>{data_,s8}</DisplayString>
-    <StringView>data_,s8</StringView>
+    <DisplayString>{m_data,s8}</DisplayString>
+    <StringView>m_data,s8</StringView>
     <Expand>
-      <Item Name="[size]">length_</Item>
+      <Item Name="[size]">m_length</Item>
     </Expand>
   </Type>
 
   <Type Name="mylib::vector&lt;*&gt;">
-    <DisplayString>{{ size={size_} }}</DisplayString>
+    <DisplayString>{{ size={m_size} }}</DisplayString>
     <Expand>
-      <Item Name="[size]">size_</Item>
-      <Item Name="[capacity]">capacity_</Item>
+      <Item Name="[size]">m_size</Item>
+      <Item Name="[capacity]">m_capacity</Item>
       <ArrayItems>
-        <Size>size_</Size>
-        <ValuePointer>begin_</ValuePointer>
+        <Size>m_size</Size>
+        <ValuePointer>m_begin</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
 
   <Type Name="mylib::optional&lt;*&gt;">
-    <DisplayString Condition="!has_value_">empty</DisplayString>
-    <DisplayString>{*($T1*)storage_}</DisplayString>
+    <DisplayString Condition="!m_has_value">empty</DisplayString>
+    <DisplayString>{*($T1*)m_storage}</DisplayString>
     <Expand>
-      <Item Name="[value]" Condition="has_value_">*($T1*)storage_</Item>
+      <Item Name="[value]" Condition="m_has_value">*($T1*)m_storage</Item>
     </Expand>
   </Type>
 
   <Type Name="mylib::list&lt;*&gt;">
-    <DisplayString>{{ size={count_} }}</DisplayString>
+    <DisplayString>{{ size={m_count} }}</DisplayString>
     <Expand>
       <LinkedListItems>
-        <Size>count_</Size>
-        <HeadPointer>head_</HeadPointer>
+        <Size>m_count</Size>
+        <HeadPointer>m_head</HeadPointer>
         <NextPointer>next</NextPointer>
         <ValueNode>value</ValueNode>
       </LinkedListItems>
@@ -46,11 +46,11 @@
   </Type>
 
   <Type Name="mylib::int_map&lt;*&gt;">
-    <DisplayString>{{ size={count_} }}</DisplayString>
+    <DisplayString>{{ size={m_count} }}</DisplayString>
     <Expand>
       <TreeItems>
-        <Size>count_</Size>
-        <HeadPointer>root_</HeadPointer>
+        <Size>m_count</Size>
+        <HeadPointer>m_root</HeadPointer>
         <LeftPointer>left</LeftPointer>
         <RightPointer>right</RightPointer>
         <ValueNode Name="[{key}]">value</ValueNode>
@@ -60,21 +60,21 @@
 
   <!-- Walks the buckets, and each bucket's chain. Children are named by their keys. -->
   <Type Name="mylib::hash_map&lt;*&gt;">
-    <DisplayString>{{ size={count_} }}</DisplayString>
+    <DisplayString>{{ size={m_count} }}</DisplayString>
     <Expand>
-      <Item Name="[bucket_count]">bucket_count_</Item>
+      <Item Name="[bucket_count]">m_bucket_count</Item>
       <CustomListItems>
         <Variable Name="bucket" InitialValue="0" />
-        <Variable Name="node" InitialValue="buckets_[bucket]" />
-        <Size>count_</Size>
+        <Variable Name="node" InitialValue="m_buckets[bucket]" />
+        <Size>m_count</Size>
         <Loop>
           <Loop Condition="node != 0">
             <Item Name="[{node->key}]">node->value</Item>
             <Exec>node = node->next</Exec>
           </Loop>
           <Exec>++bucket</Exec>
-          <Break Condition="bucket == bucket_count_" />
-          <Exec>node = buckets_[bucket]</Exec>
+          <Break Condition="bucket == m_bucket_count" />
+          <Exec>node = m_buckets[bucket]</Exec>
         </Loop>
       </CustomListItems>
     </Expand>
@@ -82,14 +82,14 @@
 
   <!-- Shows each entry as its value; tags: 0 none, 1 integer, 2 real. -->
   <Type Name="mylib::variant_array">
-    <DisplayString>{{ size={size_} }}</DisplayString>
+    <DisplayString>{{ size={m_size} }}</DisplayString>
     <Expand>
-      <CustomListItems Condition="size_ != 0">
+      <CustomListItems Condition="m_size != 0">
         <Variable Name="i" InitialValue="0" />
-        <Variable Name="e" InitialValue="entries_" />
-        <Size Condition="size_ &lt;= capacity_">size_</Size>
+        <Variable Name="e" InitialValue="m_entries" />
+        <Size Condition="m_size &lt;= m_capacity">m_size</Size>
         <Loop>
-          <If Condition="i == size_">
+          <If Condition="i == m_size">
             <Break />
           </If>
           <If Condition="e->tag == 1">

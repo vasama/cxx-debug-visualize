@@ -29,9 +29,9 @@ def point_summary(valobj, internal_dict):
     return f"({x}, {y})"
 
 
-# the char *, as `0x... "text"`, like natvis's {data_,s8}
+# the char *, as `0x... "text"`, like natvis's {m_data,s8}
 def string_summary(valobj, internal_dict):
-    data = _member(valobj, "data_")
+    data = _member(valobj, "m_data")
     return f"{data.GetValue()} {data.GetSummary()}"
 
 
@@ -43,7 +43,7 @@ class StringProvider:
         return 1
 
     def get_child_at_index(self, index):
-        return _renamed("[size]", _member(self.valobj, "length_"))
+        return _renamed("[size]", _member(self.valobj, "m_length"))
 
 
 # `{ size=N }`, N being the value of the member `member`
@@ -54,9 +54,9 @@ def size_summary(member):
     return summary
 
 
-vector_summary = size_summary("size_")
-list_summary = size_summary("count_")
-int_map_summary = size_summary("count_")
+vector_summary = size_summary("m_size")
+list_summary = size_summary("m_count")
+int_map_summary = size_summary("m_count")
 
 
 class VectorProvider:
@@ -64,14 +64,14 @@ class VectorProvider:
         self.valobj = valobj
 
     def num_children(self):
-        return 2 + _member(self.valobj, "size_").GetValueAsUnsigned()
+        return 2 + _member(self.valobj, "m_size").GetValueAsUnsigned()
 
     def get_child_at_index(self, index):
         if index == 0:
-            return _renamed("[size]", _member(self.valobj, "size_"))
+            return _renamed("[size]", _member(self.valobj, "m_size"))
         if index == 1:
-            return _renamed("[capacity]", _member(self.valobj, "capacity_"))
-        begin = _member(self.valobj, "begin_")
+            return _renamed("[capacity]", _member(self.valobj, "m_capacity"))
+        begin = _member(self.valobj, "m_begin")
         element = begin.GetType().GetPointeeType()
         address = begin.GetValueAsUnsigned() + (index - 2) * element.GetByteSize()
         return self.valobj.CreateValueFromAddress(f"[{index - 2}]", address, element)
@@ -79,10 +79,10 @@ class VectorProvider:
 
 def _optional_value(valobj):
     optional = _object(valobj)
-    if not optional.GetChildMemberWithName("has_value_").GetValueAsUnsigned():
+    if not optional.GetChildMemberWithName("m_has_value").GetValueAsUnsigned():
         return None
     value_type = optional.GetType().GetTemplateArgumentType(0)
-    storage = optional.GetChildMemberWithName("storage_")
+    storage = optional.GetChildMemberWithName("m_storage")
     return optional.CreateValueFromAddress("[value]", storage.GetLoadAddress(), value_type)
 
 
@@ -109,7 +109,7 @@ class ListProvider:
         self.valobj = valobj
 
     def _values(self):
-        node = _member(self.valobj, "head_")
+        node = _member(self.valobj, "m_head")
         while node.GetValueAsUnsigned():
             node = node.Dereference()
             yield node.GetChildMemberWithName("value")
@@ -138,7 +138,7 @@ class IntMapProvider:
                 yield node.GetChildMemberWithName("value")
                 yield from in_order(node.GetChildMemberWithName("right"))
 
-        return list(in_order(_member(self.valobj, "root_")))
+        return list(in_order(_member(self.valobj, "m_root")))
 
     def num_children(self):
         return len(self._values())

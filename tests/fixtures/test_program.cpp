@@ -2,21 +2,37 @@
 // refer to visualize() calls by line).  Crashes at the end if given any argument.
 #include "cxx_debug_visualize.hpp"
 
-struct pair { int a; int b; };
-struct int_array { int *data; int n; }; struct pair_array { pair *data; int n; };
+struct pair
+{
+  int a;
+  int b;
+};
+struct int_array
+{
+  int* data;
+  int n;
+};
+struct pair_array
+{
+  pair* data;
+  int n;
+};
 
-static void crash() {
-  volatile int *p = nullptr;
+static void crash()
+{
+  int volatile* p = nullptr;
   *p = 1;
 }
 
-int main(int argc, char **) {
+int main(int argc, char**)
+{
   pair pr{1, 2};
   int storage[3] = {7, 8, 9};
   int_array arr{storage, 3};
   visualize(pr);
   visualize(arr);
-  for (int i = 0; i < 2; ++i) {
+  for (int i = 0; i < 2; ++i)
+  {
     pr.a = i;
     visualize(pr);
   }

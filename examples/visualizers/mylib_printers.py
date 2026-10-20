@@ -23,12 +23,12 @@ class StringPrinter:
     def __init__(self, val):
         self.val = val
 
-    # the char *, which gdb prints as `0x... "text"`, like natvis's {data_,s8}
+    # the char *, which gdb prints as `0x... "text"`, like natvis's {m_data,s8}
     def to_string(self):
-        return self.val["data_"]
+        return self.val["m_data"]
 
     def children(self):
-        yield "[size]", self.val["length_"]
+        yield "[size]", self.val["m_length"]
 
 
 # natvis also applies a type's visualizer to pointers to it
@@ -42,13 +42,13 @@ class VectorPrinter:
         self.val = val
 
     def to_string(self):
-        return f"{{ size={int(self.val['size_'])} }}"
+        return f"{{ size={int(self.val['m_size'])} }}"
 
     def children(self):
-        yield "[size]", self.val["size_"]
-        yield "[capacity]", self.val["capacity_"]
-        for i in range(int(self.val["size_"])):
-            yield f"[{i}]", (self.val["begin_"] + i).dereference()
+        yield "[size]", self.val["m_size"]
+        yield "[capacity]", self.val["m_capacity"]
+        for i in range(int(self.val["m_size"])):
+            yield f"[{i}]", (self.val["m_begin"] + i).dereference()
 
 
 class OptionalPrinter:
@@ -57,13 +57,13 @@ class OptionalPrinter:
 
     def _value(self):
         value_type = self.val.type.strip_typedefs().template_argument(0)
-        return self.val["storage_"].address.cast(value_type.pointer()).dereference()
+        return self.val["m_storage"].address.cast(value_type.pointer()).dereference()
 
     def to_string(self):
-        return self._value() if self.val["has_value_"] else "empty"
+        return self._value() if self.val["m_has_value"] else "empty"
 
     def children(self):
-        if self.val["has_value_"]:
+        if self.val["m_has_value"]:
             yield "[value]", self._value()
 
 
@@ -72,10 +72,10 @@ class ListPrinter:
         self.val = val
 
     def to_string(self):
-        return f"{{ size={int(self.val['count_'])} }}"
+        return f"{{ size={int(self.val['m_count'])} }}"
 
     def children(self):
-        node, i = self.val["head_"], 0
+        node, i = self.val["m_head"], 0
         while node:
             yield f"[{i}]", node["value"]
             node, i = node["next"], i + 1
@@ -86,7 +86,7 @@ class IntMapPrinter:
         self.val = val
 
     def to_string(self):
-        return f"{{ size={int(self.val['count_'])} }}"
+        return f"{{ size={int(self.val['m_count'])} }}"
 
     # the values in key order, named [0], [1], ... like natvis's TreeItems
     def children(self):
@@ -96,7 +96,7 @@ class IntMapPrinter:
                 yield node
                 yield from in_order(node["right"])
 
-        for i, node in enumerate(in_order(self.val["root_"])):
+        for i, node in enumerate(in_order(self.val["m_root"])):
             yield f"[{i}]", node["value"]
 
 

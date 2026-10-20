@@ -1,5 +1,5 @@
-#include "mylib/containers.hpp"
 #include "cxx_debug_visualize.hpp"
+#include "mylib/containers.hpp"
 
 // Every `visualize(x);` line prints x and the children its visualizer
 // produces, headed by "visualize(x) at <file>:<line>".  The output is compared
@@ -9,7 +9,8 @@
 // mylib_printers.py and mylib_formatters.py, which mirror it, so the expected
 // files only differ where a debugger formats a value in its own way.
 
-int main() {
+int main()
+{
   mylib::point p{3, -4};
   visualize(p);
 

@@ -9,223 +9,292 @@
 
 namespace mylib {
 
-struct point {
+struct point
+{
   int x = 0;
   int y = 0;
 };
 
-class string {
-public:
-  string(const char *text) : length_(std::strlen(text)) {
-    data_ = new char[length_ + 1];
-    std::memcpy(data_, text, length_ + 1);
-  }
-  ~string() { delete[] data_; }
-  string(const string &) = delete;
-  string &operator=(const string &) = delete;
-  std::size_t size() const { return length_; }
+class string
+{
+  char* m_data;
+  std::size_t m_length;
 
-private:
-  char *data_;
-  std::size_t length_;
+public:
+  string(char const* text) : m_length(std::strlen(text))
+  {
+    m_data = new char[m_length + 1];
+    std::memcpy(m_data, text, m_length + 1);
+  }
+  string(string const&) = delete;
+  string& operator=(string const&) = delete;
+  ~string()
+  {
+    delete[] m_data;
+  }
+
+  std::size_t size() const
+  {
+    return m_length;
+  }
 };
 
-template <typename T> class vector {
+template<typename T>
+class vector
+{
+  T* m_begin = nullptr;
+  std::size_t m_size = 0;
+  std::size_t m_capacity = 0;
+
 public:
   vector() = default;
-  ~vector() {
-    for (std::size_t i = 0; i < size_; ++i)
-      begin_[i].~T();
-    ::operator delete(begin_);
+  vector(vector const&) = delete;
+  vector& operator=(vector const&) = delete;
+  ~vector()
+  {
+    for (std::size_t i = 0; i < m_size; ++i)
+      m_begin[i].~T();
+    ::operator delete(m_begin);
   }
-  vector(const vector &) = delete;
-  vector &operator=(const vector &) = delete;
 
-  void push_back(T value) {
-    if (size_ == capacity_)
+  void push_back(T value)
+  {
+    if (m_size == m_capacity)
       grow();
-    new (&begin_[size_++]) T(std::move(value));
+    new (&m_begin[m_size++]) T(std::move(value));
   }
-  std::size_t size() const { return size_; }
+  std::size_t size() const
+  {
+    return m_size;
+  }
 
 private:
-  void grow() {
-    std::size_t new_capacity = capacity_ ? capacity_ * 2 : 4;
-    T *new_begin = static_cast<T *>(::operator new(new_capacity * sizeof(T)));
-    for (std::size_t i = 0; i < size_; ++i) {
-      new (&new_begin[i]) T(std::move(begin_[i]));
-      begin_[i].~T();
+  void grow()
+  {
+    std::size_t new_capacity = m_capacity ? m_capacity * 2 : 4;
+    T* new_begin = static_cast<T*>(::operator new(new_capacity * sizeof(T)));
+    for (std::size_t i = 0; i < m_size; ++i)
+    {
+      new (&new_begin[i]) T(std::move(m_begin[i]));
+      m_begin[i].~T();
     }
-    ::operator delete(begin_);
-    begin_ = new_begin;
-    capacity_ = new_capacity;
+    ::operator delete(m_begin);
+    m_begin = new_begin;
+    m_capacity = new_capacity;
   }
-
-  T *begin_ = nullptr;
-  std::size_t size_ = 0;
-  std::size_t capacity_ = 0;
 };
 
-template <typename T> class optional {
+template<typename T>
+class optional
+{
+  alignas(T) unsigned char m_storage[sizeof(T)];
+  bool m_has_value;
+
 public:
-  optional() : has_value_(false) {}
-  optional(T value) : has_value_(true) { new (&storage_) T(std::move(value)); }
-  ~optional() {
-    if (has_value_)
-      reinterpret_cast<T *>(&storage_)->~T();
+  optional() : m_has_value(false)
+  {
   }
-
-private:
-  alignas(T) unsigned char storage_[sizeof(T)];
-  bool has_value_;
+  optional(T value) : m_has_value(true)
+  {
+    new (&m_storage) T(std::move(value));
+  }
+  ~optional()
+  {
+    if (m_has_value)
+      reinterpret_cast<T*>(&m_storage)->~T();
+  }
 };
 
-template <typename T> class list {
-  struct node {
+template<typename T>
+class list
+{
+  struct node
+  {
     T value;
-    node *next;
+    node* next;
   };
+
+  node* m_head = nullptr;
+  std::size_t m_count = 0;
 
 public:
   list() = default;
-  ~list() {
-    while (head_) {
-      node *next = head_->next;
-      delete head_;
-      head_ = next;
+  list(list const&) = delete;
+  list& operator=(list const&) = delete;
+  ~list()
+  {
+    while (m_head)
+    {
+      node* next = m_head->next;
+      delete m_head;
+      m_head = next;
     }
   }
-  list(const list &) = delete;
-  list &operator=(const list &) = delete;
 
-  void push_front(T value) {
-    head_ = new node{std::move(value), head_};
-    ++count_;
+  void push_front(T value)
+  {
+    m_head = new node{std::move(value), m_head};
+    ++m_count;
   }
-
-private:
-  node *head_ = nullptr;
-  std::size_t count_ = 0;
 };
 
 // Unbalanced binary search tree mapping int keys to values.
-template <typename V> class int_map {
-  struct node {
+template<typename V>
+class int_map
+{
+  struct node
+  {
     int key;
     V value;
-    node *left = nullptr;
-    node *right = nullptr;
+    node* left = nullptr;
+    node* right = nullptr;
   };
+
+  node* m_root = nullptr;
+  std::size_t m_count = 0;
 
 public:
   int_map() = default;
-  ~int_map() { destroy(root_); }
-  int_map(const int_map &) = delete;
-  int_map &operator=(const int_map &) = delete;
+  int_map(int_map const&) = delete;
+  int_map& operator=(int_map const&) = delete;
+  ~int_map()
+  {
+    destroy(m_root);
+  }
 
-  void insert(int key, V value) {
-    node **slot = &root_;
-    while (*slot) {
-      if (key == (*slot)->key) {
+  void insert(int key, V value)
+  {
+    node** slot = &m_root;
+    while (*slot)
+    {
+      if (key == (*slot)->key)
+      {
         (*slot)->value = std::move(value);
         return;
       }
       slot = key < (*slot)->key ? &(*slot)->left : &(*slot)->right;
     }
     *slot = new node{key, std::move(value)};
-    ++count_;
+    ++m_count;
   }
 
 private:
-  static void destroy(node *n) {
+  static void destroy(node* n)
+  {
     if (!n)
       return;
     destroy(n->left);
     destroy(n->right);
     delete n;
   }
-
-  node *root_ = nullptr;
-  std::size_t count_ = 0;
 };
 
 // Hash table with separate chaining, mapping int keys to values, with a fixed number of buckets.
 // New keys go to the front of their bucket's chain.
-template <typename V> class hash_map {
-  struct node {
+template<typename V>
+class hash_map
+{
+  struct node
+  {
     int key;
     V value;
-    node *next;
+    node* next;
   };
+
+  node** m_buckets;
+  std::size_t m_bucket_count;
+  std::size_t m_count = 0;
 
 public:
   explicit hash_map(std::size_t bucket_count)
-      : buckets_(new node *[bucket_count]()), bucket_count_(bucket_count) {}
-  ~hash_map() {
-    for (std::size_t i = 0; i < bucket_count_; ++i) {
-      while (node *n = buckets_[i]) {
-        buckets_[i] = n->next;
+    : m_buckets(new node*[bucket_count]()), m_bucket_count(bucket_count)
+  {
+  }
+  hash_map(hash_map const&) = delete;
+  hash_map& operator=(hash_map const&) = delete;
+  ~hash_map()
+  {
+    for (std::size_t i = 0; i < m_bucket_count; ++i)
+    {
+      while (node* n = m_buckets[i])
+      {
+        m_buckets[i] = n->next;
         delete n;
       }
     }
-    delete[] buckets_;
+    delete[] m_buckets;
   }
-  hash_map(const hash_map &) = delete;
-  hash_map &operator=(const hash_map &) = delete;
 
   // `key` must not be negative.
-  void insert(int key, V value) {
-    node **bucket = &buckets_[static_cast<std::size_t>(key) % bucket_count_];
-    for (node *n = *bucket; n; n = n->next) {
-      if (n->key == key) {
+  void insert(int key, V value)
+  {
+    node** bucket = &m_buckets[static_cast<std::size_t>(key) % m_bucket_count];
+    for (node* n = *bucket; n; n = n->next)
+    {
+      if (n->key == key)
+      {
         n->value = std::move(value);
         return;
       }
     }
     *bucket = new node{key, std::move(value), *bucket};
-    ++count_;
+    ++m_count;
   }
-
-private:
-  node **buckets_;
-  std::size_t bucket_count_;
-  std::size_t count_ = 0;
 };
 
 // Fixed-capacity array of values that are each an integer, a real or nothing.
-class variant_array {
+class variant_array
+{
 public:
-  enum kind : unsigned char { none, integer, real };
-
-  explicit variant_array(std::size_t capacity)
-      : entries_(new entry[capacity]), capacity_(capacity) {}
-  ~variant_array() { delete[] entries_; }
-  variant_array(const variant_array &) = delete;
-  variant_array &operator=(const variant_array &) = delete;
-
-  // The array must not be full.
-  void push_back(int value) {
-    entries_[size_].tag = integer;
-    entries_[size_++].i = value;
-  }
-  void push_back(double value) {
-    entries_[size_].tag = real;
-    entries_[size_++].d = value;
-  }
-  void push_back_none() { entries_[size_++].tag = none; }
+  enum kind : unsigned char
+  {
+    none,
+    integer,
+    real
+  };
 
 private:
-  struct entry {
+  struct entry
+  {
     kind tag;
-    union {
+    union
+    {
       int i;
       double d;
     };
   };
 
-  entry *entries_;
-  std::size_t capacity_;
-  std::size_t size_ = 0;
+  entry* m_entries;
+  std::size_t m_capacity;
+  std::size_t m_size = 0;
+
+public:
+  explicit variant_array(std::size_t capacity)
+    : m_entries(new entry[capacity]), m_capacity(capacity)
+  {
+  }
+  variant_array(variant_array const&) = delete;
+  variant_array& operator=(variant_array const&) = delete;
+  ~variant_array()
+  {
+    delete[] m_entries;
+  }
+
+  // The array must not be full.
+  void push_back(int value)
+  {
+    m_entries[m_size].tag = integer;
+    m_entries[m_size++].i = value;
+  }
+  void push_back(double value)
+  {
+    m_entries[m_size].tag = real;
+    m_entries[m_size++].d = value;
+  }
+  void push_back_none()
+  {
+    m_entries[m_size++].tag = none;
+  }
 };
 
 } // namespace mylib
