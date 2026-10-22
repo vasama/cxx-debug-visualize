@@ -84,8 +84,8 @@ built from `lldb-tools/lldb-mi`. Observed with `lldb-mi` at `1aa9e8f` (April 202
 * **Natvis shows the same as with gdb**, but for LLDB's spelling of types (`mylib::string *` for
   gdb's `mylib::string*`). Natvis expressions are evaluated by LLDB.
 * **An invalid expression shows LLDB's whole error in place of the value**, over several lines (e.g.
-  `<1,error: <user expression 1>:1:1: use of undeclared identifier 'c'`, then the source excerpt),
-  where gdb shows `-var-create: unable to create variable object`.
+  `<1,error: <user expression 1>:1:1: use of undeclared identifier 'no_such_member'`, then the
+  source excerpt), where gdb shows `-var-create: unable to create variable object`.
 * **lldb formatters show as through `lldb-dap`.** Summaries and synthetic children apply, as LLDB
   computes the values MIEngine shows. But a summary that raises falls back to `{...}`, not to
   lldb's default summary, and a script that fails to import passes silently.

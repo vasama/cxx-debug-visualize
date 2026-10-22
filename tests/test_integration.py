@@ -420,7 +420,7 @@ class MiengineLldbTests(MiengineNatvisTests, LldbFormatterTests, FixtureTestCase
         # the DisplayString refers to a missing member: LLDB's error, over several lines, appears
         # in place of the value, for the expected output to catch
         self.assertIn("  <1,error: <user expression", output)
-        self.assertIn("use of undeclared identifier 'c'", output)
+        self.assertIn("use of undeclared identifier 'no_such_member'", output)
         self.assertEqual(errors, [])
         # the ArrayItems <Size> is wrong, so the engine silently shows raw members
         self.assertIn("  {...} [int_array]\n    data = ", output)

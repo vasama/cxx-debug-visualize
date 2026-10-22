@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="pair"><DisplayString>&lt;{a},{c}&gt;</DisplayString></Type>
+  <Type Name="pair"><DisplayString>&lt;{a},{no_such_member}&gt;</DisplayString></Type>
   <Type Name="int_array">
     <Expand><ArrayItems><Size>count</Size><ValuePointer>data</ValuePointer></ArrayItems></Expand>
   </Type>
