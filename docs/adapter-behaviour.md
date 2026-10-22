@@ -30,6 +30,10 @@ the GDB/MI protocol.
 * **Exit codes are misread.** gdb's MI writes a program's exit code in octal (`exit-code="011"` for
   9), but MIEngine parses it as decimal (`uint.TryParse` in `DebuggedProcess.cs`), so the `exited`
   event reports 11. Codes 0 to 7 are right, and a nonzero code stays nonzero.
+* **A program killed by a signal is reported as exiting with code 0.** gdb reports such a death as
+  `*stopped,reason="exited-signalled",signal-name="SIGALRM"`, without an exit code. In this case,
+  MIEngine returns zero. A signal that does not cause gdb to stop (e.g. SIGALRM, which it passes to
+  the program by default) passes the run.
 * OpenDebugAD7 writes `waiting for v8 protocol on stdin/stdout` to stderr on startup. This output is
   filtered out by `cxx-debug-visualize`.
 * OpenDebugAD7 does not exit when its input stream is closed during a session without a `disconnect`
@@ -124,6 +128,10 @@ GDB has its own DAP support since GDB 14.
   c.`), which stops the run there, unlike through OpenDebugAD7, where it passes silently.
 * **A script that fails to load passes silently**: values show without printers, and only the
   output reveals it. Through OpenDebugAD7 the launch fails instead.
+* **A program killed by a signal is reported as exiting with code 0.** The `exited` event only
+  carries a code when the program exited with one (`_on_exit` in gdb's `dap/events.py`), so a death
+  by a signal gdb does not stop on (e.g. SIGALRM, which it passes to the program by default) passes
+  the run, without any message.
 * **Isolation.** gdb reads `~/.gdbinit` and auto-loads installed printers (e.g. libstdc++'s for
   `std::` types) unless told otherwise. `cxx-debug-visualize` always passes `-nx`, and with
   `--no-default-visualizers` also turns off `auto-load python-scripts`, so that only the printers
@@ -149,5 +157,7 @@ distributions only install a versioned name, such as `lldb-dap-18` or `lldb-vsco
 * **Isolation.** lldb's built-in C++ formatters (e.g. for libstdc++ and libc++) are active by
   default. With `--no-default-visualizers`, `cxx-debug-visualize` disables the `c++` category
   before importing the script under test.
+* **A program killed by a signal exits with the signal's number** (e.g. 14 for SIGALRM), so it
+  fails the run.
 * **Output differs between LLVM versions**, so expected output recorded with one version may not
   match another.
