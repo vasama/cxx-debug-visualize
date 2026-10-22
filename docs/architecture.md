@@ -76,11 +76,13 @@ ignored, so a breakpoint never lands on a line containing anything other than th
    with its direct children, one line each as `name = value [type]`. Children are not expanded
    further. For Natvis, `[More...]` pages are flattened into the list and `[Raw View]` is dropped.
    Any other stop (e.g. a crash) is an error.
-4. Ends when the program terminates or exits, and closes the session.
+4. Ends when the program terminates or exits, and closes the session. A non-zero exit code, from the
+   adapter's `exited` event, is considered an error.
 
 The run fails if `cxx-debug-visualize` finds an error (printed to stderr with an `error:` prefix),
-if a request fails, if the adapter reports Natvis diagnostics, or if the adapter writes anything
-to its stderr. The adapter's own messages are passed on verbatim.
+if a request fails, if the adapter reports Natvis diagnostics or MIEngine errors, if the adapter
+writes anything to its stderr, or if the program exits with a code other than 0. The adapter's own
+messages are passed on verbatim.
 
 ### `session.py`
 

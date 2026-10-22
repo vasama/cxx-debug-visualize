@@ -91,6 +91,7 @@ class DebugSession:
         self._breakpoints: dict[int, dict[str, Any]] = {}
         self._client_or_none: DapClient | None = None
         self._diagnostics: list[str] = []
+        self._exit_code = 0
 
     # The client of a started session.
     @property
@@ -186,6 +187,8 @@ class DebugSession:
             case {"event": "output", "body": {"category": "stderr", "output": text}}:
                 if self._adapter == "miengine" and text.startswith(_MIENGINE_ERROR_PREFIX):
                     self._diagnostics.append(text)
+            case {"event": "exited", "body": {"exitCode": int(exit_code)}}:
+                self._exit_code = exit_code
 
     # Send a `setBreakpoints` request. Returns the adapter's reply entries.
     #
@@ -303,6 +306,9 @@ class DebugSession:
 
     def diagnostics(self) -> list[str]:
         return self._diagnostics
+
+    def exit_code(self) -> int:
+        return self._exit_code
 
     def stderr_output(self) -> str:
         return self._client_or_none.stderr_output() if self._client_or_none else ""

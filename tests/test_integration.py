@@ -58,8 +58,8 @@ class FixtureTestCase(unittest.TestCase):
             raise AssertionError("needs the fixture program (--program)")
 
     # Run the fixture with a natvis file, a pretty-printer script or an lldb formatter script
-    # from fixtures/, and the command line arguments `program_args` (any make it crash at the
-    # end); return (stdout, stderr lines).
+    # from fixtures/, and the command line arguments `program_args` (see test_program.cpp);
+    # return (stdout, stderr lines).
     def run_visualizer(self, *program_args, natvis=None, gdb_printers=None, lldb_formatters=None):
         fixture = lambda name: name and os.path.join(FIXTURES, name)
         runner = Runner(
@@ -153,12 +153,12 @@ class MiengineNatvisTests:
         )
 
     def test_crash(self):
-        output, errors = self.run_visualizer("crash", natvis="good.natvis")
+        output, errors = self.run_visualizer("-c", natvis="good.natvis")
         # the crash comes before any call, so nothing has printed
         self.assertEqual(output, "")
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
-        self.assertIn("crash", crash[0])
+        self.assertIn("main", crash[0])
 
 
 # natvis files and gdb's pretty printers through MIEngine, with gdb.
@@ -309,12 +309,19 @@ class NativeDapTests(FixtureTestCase):
         self.assertEqual(errors, [])
 
     def test_crash(self):
-        output, errors = self.run_visualizer("crash", gdb_printers="good_printers.py")
+        output, errors = self.run_visualizer("-c", gdb_printers="good_printers.py")
         # the crash comes before any call, so nothing has printed
         self.assertEqual(output, "")
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
-        self.assertIn("crash", crash[0])
+        self.assertIn("main", crash[0])
+
+    # a program that exits with an error code fails the run
+    def test_exit_code(self):
+        output, errors = self.run_visualizer("-f", gdb_printers="good_printers.py")
+        # it returns before any call, so nothing has printed
+        self.assertEqual(output, "")
+        self.assertEqual(errors, ["error: the program exited with code 1"])
 
 
 # The lldb formatter tests whose outcome is the same through lldb-dap as through MIEngine, for the
@@ -400,12 +407,12 @@ class LldbTests(LldbFormatterTests, FixtureTestCase):
         self.assertEqual(errors, [])
 
     def test_crash(self):
-        output, errors = self.run_visualizer("crash", lldb_formatters="good_formatters.py")
+        output, errors = self.run_visualizer("-c", lldb_formatters="good_formatters.py")
         # the crash comes before any call, so nothing has printed
         self.assertEqual(output, "")
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
-        self.assertIn("crash", crash[0])
+        self.assertIn("main", crash[0])
 
 
 # natvis files and lldb formatters through MIEngine, with lldb (lldb-mi, LLDB's implementation of
@@ -513,9 +520,9 @@ class DbgengTests(FixtureTestCase):
         self.assertTrue(any(e.startswith("[Natvis]") for e in errors), errors)
 
     def test_crash(self):
-        output, errors = self.run_visualizer("crash", natvis="good.natvis")
+        output, errors = self.run_visualizer("-c", natvis="good.natvis")
         # the crash comes before any call, so nothing has printed
         self.assertEqual(output, "")
         crash = [e for e in errors if "program stopped unexpectedly" in e]
         self.assertEqual(len(crash), 1, errors)
-        self.assertIn("crash", crash[0])
+        self.assertIn("main", crash[0])

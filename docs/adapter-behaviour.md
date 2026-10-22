@@ -27,6 +27,9 @@ the GDB/MI protocol.
   (e.g. because no executable code corresponds to the requested line) is only reported later via
   `breakpoint` events. `cxx-debug-visualize` ignores lines from the original reply and instead waits
   for the relevant events.
+* **Exit codes are misread.** gdb's MI writes a program's exit code in octal (`exit-code="011"` for
+  9), but MIEngine parses it as decimal (`uint.TryParse` in `DebuggedProcess.cs`), so the `exited`
+  event reports 11. Codes 0 to 7 are right, and a nonzero code stays nonzero.
 * OpenDebugAD7 writes `waiting for v8 protocol on stdin/stdout` to stderr on startup. This output is
   filtered out by `cxx-debug-visualize`.
 * OpenDebugAD7 does not exit when its input stream is closed during a session without a `disconnect`
@@ -91,6 +94,10 @@ built from `lldb-tools/lldb-mi`. Observed with `lldb-mi` at `1aa9e8f` (April 202
   lldb's default summary, and a script that fails to import passes silently.
 * **Isolation.** `lldb-mi` reads no init files, and LLDB's commands, such as those that load the
   script under test, are `setupCommands`.
+* **Every exit is reported as normal, with code 0**, whatever the program returned: `lldb-mi`'s
+  `HandleProcessEventStateExited` hard-codes `exit-code="0"` and `reason="exited-normally"`,
+  where gdb reports `reason="exited"` and the code. So a program that exits with an error does not
+  fail the run.
 * **`lldb-mi` needs `lldb-server`** to run the program. Ubuntu's LLDB looks for it (as
   `lldb-server-18.1.3`, with its version) next to the program using LLDB, where a self-built
   `lldb-mi` does not have it, unless `LLDB_DEBUGSERVER_PATH` names it. Otherwise the launch fails

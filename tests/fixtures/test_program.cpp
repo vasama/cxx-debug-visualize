@@ -1,5 +1,8 @@
-// Fixture for the cxx-debug-visualize integration self-tests (line numbers matter: the tests
-// refer to visualize() calls by line).  Crashes at the start if given any argument.
+// Fixture for the cxx-debug-visualize integration self-tests.
+//
+// An argument changes the program behaviour:
+// -c causes the program to crash.
+// -f causes the program to return 1.
 #include "cxx_debug_visualize.hpp"
 
 struct pair
@@ -20,23 +23,37 @@ struct pair_array
   int n;
 };
 
-static void crash()
-{
-  int volatile* volatile p = nullptr;
-  *p = 0;
-}
-
 // Visualizes an object through a reference, from outside main.
 static void show(pair const& ref)
 {
   visualize(ref);
 }
 
-int main(int argc, char**)
+int main(int argc, char** argv)
 {
-  // Any argument makes the program crash, before any visualize call.
-  if (argc > 1)
-    crash();
+  if (argc != 1)
+  {
+    if (argc != 2)
+      return 2;
+
+    if (argv[1][0] != '-')
+      return 2;
+
+    char const option = argv[1][1];
+    if (argv[1][2] != '\0')
+      return 2;
+
+    if (option != 'c' && option != 'f')
+      return 2;
+
+    if (option == 'c')
+    {
+      int volatile* volatile p = nullptr;
+      *p = 0;
+    }
+
+    return 1;
+  }
 
   // A type with only a display string.
   {

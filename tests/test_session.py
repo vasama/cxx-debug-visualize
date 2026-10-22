@@ -271,3 +271,23 @@ class DiagnosticsTests(unittest.TestCase):
         )
         self.receive(session, "stderr", "ERROR: printed by the program\n")
         self.assertEqual(session.diagnostics(), [])
+
+
+# The exit code of the adapter's exited event, in whatever order the events arrive.
+class ExitCodeTests(unittest.TestCase):
+    def setUp(self):
+        self.session = DebugSession(
+            None, None, "test_program", [], debugger="gdb", gdb_printers="my_printers.py"
+        )
+
+    def test_exited_after_terminated(self):
+        self.assertEqual(self.session.exit_code(), 0)
+        self.session._handle_event({"event": "terminated", "body": {}})
+        self.session._handle_event({"event": "exited", "body": {"exitCode": 3}})
+        self.assertEqual(self.session.exit_code(), 3)
+
+    # an exited event without a code, as a non-conforming adapter may send, is ignored
+    def test_exited_without_code(self):
+        for event in [{"event": "exited"}, {"event": "exited", "body": None}]:
+            self.session._handle_event(event)
+        self.assertEqual(self.session.exit_code(), 0)
