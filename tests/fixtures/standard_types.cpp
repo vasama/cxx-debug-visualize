@@ -12,8 +12,8 @@
 // Nor are the objects visualized whose libstdc++ gdb pretty printers fail without libstdc++'s own
 // debug symbols: std::locale, std::stringbuf and the string streams, whose types are complete only
 // in those; nor node handles, whose printer looks for a member that they lack (as of GCC 14); nor,
-// with those printers, a map's end iterator, which they show as an element read from the memory
-// around the map, which differs between runs.
+// with those printers or lldb's formatters for libstdc++, a map's end iterator, which they show as
+// an element read from the memory around the map, which differs between runs.
 //
 // With STL.natvis, as the Debugging Tools for Windows ship it and DbgEng applies it, the objects
 // whose visualizers do not work are not visualized either:
@@ -579,7 +579,7 @@ int main(int argc, char** argv)
     visualize(map_iterator);
 
     std::map<int, std::string>::iterator map_end = map.end();
-    if (is_target_one_of(libstdcxx_lldb, libcxx_gdb, libcxx_lldb, msstl_lldb, msstl_natvis))
+    if (is_target_one_of(libcxx_gdb, libcxx_lldb, msstl_lldb, msstl_natvis))
     {
       visualize(map_end);
     }

@@ -1,0 +1,167 @@
+visualize(atomic) at standard_types.cpp
+  std::atomic<int> @ 0x? [std::atomic<int>]
+    Value = 42 [_Atomic(int)]
+visualize(bitset) at standard_types.cpp
+  size=8 [std::bitset<8>]
+    [0] = true [bool]
+    [1] = false [bool]
+    [2] = true [bool]
+    [3] = false [bool]
+    [4] = false [bool]
+    [5] = true [bool]
+    [6] = false [bool]
+    [7] = true [bool]
+visualize(duration) at standard_types.cpp
+  90 s [std::chrono::seconds]
+    __rep_ = 90 [std::chrono::duration<long long>::rep]
+visualize(deque) at standard_types.cpp
+  size=3 [std::deque<int>]
+    [0] = 1 [int]
+    [1] = 2 [int]
+    [2] = 3 [int]
+visualize(forward_list) at standard_types.cpp
+  size=3 [std::forward_list<int>]
+    [0] = 1 [int]
+    [1] = 2 [int]
+    [2] = 3 [int]
+visualize(function) at standard_types.cpp
+   Lambda in File standard_types.cpp at Line 457 [std::function<int (int)>]
+    __f_ = std::function<int (int)>::__func @ 0x? [std::function<int (int)>::__func]
+visualize(list) at standard_types.cpp
+  size=3 [std::list<int>]
+    [0] = 1 [int]
+    [1] = 2 [int]
+    [2] = 3 [int]
+visualize(map) at standard_types.cpp
+  size=3 [std::map<int, std::basic_string<char> >]
+    [0] = std::pair<const int, std::basic_string<char> > @ 0x? [std::pair<const int, std::basic_string<char> >]
+    [1] = std::pair<const int, std::basic_string<char> > @ 0x? [std::pair<const int, std::basic_string<char> >]
+    [2] = std::pair<const int, std::basic_string<char> > @ 0x? [std::pair<const int, std::basic_string<char> >]
+visualize(map_iterator) at standard_types.cpp
+  std::map<int, std::basic_string<char> >::iterator @ 0x? [std::map<int, std::basic_string<char> >::iterator]
+visualize(map_end) at standard_types.cpp
+  std::map<int, std::basic_string<char> >::iterator @ 0x? [std::map<int, std::basic_string<char> >::iterator]
+visualize(multimap) at standard_types.cpp
+  size=2 [std::multimap<int, std::basic_string<char> >]
+    [0] = std::pair<const int, std::basic_string<char> > @ 0x? [std::pair<const int, std::basic_string<char> >]
+    [1] = std::pair<const int, std::basic_string<char> > @ 0x? [std::pair<const int, std::basic_string<char> >]
+visualize(unique_ptr) at standard_types.cpp
+  42 [std::unique_ptr<int>]
+    pointer = 0x? [int *]
+visualize(unique_array) at standard_types.cpp
+  0 [std::unique_ptr<int[]>]
+    pointer = 0x? [int *]
+visualize(shared_ptr) at standard_types.cpp
+  42 [std::shared_ptr<int>]
+    __ptr_ = 0x? [std::shared_ptr<int>::element_type *]
+visualize(weak_ptr) at standard_types.cpp
+  42 [std::weak_ptr<int>]
+    __ptr_ = 0x? [std::weak_ptr<int>::element_type *]
+visualize(optional) at standard_types.cpp
+   Has Value=true  [std::optional<int>]
+    Value = 42 [std::__optional_destruct_base<int>::value_type]
+visualize(empty_optional) at standard_types.cpp
+   Has Value=false  [std::optional<int>]
+visualize(queue) at standard_types.cpp
+  size=2 [std::queue<int>]
+    [0] = 1 [int]
+    [1] = 2 [int]
+visualize(set) at standard_types.cpp
+  size=3 [std::set<int>]
+    [0] = 1 [int]
+    [1] = 2 [int]
+    [2] = 3 [int]
+visualize(multiset) at standard_types.cpp
+  size=3 [std::multiset<int>]
+    [0] = 1 [int]
+    [1] = 2 [int]
+    [2] = 2 [int]
+visualize(string) at standard_types.cpp
+  "hello" [std::string]
+    __r_ = std::__compressed_pair<std::basic_string<char>::__rep, std::allocator<char> > @ 0x? [std::__compressed_pair<std::basic_string<char>::__rep, std::allocator<char> >]
+visualize(string_iterator) at standard_types.cpp
+  std::basic_string<char>::iterator @ 0x? [std::basic_string<char>::iterator]
+    item = 'e' [char]
+visualize(string_end) at standard_types.cpp
+  std::basic_string<char>::iterator @ 0x? [std::basic_string<char>::iterator]
+    item = '\0' [char]
+visualize(wstring) at standard_types.cpp
+  L"hello" [std::wstring]
+    __r_ = std::__compressed_pair<std::basic_string<wchar_t>::__rep, std::allocator<wchar_t> > @ 0x? [std::__compressed_pair<std::basic_string<wchar_t>::__rep, std::allocator<wchar_t> >]
+visualize(u16string) at standard_types.cpp
+  u"hello" [std::u16string]
+    __r_ = std::__compressed_pair<std::basic_string<char16_t>::__rep, std::allocator<char16_t> > @ 0x? [std::__compressed_pair<std::basic_string<char16_t>::__rep, std::allocator<char16_t> >]
+visualize(u32string) at standard_types.cpp
+  U"hello" [std::u32string]
+    __r_ = std::__compressed_pair<std::basic_string<char32_t>::__rep, std::allocator<char32_t> > @ 0x? [std::__compressed_pair<std::basic_string<char32_t>::__rep, std::allocator<char32_t> >]
+visualize(string_view) at standard_types.cpp
+  "hello" [std::string_view]
+    __data_ = 0x? "hello" [const std::basic_string_view<char>::value_type *]
+    __size_ = 5 [size_type]
+visualize(wstring_view) at standard_types.cpp
+  L"hello" [std::wstring_view]
+    __data_ = 0x? L"hello" [const std::basic_string_view<wchar_t>::value_type *]
+    __size_ = 5 [size_type]
+visualize(u16string_view) at standard_types.cpp
+  u"hello" [std::u16string_view]
+    __data_ = 0x? u"hello" [const std::basic_string_view<char16_t>::value_type *]
+    __size_ = 5 [size_type]
+visualize(u32string_view) at standard_types.cpp
+  U"hello" [std::u32string_view]
+    __data_ = 0x? U"hello" [const std::basic_string_view<char32_t>::value_type *]
+    __size_ = 5 [size_type]
+visualize(tuple) at standard_types.cpp
+  size=3 [std::tuple<int, double, std::basic_string<char> >]
+    [0] = 1 [int]
+    [1] = 2.5 [double]
+    [2] = "three" [std::basic_string<char>]
+visualize(unordered_map) at standard_types.cpp
+  size=2 [std::unordered_map<int, std::basic_string<char> >]
+    [0] = std::pair<const int, std::basic_string<char> > [std::pair<const int, std::basic_string<char> >]
+    [1] = std::pair<const int, std::basic_string<char> > [std::pair<const int, std::basic_string<char> >]
+visualize(unordered_map_iterator) at standard_types.cpp
+  std::unordered_map<int, std::basic_string<char> >::iterator @ 0x? [std::unordered_map<int, std::basic_string<char> >::iterator]
+visualize(unordered_map_end) at standard_types.cpp
+  std::unordered_map<int, std::basic_string<char> >::iterator @ 0x? [std::unordered_map<int, std::basic_string<char> >::iterator]
+visualize(unordered_multimap) at standard_types.cpp
+  size=2 [std::unordered_multimap<int, std::basic_string<char> >]
+    [0] = std::pair<const int, std::basic_string<char> > [std::pair<const int, std::basic_string<char> >]
+    [1] = std::pair<const int, std::basic_string<char> > [std::pair<const int, std::basic_string<char> >]
+visualize(unordered_set) at standard_types.cpp
+  size=3 [std::unordered_set<int>]
+    [0] = 3 [int]
+    [1] = 2 [int]
+    [2] = 1 [int]
+visualize(unordered_multiset) at standard_types.cpp
+  size=3 [std::unordered_multiset<int>]
+    [0] = 2 [int]
+    [1] = 2 [int]
+    [2] = 1 [int]
+visualize(valarray) at standard_types.cpp
+  std::valarray<int> @ 0x? [std::valarray<int>]
+    __begin_ = 0x? [std::valarray<int>::value_type *]
+    __end_ = 0x? [std::valarray<int>::value_type *]
+visualize(slice_array) at standard_types.cpp
+  std::slice_array<int> @ 0x? [std::slice_array<int>]
+    __vp_ = 0x? [std::slice_array<int>::value_type *]
+    __size_ = 3 [size_t]
+    __stride_ = 2 [size_t]
+visualize(variant) at standard_types.cpp
+   Active Type = std::basic_string<char>  [std::variant<int, std::basic_string<char> >]
+    Value = "text" [std::__variant_detail::__alt<1, std::basic_string<char> >::__value_type]
+visualize(vector) at standard_types.cpp
+  size=3 [std::vector<int>]
+    [0] = 1 [int]
+    [1] = 2 [int]
+    [2] = 3 [int]
+visualize(vector_iterator) at standard_types.cpp
+  std::vector<int>::iterator @ 0x? [std::vector<int>::iterator]
+    item = 2 [int]
+visualize(vector_end) at standard_types.cpp
+  std::vector<int>::iterator @ 0x? [std::vector<int>::iterator]
+    item = 0 [int]
+visualize(bool_vector) at standard_types.cpp
+  size=3 [std::vector<bool>]
+    [0] = true [bool]
+    [1] = false [bool]
+    [2] = true [bool]
