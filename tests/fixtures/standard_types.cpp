@@ -1,45 +1,25 @@
-// Fixture for testing the standard library visualizers that debuggers ship: one object of each
-// C++17 standard type that libstdc++'s or libc++'s gdb pretty printers, lldb's formatters (for
-// libstdc++, libc++ and MSVC's STL) or MSVC's STL.natvis visualize, as of GCC 14, LLVM 23 and the
-// MSVC STL of 2026. Build it as C++17.
+// Fixture for testing default standard library visualizers:
+// * libstdc++ ships gdb pretty printers.
+// * libc++ ships gdb pretty printers.
+// * lldb ships libstdc++ formatters.
+// * lldb ships libc++ formatters.
+// * lldb ships MSSTL formatters.
+// * MSSTL ships Natvis visualizers.
 //
-// Left out: types that C++20 and later add, types that C++17 and C++20 removed (auto_ptr,
-// binder1st, binder2nd, mem_fun_t and relatives, pointer_to_unary_function,
-// pointer_to_binary_function, unary_negate, binary_negate), and extensions and technical
-// specifications (__gnu_cxx::slist, std::tr1, std::experimental). Types internal to a library,
-// such as its iterators, are visualized through the standard types that use them.
+// All standard C++17 types supported by at least one of the above is tested.
 //
-// Nor are the objects visualized whose libstdc++ gdb pretty printers fail without libstdc++'s own
-// debug symbols: std::locale, std::stringbuf and the string streams, whose types are complete only
-// in those; nor node handles, whose printer looks for a member that they lack (as of GCC 14); nor,
-// with those printers or lldb's formatters for libstdc++, a map's end iterator, which they show as
-// an element read from the memory around the map, which differs between runs.
+// Usage: ./standard_types LIBRARY VISUALIZER
 //
-// With STL.natvis, as the Debugging Tools for Windows ship it and DbgEng applies it, the objects
-// whose visualizers do not work are not visualized either:
-// * those that the Debugging Tools' copy, being older than MSVC's STL, shows wrongly: move
-//   iterators (a member since renamed), system_clock::time_point (no visualizer yet) and a
-//   vector's end iterator (shown as the memory past the vector);
-// * those that STL.natvis shows wrongly: the end iterators of lists, unordered containers,
-//   vector<bool> and reverse iterators (shown as the memory around them), string views of
-//   char16_t and char32_t (shown as their first character), and Boyer-Moore searchers (shown as
-//   an address);
-// * those whose visualizers use what DbgEng does not support: views (shared_ptr, weak_ptr and the
-//   unordered containers), function calls (exceptions, error_code and error_category), a custom
-//   visualizer (exception_ptr) and the dynamic type of an object (function);
-// * those that DbgEng fails to visualize: deque iterators, and any, of which it leaves out the
-//   items named like intrinsics of its visualizer.
-// Those that no other visualizers support are left out altogether: move iterators, a reverse
-// iterator's end, Boyer-Moore searchers, exceptions, exception_ptr and error_category.
+// LIBRARY:
+// * libstdc++
+// * libc++
+// * msstl
 //
-// Usage: standard_types LIBRARY VISUALIZER
-//
-// LIBRARY is the standard library implementation (libstdc++, libc++ or msstl), and VISUALIZER the
-// kind of visualizers under test (gdb, lldb or natvis): the library's gdb pretty printers (for
-// libc++, those in LLVM's source tree), lldb's formatters for the library, or STL.natvis. Only the
-// objects whose types those visualizers support are visualized; for the pairings without any
-// (libstdc++ and libc++ with natvis, MSVC's STL with gdb), none are. Other arguments make the
-// program exit with 1.
+// VISUALIZER:
+// * gdb
+// * lldb
+// * natvis
+
 #include "cxx_debug_visualize.hpp"
 
 #include <any>
@@ -94,7 +74,6 @@ enum class visualizer
   natvis,
 };
 
-// The pairings of a standard library and a kind of visualizers that has visualizers, as flags.
 enum pairings : unsigned
 {
   libstdcxx_gdb = 1 << 0,
