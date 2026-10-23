@@ -224,7 +224,14 @@ class Runner:
             if stderr:
                 self._report(stderr)
 
-            if not self._failed and session.exit_code() != 0:
-                self._error(f"the program exited with code {session.exit_code()}")
+            if not self._failed:
+                exit_code = session.exit_code()
+
+                if exit_code != 0:
+                    string = f"{exit_code}"
+                    if not 0 <= exit_code <= 255:
+                        string = f"{string} (0x{exit_code & 0xFFFFFFFF:08x})"
+
+                    self._error(f"the program exited with code {string}")
 
         return not self._failed

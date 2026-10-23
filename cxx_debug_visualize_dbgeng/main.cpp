@@ -309,7 +309,8 @@ private:
         }
         catch (std::exception const& e)
         {
-          event("output", {{"category", "stderr"}, {"output", std::format("{}\n", e.what())}});
+          std::cerr << e.what() << std::endl;
+          event("output", {{"category", "important"}, {"output", std::format("{}\n", e.what())}});
           event("terminated");
         }
       }
