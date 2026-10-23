@@ -434,7 +434,7 @@ class DbgengTests(FixtureTestCase):
                     # a call in another function, on a reference, which the adapter shows as the
                     # object it refers to
                     "visualize(ref) at test_program.cpp:32",
-                    "  <1,2> [pair const &]",
+                    "  <1,2> [pair]",
                     "    a = 1 [int]",
                     "    b = 2 [int]",
                     "",

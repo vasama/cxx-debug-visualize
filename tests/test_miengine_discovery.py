@@ -6,14 +6,14 @@ import tempfile
 import unittest
 from unittest import mock
 
-from cxx_debug_visualize.adapter import _EXECUTABLE, find_miengine
+from cxx_debug_visualize.adapter import _OPENDEBUGAD7_EXE, find_miengine
 
 
-class FindAdapterTests(unittest.TestCase):
-    # `find_miengine` searches the home directory, i.e. $HOME.
+class FindMIEngineTests(unittest.TestCase):
+    # `find_miengine` searches the home directory: $HOME, or on Windows %USERPROFILE%.
     def setUp(self):
         self.home = tempfile.mkdtemp(prefix="cxx-debug-visualize-home-")
-        home = mock.patch.dict(os.environ, {"HOME": self.home})
+        home = mock.patch.dict(os.environ, {"HOME": self.home, "USERPROFILE": self.home})
         home.start()
         self.addCleanup(home.stop)
 
@@ -26,7 +26,7 @@ class FindAdapterTests(unittest.TestCase):
             self.home, extensions_dir, "extensions", extension, "debugAdapters", "bin"
         )
         os.makedirs(bin_dir)
-        path = os.path.join(bin_dir, _EXECUTABLE)
+        path = os.path.join(bin_dir, _OPENDEBUGAD7_EXE)
         if with_adapter:
             open(path, "w").close()
             os.chmod(path, 0o755 if executable else 0o644)

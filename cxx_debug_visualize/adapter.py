@@ -3,14 +3,14 @@
 # This is the adapter behind the "cppdbg" debug type of the VS Code C/C++
 # extension (ms-vscode.cpptools); it is where natvis support is implemented.
 
-import glob
 import os
 import re
 import shutil
 import sys
 
-_EXTENSION_DIRS = (".vscode", ".vscode-server", ".vscode-insiders", ".vscode-server-insiders")
-_EXECUTABLE = "OpenDebugAD7.exe" if sys.platform == "win32" else "OpenDebugAD7"
+_OPENDEBUGAD7_EXE = "OpenDebugAD7.exe" if sys.platform == "win32" else "OpenDebugAD7"
+_VS_CODE_DIRECTORIES = (".vscode", ".vscode-server", ".vscode-insiders", ".vscode-server-insiders")
+_VS_CODE_CCXX_EXTENSION_RE = re.compile(r"ms-vscode\.cpptools-(\d+)\.(\d+)\.(\d+)(?:-.+)?")
 
 
 # The OpenDebugAD7 of the newest VS Code C/C++ extension installed in the user's home directory, or
@@ -19,21 +19,22 @@ _EXECUTABLE = "OpenDebugAD7.exe" if sys.platform == "win32" else "OpenDebugAD7"
 # The .vsix does not preserve permissions. The extension makes its binaries executable when it is
 # first activated, so versions VS Code has not yet activated (e.g. after an update) are skipped.
 def find_miengine() -> str | None:
-    candidates: list[str] = []
-    for directory in _EXTENSION_DIRS:
+    # (version, path) of each adapter found
+    candidates: list[tuple[tuple[int, ...], str]] = []
+
+    for directory in _VS_CODE_DIRECTORIES:
         extensions = os.path.join(os.path.expanduser("~"), directory, "extensions")
-        candidates += glob.glob(
-            os.path.join(
-                extensions, "ms-vscode.cpptools-[0-9]*", "debugAdapters", "bin", _EXECUTABLE
-            )
-        )
-    candidates = [path for path in candidates if os.access(path, os.X_OK)]
+        try:
+            entries = os.listdir(extensions)
+        except OSError:
+            continue
+        for entry_name in entries:
+            match = _VS_CODE_CCXX_EXTENSION_RE.fullmatch(entry_name)
+            path = os.path.join(extensions, entry_name, "debugAdapters", "bin", _OPENDEBUGAD7_EXE)
+            if match and os.access(path, os.X_OK):
+                candidates.append((tuple(int(n) for n in match.groups()), path))
 
-    def extract_version(path: str) -> tuple[int, ...]:
-        m = re.search(r"/ms-vscode\.cpptools-(\d+)\.(\d+)\.(\d+)-", path)
-        return tuple(int(n) for n in m.groups()) if m else (0, 0, 0)
-
-    return max(candidates, key=extract_version, default=None)
+    return max(candidates)[1] if candidates else None
 
 
 # lldb's own DAP server on PATH, or None if not found. LLVM 18 renamed it from lldb-vscode to

@@ -119,19 +119,22 @@ public:
   }
 };
 
-// The directory of the Debugging Tools for Windows, for the architecture of this program.
-std::wstring default_directory()
+std::filesystem::path default_dbgeng_dll_path()
 {
+  std::wstring_view const debuggers_path = L"Windows Kits\\10\\Debuggers";
+
 #if defined(_M_ARM64)
-  wchar_t const* const architecture = L"arm64";
+  static constexpr std::wstring_view architecture = L"arm64";
 #elif defined(_M_X64)
-  wchar_t const* const architecture = L"x64";
+  static constexpr std::wstring_view architecture = L"x64";
 #else
-  wchar_t const* const architecture = L"x86";
+  static constexpr std::wstring_view architecture = L"x86";
 #endif
+
   wchar_t program_files[MAX_PATH] = L"C:\\Program Files (x86)";
   GetEnvironmentVariableW(L"ProgramFiles(x86)", program_files, MAX_PATH);
-  return std::wstring(program_files) + L"\\Windows Kits\\10\\Debuggers\\" + architecture;
+
+  return std::filesystem::path(program_files) / debuggers_path / architecture / "dbgeng.dll";
 }
 
 // An argument quoted for the command line, as CommandLineToArgvW and the C runtime parse it.
@@ -233,7 +236,7 @@ static std::string format(VARIANT const& v, bool const pointer)
     return std::format("0x{:08x}", v.ulVal);
 
   if (pointer && v.vt == VT_UI8)
-      return std::format("0x{:016x}", v.ullVal);
+    return std::format("0x{:016x}", v.ullVal);
 
   switch (v.vt)
   {
@@ -361,7 +364,7 @@ std::string debugger::display(IModelObject* const object)
     {
       std::string const target_text = display(target.Get());
       if (!target_text.empty() && target_text != "{...}")
-        formatted += " " + target_text;
+        formatted += std::format(" {}", target_text);
     }
     return formatted;
   }
@@ -404,6 +407,7 @@ std::vector<value> debugger::children(IModelObject* object)
       ModelObjectKind kind;
       if (SUCCEEDED(child->GetKind(&kind)) && kind == ObjectNoValue)
         expanded = true;
+
       if (shown(child.Get(), metadata.Get()))
         result.push_back(make_value(narrow(name.str()), child.Get()));
     }
@@ -432,12 +436,18 @@ std::vector<value> debugger::children(IModelObject* object)
       std::string name = indexers.empty() ? std::to_string(i) : "";
       for (IModelObject* const indexer : indexers)
       {
-        name += (name.empty() ? "" : ",") + (indexer ? display(indexer) : "");
+        if (!name.empty())
+          name += ',';
+
         if (indexer)
+        {
+          name += display(indexer);
           indexer->Release();
+        }
       }
+
       if (!name.starts_with('['))
-        name = "[" + name + "]";
+        name = std::format("[{}]", name);
 
       result.push_back(make_value(name, element.Get()));
     }
@@ -468,23 +478,20 @@ std::vector<value> debugger::children(IModelObject* object)
 
 debugger::debugger(std::string const& path)
 {
-  // `path` may also name a file in the directory, such as cdb.exe.
-  std::wstring directory = path.empty() ? default_directory() : widen(path);
-  DWORD const attributes = GetFileAttributesW(directory.c_str());
-  if (attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY))
-    directory.erase(std::min(directory.find_last_of(L"\\/"), directory.size()));
+  auto const dll = path.empty() ? default_dbgeng_dll_path() : std::filesystem::path(path);
 
   // With dbgeng.dll's own directory searched first for the DLLs it loads (dbghelp.dll,
   // dbgmodel.dll), rather than the older versions in System32.
-  std::wstring const dll = directory + L"\\dbgeng.dll";
   HMODULE const dbgeng = LoadLibraryExW(dll.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
-  if (!dbgeng)
-    throw std::runtime_error("cannot load " + narrow(dll) +
-                             "; install the Debugging Tools for Windows");
+  if (dbgeng == NULL)
+    throw std::runtime_error(std::format("cannot load {}; install the Debugging Tools for Windows",
+                                         dll.string()));
+
   auto const create = reinterpret_cast<decltype(&DebugCreate)>(
       reinterpret_cast<void*>(GetProcAddress(dbgeng, "DebugCreate")));
+
   if (!create)
-    fail("finding DebugCreate in " + narrow(dll), HRESULT_FROM_WIN32(GetLastError()));
+    fail(std::format("finding DebugCreate in {}", dll.string()), HRESULT_FROM_WIN32(GetLastError()));
 
   check(create(__uuidof(IDebugClient5), &m_client), "DebugCreate");
   check(m_client.As(&m_control), "IDebugControl4");
@@ -523,32 +530,34 @@ debugger::~debugger()
   m_client->SetOutputCallbacksWide(nullptr);
 }
 
-void debugger::launch(std::string const& program, std::vector<std::string> const& args,
-                      std::string const& cwd)
+void debugger::launch(std::filesystem::path const& program, std::vector<std::string> const& args,
+                      std::filesystem::path const& cwd)
 {
-  std::wstring const path = widen(program);
-
   // Symbols only from next to the program, not from Microsoft's symbol server (for system DLLs), so
   // that nothing is downloaded; with source line information.
-  std::wstring const directory = path.substr(0, std::min(path.find_last_of(L"\\/"), path.size()));
-  check(m_symbols->SetSymbolPathWide(directory.c_str()), "SetSymbolPath");
+  auto const program_directory = program.parent_path();
+
+  check(m_symbols->SetSymbolPathWide(program_directory.c_str()), "SetSymbolPath");
   check(m_symbols->AddSymbolOptions(SYMOPT_LOAD_LINES), "AddSymbolOptions");
 
-  std::wstring command_line = quote(path);
+  std::wstring command_line = quote(program.native());
   for (std::string const& arg : args)
-    command_line += L" " + quote(widen(arg));
-  std::wstring const directory_to_run_in = widen(cwd);
+  {
+      command_line += L' ';
+      command_line += quote(widen(arg));
+  }
+
   DEBUG_CREATE_PROCESS_OPTIONS options = {};
   options.CreateFlags = DEBUG_ONLY_THIS_PROCESS;
   check(m_client->CreateProcess2Wide(0, command_line.data(), &options, sizeof options,
-                                     cwd.empty() ? nullptr : directory_to_run_in.c_str(), nullptr),
+                                     cwd.empty() ? nullptr : cwd.c_str(), nullptr),
         "CreateProcess");
   check(m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE), "WaitForEvent");
 
   // Load the program's symbols now: the engine defers loading them until they are needed, and
   // finding the code for a line does not count.
-  std::wstring const image = path.substr(path.find_last_of(L"\\/") + 1);
-  check(m_symbols->ReloadWide(std::format(L"/f {}", image).c_str()), "loading symbols");
+  check(m_symbols->ReloadWide(std::format(L"/f {}", program.filename().native()).c_str()),
+        "loading symbols");
 
   m_output.flush();
 }
@@ -589,40 +598,58 @@ uint32_t debugger::set_breakpoint(std::string const& file, uint32_t line)
 
 stop_info debugger::run()
 {
-  check(m_control->SetExecutionStatus(DEBUG_STATUS_GO), "SetExecutionStatus");
-  HRESULT const hr = m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE);
+  // Continuing after an exception does not handle it, which would run the faulting code again:
+  // the program gets the exception, and one it does not handle ends it.
+  ULONG status = std::exchange(m_exception, false) ? DEBUG_STATUS_GO_NOT_HANDLED
+                                                   : DEBUG_STATUS_GO;
 
-  ULONG type = 0;
-  ULONG process = 0;
-  ULONG thread = 0;
-  union
+  while (true)
   {
-    DEBUG_LAST_EVENT_INFO_EXIT_PROCESS exit;
-    DEBUG_LAST_EVENT_INFO_EXCEPTION exception;
-  } extra = {};
-  char description[512] = "";
+    check(m_control->SetExecutionStatus(status), "SetExecutionStatus");
+    HRESULT const hr = m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE);
 
-  // Without a program, as after it has exited, waiting fails.
-  if (FAILED(hr) ||
-      FAILED(m_control->GetLastEventInformation(&type,
-                                                &process,
-                                                &thread,
-                                                &extra,
-                                                sizeof(extra),
-                                                /*ExtraInformationUsed=*/nullptr,
-                                                description,
-                                                sizeof(description),
-                                                /*DescriptionUsed=*/nullptr)))
-    return {stop_reason::exited};
+    ULONG type = 0;
+    ULONG process = 0;
+    ULONG thread = 0;
+    union
+    {
+      DEBUG_LAST_EVENT_INFO_EXIT_PROCESS exit;
+      DEBUG_LAST_EVENT_INFO_EXCEPTION exception;
+    } extra = {};
+    char description[512] = "";
 
-  if (type == DEBUG_EVENT_EXIT_PROCESS)
-    return {stop_reason::exited, "", extra.exit.ExitCode};
+    // Without a program, as after it has exited, waiting fails.
+    if (FAILED(hr) ||
+        FAILED(m_control->GetLastEventInformation(&type,
+                                                  &process,
+                                                  &thread,
+                                                  &extra,
+                                                  sizeof(extra),
+                                                  /*ExtraInformationUsed=*/nullptr,
+                                                  description,
+                                                  sizeof(description),
+                                                  /*DescriptionUsed=*/nullptr)))
+      return {stop_reason::exited};
 
-  if (type == DEBUG_EVENT_BREAKPOINT)
-    return {stop_reason::breakpoint};
+    if (type == DEBUG_EVENT_EXIT_PROCESS)
+      return {stop_reason::exited, "", extra.exit.ExitCode};
 
-  // e.g. "Access violation - code c0000005 (first chance)"
-  return {stop_reason::exception, description};
+    if (type == DEBUG_EVENT_BREAKPOINT)
+      return {stop_reason::breakpoint};
+
+    // An exception the program may still handle (its first chance) is given to it. If it does not
+    // handle it, the program stops again (its second chance), so that a crash stops it once.
+    if (type == DEBUG_EVENT_EXCEPTION && extra.exception.FirstChance)
+    {
+      status = DEBUG_STATUS_GO_NOT_HANDLED;
+      continue;
+    }
+
+    // E.g. "Access violation - code c0000005 (!!! second chance !!!)"
+    m_exception = true;
+
+    return {stop_reason::exception, description};
+  }
 }
 
 frame debugger::top_frame()

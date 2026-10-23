@@ -1,13 +1,13 @@
 visualize(map) at test_custom_list.cpp:17
   { size=4 } [mylib::hash_map<int>]
-    [bucket_count] = 4 [unsigned __int64]
+    [bucket_count] = 4 [unsigned int]
     [9] = 90 [int]
     [5] = 50 [int]
     [1] = 10 [int]
     [2] = 20 [int]
 visualize(empty_map) at test_custom_list.cpp:23
   { size=0 } [mylib::hash_map<int>]
-    [bucket_count] = 4 [unsigned __int64]
+    [bucket_count] = 4 [unsigned int]
 visualize(values) at test_custom_list.cpp:33
   { size=4 } [mylib::variant_array]
     [0] = 1 [int]

@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
             elif ns.lldb_formatters:
                 ns.debugger = "lldb"
             else:
-                ns.debugger = "dbgeng" if os.name == 'nt' else "gdb"
+                ns.debugger = "dbgeng" if os.name == "nt" else "gdb"
 
         if ns.debugger is None:
             print("error: cannot deduce debugger type; use --debugger to specify", file=sys.stderr)

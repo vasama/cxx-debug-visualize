@@ -39,8 +39,9 @@ class adapter
   std::optional<debugger> m_debugger;
   // the children of each evaluated value, by variablesReference - 1, until the program runs
   std::vector<std::vector<value>> m_children;
-  // run after responding to the current request
-  std::function<void()> m_continuation;
+
+  using continuation_type = void(adapter::*)();
+  continuation_type m_continuation = nullptr;
 
 public:
   [[nodiscard]] static int run()
@@ -100,6 +101,11 @@ private:
 
   // -- Requests --------------------------------------------------------------
 
+  void send_initialized()
+  {
+      event("initialized");
+  }
+
   json on_initialize(json const&)
   {
     return {{"supportsConfigurationDoneRequest", true}};
@@ -117,10 +123,10 @@ private:
     {
       std::string const error = m_debugger->load_natvis(natvis);
       if (!error.empty())
-        event("output", {{"category", "console"}, {"output", "[Natvis] " + error + "\n"}});
+        event("output", {{"category", "console"}, {"output", std::format("[Natvis] {}\n", error)}});
     }
 
-    m_continuation = [this] { event("initialized"); };
+    m_continuation = &adapter::send_initialized;
     return json::object();
   }
 
@@ -152,7 +158,7 @@ private:
 
   json on_configurationDone(json const&)
   {
-    m_continuation = [this] { run_debuggee(); };
+    m_continuation = &adapter::run_debuggee;
     return json::object();
   }
 
@@ -209,7 +215,7 @@ private:
 
   json on_continue(json const&)
   {
-    m_continuation = [this] { run_debuggee(); };
+    m_continuation = &adapter::run_debuggee;
     return {{"allThreadsContinued", true}};
   }
 
@@ -249,8 +255,8 @@ private:
 
   int run_impl()
   {
-    using handler = json (adapter::*)(json const&);
-    using handler_pair = std::pair<std::string_view, handler>;
+    using handler_type = json (adapter::*)(json const&);
+    using handler_pair = std::pair<std::string_view, handler_type>;
 
     static constexpr handler_pair handlers[] =
     {
@@ -279,7 +285,7 @@ private:
       {
           auto const it = std::ranges::find(handlers, command, &handler_pair::first);;
           if (it == std::end(handlers))
-              throw std::runtime_error("unsupported request: " + command);
+              throw std::runtime_error(std::format("unsupported request: {}", command));
 
           response["body"] = (this->*it->second)(request->value("arguments", json::object()));
       }
@@ -289,20 +295,19 @@ private:
           response["message"] = e.what();
       }
 
+      auto const continuation = std::exchange(m_continuation, nullptr);
+
       send(std::move(response));
 
-      if (m_continuation)
+      if (continuation)
       {
-        auto const then = std::move(m_continuation);
-        m_continuation = nullptr;
-
         try
         {
-          then();
+          (this->*continuation)();
         }
         catch (std::exception const& e)
         {
-          event("output", {{"category", "stderr"}, {"output", std::string(e.what()) + "\n"}});
+          event("output", {{"category", "stderr"}, {"output", std::format("{}\n", e.what())}});
           event("terminated");
         }
       }

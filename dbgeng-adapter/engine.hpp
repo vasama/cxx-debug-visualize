@@ -2,6 +2,7 @@
 // applies natvis visualizers.
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -79,6 +80,9 @@ class debugger
   // Metadata for showing integers in decimal, as other debuggers do.
   Microsoft::WRL::ComPtr<IKeyStore> m_decimal;
 
+  // Whether the program stopped at an exception, which it is given back when it runs again.
+  bool m_exception = false;
+
   // Run a command, and return what it printed.
   std::string execute(std::wstring const& command);
 
@@ -95,8 +99,8 @@ public:
   ~debugger();
 
   // Start the program, stopped before it runs any of its own code.
-  void launch(std::string const& program, std::vector<std::string> const& args,
-              std::string const& cwd);
+  void launch(std::filesystem::path const& program, std::vector<std::string> const& args,
+              std::filesystem::path const& cwd);
 
   // Load a natvis file; return what the engine printed if that failed, else "".
   std::string load_natvis(std::string_view path);
